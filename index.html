@@ -30,9 +30,9 @@
 
         /* --- GERAL --- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg-color); color: var(--text-main); margin: 0;
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--bg-color); color: var(--text-main); margin: 0; 
             display: flex; flex-direction: column; height: 100vh; overflow: hidden;
             transition: background 0.3s, color 0.3s;
         }
@@ -42,15 +42,15 @@
             background: var(--panel-color);
             z-index: 50; padding: 12px;
             transition: opacity 0.3s, background 0.3s;
-            max-height: 85vh;
+            max-height: 85vh; 
             overflow-y: auto;
             flex-shrink: 0;
             border-bottom: 1px solid var(--border-color);
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
-
+        
         #ui-toggle-bar {
-            background: var(--panel-color); color: var(--text-dim);
+            background: var(--panel-color); color: var(--text-dim); 
             text-align: center; padding: 2px 0; border-top: 1px solid var(--border-color);
             cursor: pointer; border-bottom: 1px solid var(--border-color); z-index: 51;
             font-size: 1.2rem; line-height: 1; user-select: none; flex-shrink: 0;
@@ -60,7 +60,7 @@
 
         /* INPUTS & GRUPOS */
         .control-group { display: flex; gap: 8px; margin-bottom: 10px; }
-
+        
         .modern-input {
             background: var(--input-bg); border: 1px solid var(--border-color);
             color: var(--text-main); padding: 10px 12px; border-radius: var(--radius);
@@ -92,25 +92,25 @@
         .toggle-arrow.collapsed { transform: rotate(180deg); }
 
         .scroll-list {
-            display: flex; flex-direction: column;
+            display: flex; flex-direction: column; 
             padding: 0; gap: 0;
             max-height: 50vh; overflow-y: auto; transition: max-height 0.3s ease;
         }
         .scroll-list.hidden { max-height: 0; padding: 0; }
 
         .video-item {
-            display: flex; gap: 10px; padding: 10px;
-            background: transparent; cursor: pointer; align-items: flex-start;
+            display: flex; gap: 10px; padding: 10px; 
+            background: transparent; cursor: pointer; align-items: flex-start; 
             border-bottom: 1px solid var(--border-color); transition: background 0.2s;
             position: relative;
         }
         .video-item:active { background: rgba(255,255,255,0.05); }
-
+        
         .video-thumb-wrapper { position: relative; width: 100px; height: 56px; flex-shrink: 0; }
         .video-thumb { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
         .video-duration {
-            position: absolute; bottom: 2px; right: 2px;
-            background: rgba(0,0,0,0.85); color: #fff;
+            position: absolute; bottom: 2px; right: 2px; 
+            background: rgba(0,0,0,0.85); color: #fff; 
             font-size: 0.65rem; padding: 1px 3px; border-radius: 2px;
         }
         .video-info { flex-grow: 1; overflow: hidden; }
@@ -132,7 +132,7 @@
 
         /* ARQUIVOS & BOTÕES */
         .grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-
+        
         .file-label {
             background: var(--input-bg); border: 1px solid var(--border-color);
             padding: 12px; border-radius: var(--radius); text-align: center;
@@ -144,24 +144,24 @@
         .file-label span { font-size: 1.2rem; }
 
         .btn-external {
-            border: none; padding: 12px; border-radius: var(--radius);
+            border: none; padding: 12px; border-radius: var(--radius); 
             font-size: 0.8rem; font-weight: 600; cursor: pointer; text-align: center; color: #fff;
             display: flex; align-items: center; justify-content: center; gap: 6px;
             text-decoration: none;
         }
-        .btn-yt-dl { background: #c0392b; }
-
-        .btn-reset {
-            background: var(--input-bg); border: 1px solid var(--border-color); color: #e74c3c; width: 100%;
+        .btn-yt-dl { background: #c0392b; } 
+        
+        .btn-reset { 
+            background: var(--input-bg); border: 1px solid var(--border-color); color: #e74c3c; width: 100%; 
             padding: 10px; border-radius: var(--radius); font-weight: bold; margin-top: 5px; cursor: pointer;
         }
-
+        
         #btn-fav-current {
             background: var(--success); color: #fff; width: 100%; padding: 10px;
             border-radius: var(--radius); font-weight: bold; margin-bottom: 10px;
             border: none; display: none; cursor: pointer;
         }
-
+        
         /* BOTÃO DE BAIXAR VOCABULÁRIO */
         #btn-dl-vocab {
             background: #8e44ad; color: #fff; width: 100%; padding: 10px;
@@ -169,8 +169,8 @@
             border: none; cursor: pointer;
         }
 
-        #resume-status {
-            font-size: 0.75rem; color: var(--success); text-align: center; margin: 8px 0; display: none;
+        #resume-status { 
+            font-size: 0.75rem; color: var(--success); text-align: center; margin: 8px 0; display: none; 
             background: rgba(46, 204, 113, 0.1); padding: 4px; border-radius: 4px;
         }
 
@@ -181,12 +181,12 @@
         }
         .style-group { display: flex; align-items: center; gap: 8px; }
         .font-btn {
-            background: var(--panel-color); color: var(--text-main); border: 1px solid var(--border-color);
-            width: 32px; height: 32px; border-radius: 4px; font-weight: bold;
+            background: var(--panel-color); color: var(--text-main); border: 1px solid var(--border-color); 
+            width: 32px; height: 32px; border-radius: 4px; font-weight: bold; 
             cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
-        .color-picker-wrapper {
-            display: flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--text-dim);
+        .color-picker-wrapper { 
+            display: flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--text-dim); 
             background: var(--panel-color); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);
         }
         input[type="color"] { border: none; width: 20px; height: 20px; background: none; padding: 0; cursor: pointer; }
@@ -194,13 +194,13 @@
         input[type="file"] { display: none; }
 
         /* --- ÁREA DO VÍDEO --- */
-        #video-wrapper {
-            position: relative; flex-grow: 1; display: flex;
-            align-items: center; justify-content: center; background: #000;
+        #video-wrapper { 
+            position: relative; flex-grow: 1; display: flex; 
+            align-items: center; justify-content: center; background: #000; 
             overflow: hidden; width: 100%; height: 100%;
         }
         video { width: 100%; max-height: 100%; object-fit: contain; display: block; }
-
+        
         #yt-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; z-index: 1; }
         iframe { width: 100%; height: 100%; border: none; pointer-events: none; }
 
@@ -215,19 +215,19 @@
         /* --- LEGENDAS --- */
         #subtitle-container {
             position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%);
-            width: auto; min-width: 80%; max-width: 96%; z-index: 20;
+            width: auto; min-width: 80%; max-width: 96%; z-index: 20; 
             display: flex; flex-direction: column; align-items: center;
         }
         .subtitle-box {
             background-color: rgba(0, 0, 0, 0.75); color: #ffffff;
             padding: 0 14px 10px 14px; border-radius: 12px;
-            pointer-events: auto; user-select: none; -webkit-user-select: none; touch-action: none;
+            pointer-events: auto; user-select: none; -webkit-user-select: none; touch-action: none; 
             line-height: 1.45; text-align: center; position: relative;
-            transition: background-color 0.3s, color 0.3s;
+            transition: background-color 0.3s, color 0.3s; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.4);
             font-size: 1.2rem; backdrop-filter: blur(2px);
         }
-
+        
         #drag-handle {
             width: 50px; height: 4px; background-color: rgba(255,255,255,0.2);
             margin: 6px auto 8px auto; border-radius: 10px; cursor: move; position: relative;
@@ -244,7 +244,7 @@
         .translate-btn {
             display: inline-flex; align-items: center; justify-content: center;
             background: #fff; color: #000; border-radius: 50%;
-            width: 22px; height: 22px; margin-left: 8px;
+            width: 22px; height: 22px; margin-left: 8px; 
             font-size: 12px; cursor: pointer; vertical-align: middle; opacity: 0.9;
         }
 
@@ -259,7 +259,7 @@
         }
         #phrase-orig { font-weight: bold; color: #555; margin-bottom: 6px; font-size: 0.9rem; }
         #phrase-trans { font-size: 1.3rem; font-weight: 800; color: #000; line-height: 1.2; margin-bottom: 15px; }
-
+        
         /* Botões do Card */
         .trans-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
         .btn-card { padding: 8px 15px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
@@ -272,7 +272,7 @@
             font-size: 4rem; opacity: 0; transition: opacity 0.3s; pointer-events: none;
             text-shadow: 0 0 15px rgba(0,0,0,0.8); z-index: 50;
         }
-
+        
         @media (orientation: landscape) {
             #controls-wrapper { display: none; }
             #ui-toggle-bar { display: none; }
@@ -289,7 +289,7 @@
             <button class="icon-btn btn-fav" onclick="toggleFavorites()" title="Meus Favoritos">⭐</button>
             <button class="icon-btn" onclick="toggleTheme()" title="Mudar Tema">🌗</button> <button class="icon-btn" onclick="openApiConfig()">🔑</button>
         </div>
-
+        
         <div id="api-key-config">
             <p style="margin:0 0 5px 0; color:#888;">⚠️ <b>API Key YouTube</b> necessária para busca:</p>
             <input type="text" id="api-key-input" class="modern-input" placeholder="Cole sua API Key aqui">
@@ -329,11 +329,11 @@
         <div class="grid-row" style="grid-template-columns: 1fr;">
             <button class="btn-external btn-yt-dl" onclick="openExternalDownSub()">⬇️ Baixar Legenda YouTube (DownSub)</button>
         </div>
-
+        
         <button id="btn-dl-vocab" onclick="downloadVocabulary()">📥 Baixar Lista de Vocabulário (.txt)</button>
 
         <div id="resume-status"></div>
-
+        
         <div id="style-controls">
             <div class="style-group">
                 <button class="font-btn" onclick="changeFontSize(-0.1)">A-</button>
@@ -356,7 +356,7 @@
         <div id="gesture-layer"></div>
         <button id="unlock-yt-btn" onclick="toggleYtControls()">⚙️ Controles YouTube</button>
         <div id="gesture-feedback">⏪</div>
-
+        
         <div id="subtitle-container">
             <div class="subtitle-box" id="subtitle-box">
                 <div id="drag-handle"></div>
@@ -389,10 +389,10 @@
         let favorites = JSON.parse(localStorage.getItem('ejoy_favs')) || [];
         let videoHistory = JSON.parse(localStorage.getItem('ejoy_vid_history')) || {};
 
-        let currentTranslateSource = "";
+        let currentTranslateSource = ""; 
         let currentPlayingYT = null;
         let YOUTUBE_API_KEY = localStorage.getItem('ejoy_api_key') || "";
-        let currentVideoURL = null;
+        let currentVideoURL = null; 
         let currentFontSize = 1.2;
         let subtitles = [];
         let playerType = 'local';
@@ -427,7 +427,7 @@
 
         // UI Helpers
         function changeFontSize(d) { currentFontSize+=d; if(currentFontSize<0.5)currentFontSize=0.5; if(currentFontSize>3)currentFontSize=3; subBox.style.fontSize=currentFontSize+'rem'; }
-        function toggleMainUI() {
+        function toggleMainUI() { 
             const c = document.getElementById('controls-wrapper'); const b = document.getElementById('ui-toggle-bar');
             if(c.style.display==='none'){c.style.display='block';b.innerText='🔼'}else{c.style.display='none';b.innerText='🔽'}
         }
@@ -440,7 +440,7 @@
             if(k){YOUTUBE_API_KEY=k;localStorage.setItem('ejoy_api_key',k);apiKeyConfig.style.display='none';alert("Salvo!");}
         }
         function openApiConfig(){apiKeyConfig.style.display='block';document.getElementById('api-key-input').value=YOUTUBE_API_KEY}
-
+        
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
             localStorage.setItem('ejoy_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
@@ -452,15 +452,15 @@
             if(!vocabList.includes(currentTranslateSource)){vocabList.push(currentTranslateSource);localStorage.setItem('ejoy_vocab',JSON.stringify(vocabList));document.getElementById('btn-save-vocab').innerText="✅";setTimeout(()=>document.getElementById('btn-save-vocab').innerText="💾 Salvar",1500);}
             else{alert("Já salvo");}
         }
-
+        
         // MODIFICADO: \n\n
         function downloadVocabulary() {
             if(!vocabList.length){alert("Vazio");return;}
             const b=new Blob([vocabList.join('\n\n')],{type:'text/plain'});
             const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='vocab.txt';document.body.appendChild(a);a.click();document.body.removeChild(a);
         }
-
-        function toggleFavorites() {
+        
+        function toggleFavorites() { 
             const c=document.getElementById('favorites-container'); c.style.display = c.style.display==='block'?'none':'block';
             if(c.style.display==='block') renderFavorites();
         }
@@ -474,7 +474,7 @@
                 favoritesList.appendChild(d);
             });
         }
-
+        
         // MODIFICADO: Salvar Legendas
         function addCurrentToFavorites() {
             if (!currentPlayingYT) return;
@@ -484,9 +484,9 @@
                 savedSubs: (subtitles && subtitles.length > 0) ? subtitles : null
             };
 
-            if (existingIdx !== -1) { favorites[existingIdx] = favObj; alert("Atualizado (com legenda)!"); }
+            if (existingIdx !== -1) { favorites[existingIdx] = favObj; alert("Atualizado (com legenda)!"); } 
             else { favorites.push(favObj); alert("Favoritado!"); }
-
+            
             try {
                 localStorage.setItem('ejoy_favs', JSON.stringify(favorites));
                 renderFavorites();
@@ -518,7 +518,7 @@
                 const res=await fetch(u); const d=await res.json(); loader.remove();
                 if(d.error){alert(d.error.message);return;}
                 nextPageToken=d.nextPageToken||"";
-
+                
                 const videoIds = d.items.map(item => item.id.videoId).join(',');
                 let videosData = {};
                 if (videoIds) {
@@ -536,7 +536,7 @@
                 });
             } catch(e){loader.innerText="Erro";} finally{isFetching=false;}
         }
-
+        
         function parseDuration(pt) {
             const match = pt.match(/PT(\d+H)?(\d+M)?(\d+S)?/); if (!match) return "";
             const h = (match[1] || '').replace('H', ''); const m = (match[2] || '').replace('M', ''); const s = (match[3] || '').replace('S', '');
@@ -550,16 +550,15 @@
         // Player Logic
         function loadYouTubeFromInput() { const v=extractVideoID(ytInput.value); if(v) loadYouTube(v,"Link",""); else alert("Link inválido"); }
         function extractVideoID(u){ const m=u.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/); return (m&&m[2].length===11)?m[2]:null;}
-
+        
         function onYouTubeIframeAPIReady(){}
-
+        
         // =========================
-        // AUTO-LEGENDAS YOUTUBE (EN)
+        // AUTO-LEGENDAS YOUTUBE (EN) - SEM CRIAR NADA EXTERNO
         // =========================
-        // Importante: em páginas locais/arquivos (file://) ou hospedagens sem CORS permissivo,
-        // o browser pode bloquear o fetch do timedtext do YouTube por CORS.
-        // Aqui fazemos "best effort" com fallback via proxy de leitura (r.jina.ai).
-        // Se mesmo assim falhar, o usuário ainda tem o botão DownSub.
+        // Limitação real: YouTube frequentemente bloqueia CORS (principalmente iPhone).
+        // Aqui fazemos best-effort e, se falhar, tentamos DownSub automaticamente e,
+        // por último, abrimos DownSub para download manual.
         const AUTO_SUBS_LANGS = ['en', 'en-US', 'en-GB'];
 
         function setResumeStatus(msg, ok=true) {
@@ -570,47 +569,29 @@
             el.innerText = msg;
         }
 
-        async function fetchTextWithTimeout(url, timeoutMs=8000) {
+        async function fetchTextWithTimeout(url, timeoutMs=10000) {
             const controller = new AbortController();
             const t = setTimeout(()=>controller.abort(), timeoutMs);
             try {
                 const res = await fetch(url, { signal: controller.signal });
-                const txt = await res.text();
-                return txt;
-            } finally {
-                clearTimeout(t);
-            }
+                return await res.text();
+            } finally { clearTimeout(t); }
         }
 
         function looksLikeVtt(text) {
             if(!text) return false;
             const t = text.trim();
             if(!t) return false;
-            // VTT normalmente começa com WEBVTT, mas alguns retornos podem vir sem header
-            // então checamos presença de "-->" em algum lugar
-            if(t.includes('-->')) return true;
-            return false;
+            return t.includes('-->');
         }
 
         function normalizeVttToSrtLike(vtt) {
-            // Remove header WEBVTT e metadados, e remove "cue identifiers"
             let t = (vtt || '').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-
-            // remove BOM
             t = t.replace(/^\uFEFF/, '');
-
-            // remove WEBVTT header line
             t = t.replace(/^WEBVTT[^\n]*\n+/i, '');
-
-            // remove NOTE blocks
             t = t.replace(/(^|\n)NOTE[\s\S]*?(?=\n\n|$)/g, '\n\n');
-
-            // remove STYLE/REGION blocks (alguns VTTs têm)
             t = t.replace(/(^|\n)(STYLE|REGION)[\s\S]*?(?=\n\n|$)/g, '\n\n');
 
-            // Remover linhas de identificador de cue:
-            // Estratégia simples: em cada bloco separado por linha vazia,
-            // se a primeira linha NÃO contém "-->" e a segunda contém "-->", remove a primeira.
             const blocks = t.split(/\n{2,}/).map(b=>b.trim()).filter(Boolean);
             const cleaned = blocks.map(block=>{
                 const lines = block.split('\n');
@@ -624,36 +605,68 @@
         }
 
         async function tryLoadTimedTextVtt(videoId, lang, kindAsr=false) {
-            const base = `https://www.youtube.com/api/timedtext?fmt=vtt&v=${encodeURIComponent(videoId)}&lang=${encodeURIComponent(lang)}` + (kindAsr ? `&kind=asr` : '');
+            const base =
+              `https://www.youtube.com/api/timedtext?fmt=vtt&v=${encodeURIComponent(videoId)}&lang=${encodeURIComponent(lang)}`
+              + (kindAsr ? `&kind=asr` : '');
+
             const candidates = [
                 base,
-                // Fallback via "reader proxy" (muitas vezes contorna CORS)
                 `https://r.jina.ai/${base}`
             ];
 
             for(const url of candidates) {
                 try {
-                    const raw = await fetchTextWithTimeout(url, 9000);
+                    const raw = await fetchTextWithTimeout(url, 12000);
+                    if(!raw || !raw.trim()) continue;
                     if(!looksLikeVtt(raw)) continue;
 
                     const normalized = normalizeVttToSrtLike(raw);
                     const parsed = parseSubtitles(normalized);
-
                     if(parsed && parsed.length > 0) return parsed;
-                } catch(e) {
-                    // tenta próximo
-                }
+                } catch(e) {}
+            }
+            return null;
+        }
+
+        // --- DownSub fallback (best effort) ---
+        async function tryLoadFromDownSub(videoId) {
+            const ytUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+            const downsubPage = `https://downsub.com/?url=${encodeURIComponent(ytUrl)}`;
+
+            // tenta ler via r.jina.ai para evitar CORS
+            const readerUrl = `https://r.jina.ai/${downsubPage}`;
+
+            try {
+                const html = await fetchTextWithTimeout(readerUrl, 15000);
+                if(!html) return null;
+
+                // captura URLs srt no HTML
+                const srtLinks = Array.from(html.matchAll(/https?:\/\/[^\s"'<>]+\.srt[^\s"'<>]*/gi)).map(m=>m[0]);
+                if(!srtLinks.length) return null;
+
+                // preferir EN quando possível
+                let chosen =
+                    srtLinks.find(u => /(\ben\b|lang=en|english|=en[\W]|\/en[\W])/i.test(u)) ||
+                    srtLinks[0];
+
+                const srtText = await fetchTextWithTimeout(chosen, 15000);
+                if(!srtText || !srtText.trim()) return null;
+
+                const parsed = parseSubtitles(srtText);
+                if(parsed && parsed.length > 0) return parsed;
+
+            } catch(e) {
+                return null;
             }
             return null;
         }
 
         async function autoLoadYouTubeEnglishSubs(videoId) {
-            // não sobrescreve se já tiver legenda (ex: favorita com savedSubs)
             if(subtitles && subtitles.length > 0) return;
 
             setResumeStatus('⏳ Buscando legenda em inglês...', true);
 
-            // 1) tenta legendas "humanas" (se existirem)
+            // 1) legendas humanas
             for(const lang of AUTO_SUBS_LANGS) {
                 const got = await tryLoadTimedTextVtt(videoId, lang, false);
                 if(got && got.length) {
@@ -663,7 +676,7 @@
                 }
             }
 
-            // 2) tenta "auto captions" (ASR) do YouTube
+            // 2) auto captions (asr)
             for(const lang of AUTO_SUBS_LANGS) {
                 const got = await tryLoadTimedTextVtt(videoId, lang, true);
                 if(got && got.length) {
@@ -673,11 +686,21 @@
                 }
             }
 
-            // 3) falhou
-            setResumeStatus('⚠️ Não consegui puxar a legenda automaticamente (CORS/indisponível). Use o botão DownSub.', false);
+            // 3) fallback DownSub
+            setResumeStatus('⏳ Tentando DownSub automaticamente...', true);
+            const gotDownSub = await tryLoadFromDownSub(videoId);
+            if(gotDownSub && gotDownSub.length) {
+                subtitles = gotDownSub;
+                setResumeStatus('✅ Legenda EN carregada via DownSub', true);
+                return;
+            }
+
+            // 4) último fallback: abrir DownSub pro usuário
+            setResumeStatus('⚠️ Não consegui puxar automático. Abrindo DownSub...', false);
+            window.open(`https://downsub.com/?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`, '_blank');
         }
         // =========================
-
+        
         // MODIFICADO: Carregar Legendas Salvas e Resume + AUTO SUBS
         function loadYouTube(vid,title,thumb, savedSubs=null) {
             subtitles=[]; subContent.innerHTML=""; playerType='youtube';
@@ -686,14 +709,13 @@
             ytContainer.style.display='flex'; gestureLayer.style.display='block'; unlockBtn.style.display='block'; ytControlsLocked=true;
             currentPlayingYT={id:vid,title:title||"Video",thumb:thumb||""}; btnFavCurrent.style.display='block';
             localStorage.setItem('ejoy_ytUrl',`https://www.youtube.com/watch?v=${vid}`); localStorage.setItem('ejoy_mode','youtube');
-
+            
             // Subs
             if(savedSubs && savedSubs.length>0) {
                 subtitles = savedSubs;
-                document.getElementById('resume-status').style.display='block';
+                document.getElementById('resume-status').style.display='block'; 
                 document.getElementById('resume-status').innerText='✅ Legenda Salva';
             } else {
-                // AUTO: buscar legenda EN automaticamente
                 autoLoadYouTubeEnglishSubs(vid);
             }
 
@@ -743,14 +765,13 @@
         document.getElementById('subInput').onchange = e => {
             const f=e.target.files[0]; if(f){
                 const r=new FileReader(); r.onload=res=>{
-                    subtitles=parseSubtitles(res.target.result);
+                    subtitles=parseSubtitles(res.target.result); 
                     if(subtitles.length) { document.getElementById('resume-status').style.display='block'; document.getElementById('resume-status').innerText='✅ Legenda OK'; alert("Legenda Carregada!"); }
                 }; r.readAsText(f);
             }
         };
         function parseSubtitles(t) {
-            t=t.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-            const p=/(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})\s-->\s(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})[^\n]*\n([\s\S]*?)(?=\n\n|$)/g;
+            t=t.replace(/\r\n/g,'\n').replace(/\r/g,'\n'); const p=/(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})\s-->\s(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})[^\n]*\n([\s\S]*?)(?=\n\n|$)/g;
             const res=[]; let m;
             while((m=p.exec(t))!==null){ res.push({start:timeToSec(m[1]), end:timeToSec(m[2]), text:m[3].trim().replace(/\n/g,' ').replace(/<[^>]*>/g,'')}); }
             return res;
@@ -831,10 +852,10 @@
 
         async function translateText(src, dsp) {
             currentTranslateSource = src;
-            transCard.style.display = 'block'; transOrig.textContent = dsp;
+            transCard.style.display = 'block'; transOrig.textContent = dsp; 
             transRes.className = 'loading'; transRes.textContent = '...';
             document.getElementById('btn-save-vocab').innerText = "💾 Salvar";
-
+            
             try {
                 const u = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(src)}&langpair=en|pt-BR`;
                 const r = await fetch(u); const d = await r.json();
@@ -849,9 +870,9 @@
         textColorInput.addEventListener('input',e=>subContent.style.color=e.target.value);
         bgColorInput.addEventListener('input',e=>subBox.style.backgroundColor=`${e.target.value}bf`);
         window.addEventListener('resize',()=>{const r=subContainer.getBoundingClientRect();if(r.top>window.innerHeight-50||r.top<0){subContainer.style.top='auto';subContainer.style.bottom='12%';subContainer.style.left='50%';subContainer.style.transform='translateX(-50%)';}});
-
+        
         if(localStorage.getItem('ejoy_theme')==='light')document.body.classList.add('light-mode');
-
+        
         function resetApp(){
             if(currentVideoURL)URL.revokeObjectURL(currentVideoURL);
             localStorage.removeItem('ejoy_subs');localStorage.removeItem('ejoy_vidName');localStorage.removeItem('ejoy_time');localStorage.removeItem('ejoy_ytUrl');localStorage.removeItem('ejoy_mode');

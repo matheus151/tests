@@ -3,23 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Player Estudo Pro (V28.0 - Auto Bot)</title>
+    <title>Player Estudo Pro (V27.0 - Saved Subs)</title>
     <style>
         /* --- VARIÁVEIS DE DESIGN --- */
         :root {
-            --bg-color: #121212; --panel-color: #1e1e1e; --input-bg: #2c2c2c; --border-color: #333;
-            --text-main: #eee; --text-dim: #aaa; --primary: #3498db; --accent: #f1c40f; --success: #2ecc71; --radius: 8px;
+            --bg-color: #121212;
+            --panel-color: #1e1e1e;
+            --input-bg: #2c2c2c;
+            --border-color: #333;
+            --text-main: #eee;
+            --text-dim: #aaa;
+            --primary: #3498db;
+            --accent: #f1c40f;
+            --success: #2ecc71;
+            --radius: 8px;
         }
+
         body.light-mode {
-            --bg-color: #f0f2f5; --panel-color: #ffffff; --input-bg: #e4e6eb; --border-color: #ccc;
-            --text-main: #1c1e21; --text-dim: #65676b;
+            --bg-color: #f0f2f5;
+            --panel-color: #ffffff;
+            --input-bg: #e4e6eb;
+            --border-color: #ccc;
+            --text-main: #1c1e21;
+            --text-dim: #65676b;
         }
 
         /* --- GERAL --- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            background: var(--bg-color); color: var(--text-main); margin: 0; 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-color); color: var(--text-main); margin: 0;
             display: flex; flex-direction: column; height: 100vh; overflow: hidden;
             transition: background 0.3s, color 0.3s;
         }
@@ -29,15 +42,15 @@
             background: var(--panel-color);
             z-index: 50; padding: 12px;
             transition: opacity 0.3s, background 0.3s;
-            max-height: 85vh; 
+            max-height: 85vh;
             overflow-y: auto;
             flex-shrink: 0;
             border-bottom: 1px solid var(--border-color);
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
-        
+
         #ui-toggle-bar {
-            background: var(--panel-color); color: var(--text-dim); 
+            background: var(--panel-color); color: var(--text-dim);
             text-align: center; padding: 2px 0; border-top: 1px solid var(--border-color);
             cursor: pointer; border-bottom: 1px solid var(--border-color); z-index: 51;
             font-size: 1.2rem; line-height: 1; user-select: none; flex-shrink: 0;
@@ -47,7 +60,7 @@
 
         /* INPUTS & GRUPOS */
         .control-group { display: flex; gap: 8px; margin-bottom: 10px; }
-        
+
         .modern-input {
             background: var(--input-bg); border: 1px solid var(--border-color);
             color: var(--text-main); padding: 10px 12px; border-radius: var(--radius);
@@ -65,7 +78,7 @@
         .btn-primary { background: var(--primary); border: none; color: #fff; }
         .btn-fav { color: var(--accent); border-color: var(--accent); }
 
-        /* LISTAS */
+        /* LISTAS (COMPACTO V26.2) */
         .list-container {
             display: none; background: var(--input-bg); border: 1px solid var(--border-color);
             border-radius: var(--radius); margin-bottom: 12px; overflow: hidden;
@@ -79,24 +92,25 @@
         .toggle-arrow.collapsed { transform: rotate(180deg); }
 
         .scroll-list {
-            display: flex; flex-direction: column; padding: 0; gap: 0;
+            display: flex; flex-direction: column;
+            padding: 0; gap: 0;
             max-height: 50vh; overflow-y: auto; transition: max-height 0.3s ease;
         }
         .scroll-list.hidden { max-height: 0; padding: 0; }
 
         .video-item {
-            display: flex; gap: 10px; padding: 10px; 
-            background: transparent; cursor: pointer; align-items: flex-start; 
+            display: flex; gap: 10px; padding: 10px;
+            background: transparent; cursor: pointer; align-items: flex-start;
             border-bottom: 1px solid var(--border-color); transition: background 0.2s;
             position: relative;
         }
         .video-item:active { background: rgba(255,255,255,0.05); }
-        
+
         .video-thumb-wrapper { position: relative; width: 100px; height: 56px; flex-shrink: 0; }
         .video-thumb { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
         .video-duration {
-            position: absolute; bottom: 2px; right: 2px; 
-            background: rgba(0,0,0,0.85); color: #fff; 
+            position: absolute; bottom: 2px; right: 2px;
+            background: rgba(0,0,0,0.85); color: #fff;
             font-size: 0.65rem; padding: 1px 3px; border-radius: 2px;
         }
         .video-info { flex-grow: 1; overflow: hidden; }
@@ -118,7 +132,7 @@
 
         /* ARQUIVOS & BOTÕES */
         .grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        
+
         .file-label {
             background: var(--input-bg); border: 1px solid var(--border-color);
             padding: 12px; border-radius: var(--radius); text-align: center;
@@ -130,42 +144,33 @@
         .file-label span { font-size: 1.2rem; }
 
         .btn-external {
-            border: none; padding: 12px; border-radius: var(--radius); 
+            border: none; padding: 12px; border-radius: var(--radius);
             font-size: 0.8rem; font-weight: 600; cursor: pointer; text-align: center; color: #fff;
             display: flex; align-items: center; justify-content: center; gap: 6px;
             text-decoration: none;
         }
-        .btn-yt-dl { background: #c0392b; } 
-        
-        .btn-reset { 
-            background: var(--input-bg); border: 1px solid var(--border-color); color: #e74c3c; width: 100%; 
+        .btn-yt-dl { background: #c0392b; }
+
+        .btn-reset {
+            background: var(--input-bg); border: 1px solid var(--border-color); color: #e74c3c; width: 100%;
             padding: 10px; border-radius: var(--radius); font-weight: bold; margin-top: 5px; cursor: pointer;
         }
-        
+
         #btn-fav-current {
             background: var(--success); color: #fff; width: 100%; padding: 10px;
             border-radius: var(--radius); font-weight: bold; margin-bottom: 10px;
             border: none; display: none; cursor: pointer;
         }
-        
-        /* BOTÃO MÁGICO (O ROBÔ) */
-        #btn-magic-subs {
-            background: linear-gradient(135deg, #e67e22 0%, #d35400 100%); 
-            color: #fff; width: 100%; padding: 12px;
-            border-radius: var(--radius); font-weight: bold; margin-bottom: 10px;
-            border: none; cursor: pointer; display: none;
-            box-shadow: 0 4px 10px rgba(230, 126, 34, 0.3);
-            text-transform: uppercase; font-size: 0.8rem;
-        }
-        
+
+        /* BOTÃO DE BAIXAR VOCABULÁRIO */
         #btn-dl-vocab {
             background: #8e44ad; color: #fff; width: 100%; padding: 10px;
             border-radius: var(--radius); font-weight: bold; margin-top: 5px; margin-bottom: 10px;
             border: none; cursor: pointer;
         }
 
-        #resume-status { 
-            font-size: 0.75rem; color: var(--success); text-align: center; margin: 8px 0; display: none; 
+        #resume-status {
+            font-size: 0.75rem; color: var(--success); text-align: center; margin: 8px 0; display: none;
             background: rgba(46, 204, 113, 0.1); padding: 4px; border-radius: 4px;
         }
 
@@ -176,12 +181,12 @@
         }
         .style-group { display: flex; align-items: center; gap: 8px; }
         .font-btn {
-            background: var(--panel-color); color: var(--text-main); border: 1px solid var(--border-color); 
-            width: 32px; height: 32px; border-radius: 4px; font-weight: bold; 
+            background: var(--panel-color); color: var(--text-main); border: 1px solid var(--border-color);
+            width: 32px; height: 32px; border-radius: 4px; font-weight: bold;
             cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
-        .color-picker-wrapper { 
-            display: flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--text-dim); 
+        .color-picker-wrapper {
+            display: flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--text-dim);
             background: var(--panel-color); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);
         }
         input[type="color"] { border: none; width: 20px; height: 20px; background: none; padding: 0; cursor: pointer; }
@@ -189,13 +194,13 @@
         input[type="file"] { display: none; }
 
         /* --- ÁREA DO VÍDEO --- */
-        #video-wrapper { 
-            position: relative; flex-grow: 1; display: flex; 
-            align-items: center; justify-content: center; background: #000; 
+        #video-wrapper {
+            position: relative; flex-grow: 1; display: flex;
+            align-items: center; justify-content: center; background: #000;
             overflow: hidden; width: 100%; height: 100%;
         }
         video { width: 100%; max-height: 100%; object-fit: contain; display: block; }
-        
+
         #yt-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; z-index: 1; }
         iframe { width: 100%; height: 100%; border: none; pointer-events: none; }
 
@@ -210,19 +215,19 @@
         /* --- LEGENDAS --- */
         #subtitle-container {
             position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%);
-            width: auto; min-width: 80%; max-width: 96%; z-index: 20; 
+            width: auto; min-width: 80%; max-width: 96%; z-index: 20;
             display: flex; flex-direction: column; align-items: center;
         }
         .subtitle-box {
             background-color: rgba(0, 0, 0, 0.75); color: #ffffff;
             padding: 0 14px 10px 14px; border-radius: 12px;
-            pointer-events: auto; user-select: none; -webkit-user-select: none; touch-action: none; 
+            pointer-events: auto; user-select: none; -webkit-user-select: none; touch-action: none;
             line-height: 1.45; text-align: center; position: relative;
-            transition: background-color 0.3s, color 0.3s; 
+            transition: background-color 0.3s, color 0.3s;
             box-shadow: 0 4px 12px rgba(0,0,0,0.4);
             font-size: 1.2rem; backdrop-filter: blur(2px);
         }
-        
+
         #drag-handle {
             width: 50px; height: 4px; background-color: rgba(255,255,255,0.2);
             margin: 6px auto 8px auto; border-radius: 10px; cursor: move; position: relative;
@@ -239,7 +244,7 @@
         .translate-btn {
             display: inline-flex; align-items: center; justify-content: center;
             background: #fff; color: #000; border-radius: 50%;
-            width: 22px; height: 22px; margin-left: 8px; 
+            width: 22px; height: 22px; margin-left: 8px;
             font-size: 12px; cursor: pointer; vertical-align: middle; opacity: 0.9;
         }
 
@@ -254,7 +259,7 @@
         }
         #phrase-orig { font-weight: bold; color: #555; margin-bottom: 6px; font-size: 0.9rem; }
         #phrase-trans { font-size: 1.3rem; font-weight: 800; color: #000; line-height: 1.2; margin-bottom: 15px; }
-        
+
         /* Botões do Card */
         .trans-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
         .btn-card { padding: 8px 15px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
@@ -267,7 +272,7 @@
             font-size: 4rem; opacity: 0; transition: opacity 0.3s; pointer-events: none;
             text-shadow: 0 0 15px rgba(0,0,0,0.8); z-index: 50;
         }
-        
+
         @media (orientation: landscape) {
             #controls-wrapper { display: none; }
             #ui-toggle-bar { display: none; }
@@ -284,9 +289,9 @@
             <button class="icon-btn btn-fav" onclick="toggleFavorites()" title="Meus Favoritos">⭐</button>
             <button class="icon-btn" onclick="toggleTheme()" title="Mudar Tema">🌗</button> <button class="icon-btn" onclick="openApiConfig()">🔑</button>
         </div>
-        
+
         <div id="api-key-config">
-            <p style="margin:0 0 5px 0;">⚠️ <b>API Key YouTube</b> necessária para busca:</p>
+            <p style="margin:0 0 5px 0; color:#888;">⚠️ <b>API Key YouTube</b> necessária para busca:</p>
             <input type="text" id="api-key-input" class="modern-input" placeholder="Cole sua API Key aqui">
             <button class="api-save-btn" onclick="saveApiKey()">Salvar</button>
             <button class="api-save-btn" onclick="document.getElementById('api-key-config').style.display='none'" style="background:#444; color:#fff;">Fechar</button>
@@ -308,8 +313,6 @@
             <div id="favorites-list" class="scroll-list"></div>
         </div>
 
-        <button id="btn-magic-subs" onclick="autoFetchAndDownload()">🤖 BAIXAR E APLICAR LEGENDA AUTOMATICAMENTE</button>
-
         <button id="btn-fav-current" onclick="addCurrentToFavorites()">❤️ Favoritar Vídeo Atual</button>
 
         <div class="grid-row">
@@ -324,13 +327,13 @@
         </div>
 
         <div class="grid-row" style="grid-template-columns: 1fr;">
-            <button class="btn-external btn-yt-dl" onclick="openExternalDownSub()">⬇️ Baixar Legenda Manualmente (Site)</button>
+            <button class="btn-external btn-yt-dl" onclick="openExternalDownSub()">⬇️ Baixar Legenda YouTube (DownSub)</button>
         </div>
-        
+
         <button id="btn-dl-vocab" onclick="downloadVocabulary()">📥 Baixar Lista de Vocabulário (.txt)</button>
 
         <div id="resume-status"></div>
-        
+
         <div id="style-controls">
             <div class="style-group">
                 <button class="font-btn" onclick="changeFontSize(-0.1)">A-</button>
@@ -353,7 +356,7 @@
         <div id="gesture-layer"></div>
         <button id="unlock-yt-btn" onclick="toggleYtControls()">⚙️ Controles YouTube</button>
         <div id="gesture-feedback">⏪</div>
-        
+
         <div id="subtitle-container">
             <div class="subtitle-box" id="subtitle-box">
                 <div id="drag-handle"></div>
@@ -375,109 +378,6 @@
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <script>
-        // --- ROBÔ DE LEGENDA (GOOGLE API + DOWNLOAD AUTO) ---
-        async function autoFetchAndDownload() {
-            const url = localStorage.getItem('ejoy_ytUrl');
-            const videoId = extractVideoID(url);
-            if(!url || !videoId) { alert("Carregue um vídeo do YouTube primeiro."); return; }
-
-            const btn = document.getElementById('btn-magic-subs');
-            const originalText = btn.innerText;
-            btn.innerText = "⏳ Roubando legenda do Google...";
-            btn.disabled = true;
-
-            try {
-                // Tenta buscar o XML direto do servidor de legendas do Google
-                // Isso é o que o DownSub faz internamente
-                let lang = 'en';
-                let apiUrl = `https://video.google.com/timedtext?lang=${lang}&v=${videoId}`;
-                // Proxy para evitar CORS
-                let proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(apiUrl);
-                
-                let response = await fetch(proxyUrl);
-                let xmlText = await response.text();
-
-                // Se vazio, tenta PT
-                if (!xmlText || xmlText.length < 50) {
-                    lang = 'pt';
-                    apiUrl = `https://video.google.com/timedtext?lang=${lang}&v=${videoId}`;
-                    proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(apiUrl);
-                    response = await fetch(proxyUrl);
-                    xmlText = await response.text();
-                }
-
-                if (!xmlText || xmlText.length < 50) {
-                    throw new Error("Legenda indisponível neste método.");
-                }
-
-                // Parseia
-                subtitles = parseGoogleXML(xmlText);
-                
-                if(subtitles.length > 0) {
-                    // 1. Aplica no App
-                    try { localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); } catch(e){}
-                    document.getElementById('resume-status').style.display='block';
-                    document.getElementById('resume-status').innerText = `✅ Legenda Baixada Automaticamente (${lang})`;
-                    
-                    // 2. GERA DOWNLOAD DO ARQUIVO (O QUE VOCÊ PEDIU)
-                    downloadSubtitlesAsSRT(subtitles, `legenda_${lang}_${videoId}.srt`);
-                    
-                    alert("Sucesso! Baixando arquivo .srt para seu celular...");
-                }
-
-            } catch (e) {
-                console.error(e);
-                alert("O Google bloqueou o acesso direto neste vídeo.\n\nRedirecionando para a página exata do DownSub para você clicar em Download lá...");
-                window.open(`https://downsub.com/?url=${encodeURIComponent(url)}`, '_blank');
-            } finally {
-                btn.innerText = originalText;
-                btn.disabled = false;
-            }
-        }
-
-        function parseGoogleXML(xmlString) {
-            const parser = new DOMParser();
-            const xml = parser.parseFromString(xmlString, "text/xml");
-            const texts = xml.getElementsByTagName('text');
-            const result = [];
-            for (let i = 0; i < texts.length; i++) {
-                const node = texts[i];
-                const start = parseFloat(node.getAttribute('start'));
-                const dur = parseFloat(node.getAttribute('dur') || "0");
-                const text = node.textContent.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/\n/g, ' ').trim();
-                if (text) { result.push({ start: start, end: start + dur, text: text }); }
-            }
-            return result;
-        }
-
-        // Converte Objeto Interno -> SRT e Baixa
-        function downloadSubtitlesAsSRT(subs, filename) {
-            let srtContent = "";
-            subs.forEach((s, index) => {
-                srtContent += `${index + 1}\n`;
-                srtContent += `${formatTime(s.start)} --> ${formatTime(s.end)}\n`;
-                srtContent += `${s.text}\n\n`;
-            });
-
-            const blob = new Blob([srtContent], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click(); // CLIQUE AUTOMÁTICO
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function formatTime(seconds) {
-            const date = new Date(0);
-            date.setSeconds(seconds);
-            const iso = date.toISOString().substr(11, 8);
-            const ms = Math.floor((seconds % 1) * 1000).toString().padStart(3, '0');
-            return `${iso},${ms}`;
-        }
-
         // --- BING TRANSLATOR ---
         function openBingTranslator() {
             if(!currentTranslateSource) return;
@@ -489,10 +389,10 @@
         let favorites = JSON.parse(localStorage.getItem('ejoy_favs')) || [];
         let videoHistory = JSON.parse(localStorage.getItem('ejoy_vid_history')) || {};
 
-        let currentTranslateSource = ""; 
+        let currentTranslateSource = "";
         let currentPlayingYT = null;
         let YOUTUBE_API_KEY = localStorage.getItem('ejoy_api_key') || "";
-        let currentVideoURL = null; 
+        let currentVideoURL = null;
         let currentFontSize = 1.2;
         let subtitles = [];
         let playerType = 'local';
@@ -527,7 +427,7 @@
 
         // UI Helpers
         function changeFontSize(d) { currentFontSize+=d; if(currentFontSize<0.5)currentFontSize=0.5; if(currentFontSize>3)currentFontSize=3; subBox.style.fontSize=currentFontSize+'rem'; }
-        function toggleMainUI() { 
+        function toggleMainUI() {
             const c = document.getElementById('controls-wrapper'); const b = document.getElementById('ui-toggle-bar');
             if(c.style.display==='none'){c.style.display='block';b.innerText='🔼'}else{c.style.display='none';b.innerText='🔽'}
         }
@@ -540,7 +440,11 @@
             if(k){YOUTUBE_API_KEY=k;localStorage.setItem('ejoy_api_key',k);apiKeyConfig.style.display='none';alert("Salvo!");}
         }
         function openApiConfig(){apiKeyConfig.style.display='block';document.getElementById('api-key-input').value=YOUTUBE_API_KEY}
-        function toggleTheme() { document.body.classList.toggle('light-mode'); localStorage.setItem('ejoy_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark'); }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            localStorage.setItem('ejoy_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        }
 
         // Vocab & Favs
         function saveCurrentVocab() {
@@ -548,14 +452,15 @@
             if(!vocabList.includes(currentTranslateSource)){vocabList.push(currentTranslateSource);localStorage.setItem('ejoy_vocab',JSON.stringify(vocabList));document.getElementById('btn-save-vocab').innerText="✅";setTimeout(()=>document.getElementById('btn-save-vocab').innerText="💾 Salvar",1500);}
             else{alert("Já salvo");}
         }
-        
+
+        // MODIFICADO: \n\n
         function downloadVocabulary() {
             if(!vocabList.length){alert("Vazio");return;}
             const b=new Blob([vocabList.join('\n\n')],{type:'text/plain'});
             const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='vocab.txt';document.body.appendChild(a);a.click();document.body.removeChild(a);
         }
-        
-        function toggleFavorites() { 
+
+        function toggleFavorites() {
             const c=document.getElementById('favorites-container'); c.style.display = c.style.display==='block'?'none':'block';
             if(c.style.display==='block') renderFavorites();
         }
@@ -564,12 +469,12 @@
             favorites.forEach((fav,i)=>{
                 const d=document.createElement('div'); d.className='video-item';
                 d.innerHTML=`<div class="video-thumb-wrapper"><img src="${fav.thumb}" class="video-thumb"></div><div class="video-info"><div class="video-title">${fav.title}</div></div><button class="btn-del-fav" onclick="removeFavorite(event,${i})">🗑️</button>`;
-                // Passa savedSubs
+                // MODIFICADO: Passar savedSubs
                 d.onclick=(e)=>{if(!e.target.classList.contains('btn-del-fav'))loadYouTube(fav.id,fav.title,fav.thumb,fav.savedSubs)};
                 favoritesList.appendChild(d);
             });
         }
-        
+
         // MODIFICADO: Salvar Legendas
         function addCurrentToFavorites() {
             if (!currentPlayingYT) return;
@@ -579,9 +484,9 @@
                 savedSubs: (subtitles && subtitles.length > 0) ? subtitles : null
             };
 
-            if (existingIdx !== -1) { favorites[existingIdx] = favObj; alert("Atualizado (com legenda)!"); } 
-            else { favorites.push(favObj); alert("Salvo!"); }
-            
+            if (existingIdx !== -1) { favorites[existingIdx] = favObj; alert("Atualizado (com legenda)!"); }
+            else { favorites.push(favObj); alert("Favoritado!"); }
+
             try {
                 localStorage.setItem('ejoy_favs', JSON.stringify(favorites));
                 renderFavorites();
@@ -596,7 +501,7 @@
 
         function openExternalDownSub(){const u=localStorage.getItem('ejoy_ytUrl');if(playerType!=='youtube'||!u){alert("Abra um vídeo YT");return;}window.open(`https://downsub.com/?url=${encodeURIComponent(u)}`,'_blank');}
 
-        // Busca YT
+        // Busca YT (COMPACTO V26.2)
         let nextPageToken=""; let isFetching=false;
         async function initSearch() {
             const q=ytInput.value.trim(); if(q.includes('youtu')){loadYouTubeFromInput();return;}
@@ -613,6 +518,7 @@
                 const res=await fetch(u); const d=await res.json(); loader.remove();
                 if(d.error){alert(d.error.message);return;}
                 nextPageToken=d.nextPageToken||"";
+
                 const videoIds = d.items.map(item => item.id.videoId).join(',');
                 let videosData = {};
                 if (videoIds) {
@@ -620,6 +526,7 @@
                     const resDetails = await fetch(detailsUrl); const dataDetails = await resDetails.json();
                     if (!dataDetails.error) { dataDetails.items.forEach(v => { videosData[v.id] = parseDuration(v.contentDetails.duration); }); }
                 }
+
                 d.items.forEach(i=>{
                     const vid=i.id.videoId; const t=i.snippet.title; const th=i.snippet.thumbnails.medium.url;
                     const duration = videosData[vid] || "";
@@ -629,6 +536,7 @@
                 });
             } catch(e){loader.innerText="Erro";} finally{isFetching=false;}
         }
+
         function parseDuration(pt) {
             const match = pt.match(/PT(\d+H)?(\d+M)?(\d+S)?/); if (!match) return "";
             const h = (match[1] || '').replace('H', ''); const m = (match[2] || '').replace('M', ''); const s = (match[3] || '').replace('S', '');
@@ -636,30 +544,157 @@
             if (!h && !m) str = "0:" + str.replace(":", ""); if (str.endsWith(':')) str += "00";
             return str;
         }
+
         resultsList.addEventListener('scroll',()=>{if(resultsList.scrollTop+resultsList.clientHeight>=resultsList.scrollHeight-50 && nextPageToken && !isFetching) fetchVideos(ytInput.value)});
 
         // Player Logic
         function loadYouTubeFromInput() { const v=extractVideoID(ytInput.value); if(v) loadYouTube(v,"Link",""); else alert("Link inválido"); }
         function extractVideoID(u){ const m=u.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/); return (m&&m[2].length===11)?m[2]:null;}
+
         function onYouTubeIframeAPIReady(){}
-        
-        // Carregar savedSubs e Resume
+
+        // =========================
+        // AUTO-LEGENDAS YOUTUBE (EN)
+        // =========================
+        // Importante: em páginas locais/arquivos (file://) ou hospedagens sem CORS permissivo,
+        // o browser pode bloquear o fetch do timedtext do YouTube por CORS.
+        // Aqui fazemos "best effort" com fallback via proxy de leitura (r.jina.ai).
+        // Se mesmo assim falhar, o usuário ainda tem o botão DownSub.
+        const AUTO_SUBS_LANGS = ['en', 'en-US', 'en-GB'];
+
+        function setResumeStatus(msg, ok=true) {
+            const el = document.getElementById('resume-status');
+            el.style.display = 'block';
+            el.style.color = ok ? 'var(--success)' : '#f39c12';
+            el.style.background = ok ? 'rgba(46, 204, 113, 0.1)' : 'rgba(243, 156, 18, 0.12)';
+            el.innerText = msg;
+        }
+
+        async function fetchTextWithTimeout(url, timeoutMs=8000) {
+            const controller = new AbortController();
+            const t = setTimeout(()=>controller.abort(), timeoutMs);
+            try {
+                const res = await fetch(url, { signal: controller.signal });
+                const txt = await res.text();
+                return txt;
+            } finally {
+                clearTimeout(t);
+            }
+        }
+
+        function looksLikeVtt(text) {
+            if(!text) return false;
+            const t = text.trim();
+            if(!t) return false;
+            // VTT normalmente começa com WEBVTT, mas alguns retornos podem vir sem header
+            // então checamos presença de "-->" em algum lugar
+            if(t.includes('-->')) return true;
+            return false;
+        }
+
+        function normalizeVttToSrtLike(vtt) {
+            // Remove header WEBVTT e metadados, e remove "cue identifiers"
+            let t = (vtt || '').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+
+            // remove BOM
+            t = t.replace(/^\uFEFF/, '');
+
+            // remove WEBVTT header line
+            t = t.replace(/^WEBVTT[^\n]*\n+/i, '');
+
+            // remove NOTE blocks
+            t = t.replace(/(^|\n)NOTE[\s\S]*?(?=\n\n|$)/g, '\n\n');
+
+            // remove STYLE/REGION blocks (alguns VTTs têm)
+            t = t.replace(/(^|\n)(STYLE|REGION)[\s\S]*?(?=\n\n|$)/g, '\n\n');
+
+            // Remover linhas de identificador de cue:
+            // Estratégia simples: em cada bloco separado por linha vazia,
+            // se a primeira linha NÃO contém "-->" e a segunda contém "-->", remove a primeira.
+            const blocks = t.split(/\n{2,}/).map(b=>b.trim()).filter(Boolean);
+            const cleaned = blocks.map(block=>{
+                const lines = block.split('\n');
+                if(lines.length >= 2 && !lines[0].includes('-->') && lines[1].includes('-->')) {
+                    lines.shift();
+                }
+                return lines.join('\n');
+            }).join('\n\n');
+
+            return cleaned + '\n';
+        }
+
+        async function tryLoadTimedTextVtt(videoId, lang, kindAsr=false) {
+            const base = `https://www.youtube.com/api/timedtext?fmt=vtt&v=${encodeURIComponent(videoId)}&lang=${encodeURIComponent(lang)}` + (kindAsr ? `&kind=asr` : '');
+            const candidates = [
+                base,
+                // Fallback via "reader proxy" (muitas vezes contorna CORS)
+                `https://r.jina.ai/${base}`
+            ];
+
+            for(const url of candidates) {
+                try {
+                    const raw = await fetchTextWithTimeout(url, 9000);
+                    if(!looksLikeVtt(raw)) continue;
+
+                    const normalized = normalizeVttToSrtLike(raw);
+                    const parsed = parseSubtitles(normalized);
+
+                    if(parsed && parsed.length > 0) return parsed;
+                } catch(e) {
+                    // tenta próximo
+                }
+            }
+            return null;
+        }
+
+        async function autoLoadYouTubeEnglishSubs(videoId) {
+            // não sobrescreve se já tiver legenda (ex: favorita com savedSubs)
+            if(subtitles && subtitles.length > 0) return;
+
+            setResumeStatus('⏳ Buscando legenda em inglês...', true);
+
+            // 1) tenta legendas "humanas" (se existirem)
+            for(const lang of AUTO_SUBS_LANGS) {
+                const got = await tryLoadTimedTextVtt(videoId, lang, false);
+                if(got && got.length) {
+                    subtitles = got;
+                    setResumeStatus('✅ Legenda EN carregada automaticamente', true);
+                    return;
+                }
+            }
+
+            // 2) tenta "auto captions" (ASR) do YouTube
+            for(const lang of AUTO_SUBS_LANGS) {
+                const got = await tryLoadTimedTextVtt(videoId, lang, true);
+                if(got && got.length) {
+                    subtitles = got;
+                    setResumeStatus('✅ Legenda EN (auto) carregada automaticamente', true);
+                    return;
+                }
+            }
+
+            // 3) falhou
+            setResumeStatus('⚠️ Não consegui puxar a legenda automaticamente (CORS/indisponível). Use o botão DownSub.', false);
+        }
+        // =========================
+
+        // MODIFICADO: Carregar Legendas Salvas e Resume + AUTO SUBS
         function loadYouTube(vid,title,thumb, savedSubs=null) {
             subtitles=[]; subContent.innerHTML=""; playerType='youtube';
             if(currentVideoURL){URL.revokeObjectURL(currentVideoURL);currentVideoURL=null;}
             video.removeAttribute('src'); video.load(); video.style.display='none';
             ytContainer.style.display='flex'; gestureLayer.style.display='block'; unlockBtn.style.display='block'; ytControlsLocked=true;
-            currentPlayingYT={id:vid,title:title||"Video",thumb:thumb||""}; 
-            btnFavCurrent.style.display='block';
-            document.getElementById('btn-magic-subs').style.display='block'; // Botão auto-legenda
-
+            currentPlayingYT={id:vid,title:title||"Video",thumb:thumb||""}; btnFavCurrent.style.display='block';
             localStorage.setItem('ejoy_ytUrl',`https://www.youtube.com/watch?v=${vid}`); localStorage.setItem('ejoy_mode','youtube');
-            
-            // Prioridade: Legenda Salva > Nada
-            if(savedSubs && savedSubs.length > 0) {
+
+            // Subs
+            if(savedSubs && savedSubs.length>0) {
                 subtitles = savedSubs;
-                document.getElementById('resume-status').style.display='block'; 
+                document.getElementById('resume-status').style.display='block';
                 document.getElementById('resume-status').innerText='✅ Legenda Salva';
+            } else {
+                // AUTO: buscar legenda EN automaticamente
+                autoLoadYouTubeEnglishSubs(vid);
             }
 
             // Resume
@@ -677,7 +712,8 @@
             if(ytTimer) clearInterval(ytTimer);
             ytTimer = setInterval(()=>{
                 if(playerType==='youtube'&&ytPlayer&&ytPlayer.getCurrentTime){
-                    const t=ytPlayer.getCurrentTime(); localStorage.setItem('ejoy_time',t);
+                    const t=ytPlayer.getCurrentTime();
+                    localStorage.setItem('ejoy_time',t);
                     if(currentPlayingYT && currentPlayingYT.id) {
                         videoHistory[currentPlayingYT.id] = t;
                         localStorage.setItem('ejoy_vid_history', JSON.stringify(videoHistory));
@@ -695,25 +731,29 @@
         // Local Video
         document.getElementById('videoInput').onchange = e => {
             const f=e.target.files[0]; if(f){
-                playerType='local'; ytContainer.style.display='none'; gestureLayer.style.display='none'; unlockBtn.style.display='none'; 
-                btnFavCurrent.style.display='none'; document.getElementById('btn-magic-subs').style.display='none';
+                playerType='local'; ytContainer.style.display='none'; gestureLayer.style.display='none'; unlockBtn.style.display='none'; btnFavCurrent.style.display='none';
                 if(currentVideoURL)URL.revokeObjectURL(currentVideoURL); video.removeAttribute('src'); video.load();
                 currentVideoURL=URL.createObjectURL(f); video.src=currentVideoURL; video.style.display='block';
                 localStorage.setItem('ejoy_vidName',f.name); localStorage.setItem('ejoy_mode','local');
             }
         };
         video.addEventListener('timeupdate', ()=>{ if(playerType==='local'){localStorage.setItem('ejoy_time',video.currentTime);renderLogic(video.currentTime)}});
+
+        // Subtitles
         document.getElementById('subInput').onchange = e => {
             const f=e.target.files[0]; if(f){
                 const r=new FileReader(); r.onload=res=>{
-                    subtitles=parseSubtitles(res.target.result); 
+                    subtitles=parseSubtitles(res.target.result);
                     if(subtitles.length) { document.getElementById('resume-status').style.display='block'; document.getElementById('resume-status').innerText='✅ Legenda OK'; alert("Legenda Carregada!"); }
                 }; r.readAsText(f);
             }
         };
         function parseSubtitles(t) {
-            t=t.replace(/\r\n/g,'\n').replace(/\r/g,'\n'); const p=/(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})\s-->\s(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})[^\n]*\n([\s\S]*?)(?=\n\n|$)/g;
-            const res=[]; let m; while((m=p.exec(t))!==null){ res.push({start:timeToSec(m[1]), end:timeToSec(m[2]), text:m[3].trim().replace(/\n/g,' ').replace(/<[^>]*>/g,'')}); } return res;
+            t=t.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+            const p=/(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})\s-->\s(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})[^\n]*\n([\s\S]*?)(?=\n\n|$)/g;
+            const res=[]; let m;
+            while((m=p.exec(t))!==null){ res.push({start:timeToSec(m[1]), end:timeToSec(m[2]), text:m[3].trim().replace(/\n/g,' ').replace(/<[^>]*>/g,'')}); }
+            return res;
         }
         function timeToSec(s){ s=s.replace(',','.'); const p=s.split(':'); return (parseFloat(p[0])*3600)+(parseFloat(p[1])*60)+parseFloat(p[2]); }
 
@@ -721,52 +761,87 @@
         let lastRenderedText="";
         function renderLogic(time) {
             const sub = subtitles.find(s => time >= s.start && time <= s.end);
-            if(sub){ if(sub.text!==lastRenderedText){ renderSubtitle(sub.text); lastRenderedText=sub.text; } } else{ subContent.innerHTML=""; lastRenderedText=""; }
+            if(sub){ if(sub.text!==lastRenderedText){ renderSubtitle(sub.text); lastRenderedText=sub.text; } }
+            else{ subContent.innerHTML=""; lastRenderedText=""; }
         }
         function renderSubtitle(text) {
-            subContent.innerHTML=""; const words = text.split(' ');
+            subContent.innerHTML="";
+            const words = text.split(' ');
             words.forEach((w,i)=>{
-                const s=document.createElement('span'); s.textContent=w+' '; s.className='word'; s.dataset.index=i; s.dataset.raw=w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g,""); subContent.appendChild(s);
+                const s=document.createElement('span'); s.textContent=w+' '; s.className='word'; s.dataset.index=i; s.dataset.raw=w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g,"");
+                subContent.appendChild(s);
             });
             const btn=document.createElement('span'); btn.className='translate-btn'; btn.innerHTML='🌐';
             btn.addEventListener('touchstart',(e)=>{ e.stopPropagation();e.preventDefault(); pauseAny(); isSelecting=false; document.querySelectorAll('.word.selected').forEach(x=>x.classList.remove('selected')); translateText(text,text); });
-            btn.onclick=(e)=>{e.stopPropagation(); pauseAny(); translateText(text,text);}; subContent.appendChild(btn);
+            btn.onclick=(e)=>{e.stopPropagation(); pauseAny(); translateText(text,text);};
+            subContent.appendChild(btn);
         }
 
-        // Gestures & Drag
+        // Control & Gestures
         function pauseAny(){ if(playerType==='local')video.pause(); else if(ytPlayer)ytPlayer.pauseVideo(); }
         function playAny(){ if(playerType==='local')video.play(); else if(ytPlayer)ytPlayer.playVideo(); }
         function togglePlay(){ if(playerType==='local')video.paused?video.play():video.pause(); else if(ytPlayer)(ytPlayer.getPlayerState()===1)?ytPlayer.pauseVideo():ytPlayer.playVideo(); }
         function seek(t){ if(playerType==='local')video.currentTime=t; else if(ytPlayer)ytPlayer.seekTo(t,true); }
         function getTime(){ return playerType==='local'?video.currentTime:(ytPlayer?ytPlayer.getCurrentTime():0); }
+
         function jumpSubtitle(dir) {
-            if(!subtitles.length){seek(getTime()+(dir*10));return;} const now=getTime(); let idx=subtitles.findIndex(s=>s.start>now); if(idx===-1)idx=subtitles.length;
+            if(!subtitles.length){seek(getTime()+(dir*10));return;}
+            const now=getTime(); let idx=subtitles.findIndex(s=>s.start>now); if(idx===-1)idx=subtitles.length;
             let target = (dir===1) ? idx : (subtitles.findIndex(s=>now>=s.start&&now<=s.end)!==-1 ? subtitles.findIndex(s=>now>=s.start&&now<=s.end)-1 : idx-1);
-            if(target<0)target=0; if(target>=subtitles.length)target=subtitles.length-1; seek(subtitles[target].start-0.2);
+            if(target<0)target=0; if(target>=subtitles.length)target=subtitles.length-1;
+            seek(subtitles[target].start-0.2);
         }
+
+        // Touch
+        const gz = document.getElementById('gesture-layer'); const gzl = document.getElementById('video-wrapper');
         function setupGestures(el, mode) {
             let ts=0,te=0,tt=0;
             el.addEventListener('touchstart',e=>{if(e.target.closest('#subtitle-container'))return; ts=e.changedTouches[0].screenX; tt=new Date().getTime();},{passive:false});
-            el.addEventListener('touchend',e=>{if(e.target.closest('#subtitle-container'))return; te=e.changedTouches[0].screenX; if((new Date().getTime()-tt)<200 && Math.abs(te-ts)<10) { if(mode==='yt')togglePlay(); } else if(Math.abs(te-ts)>30) { if(te-ts<0)jumpSubtitle(-1); else jumpSubtitle(1); }},{passive:false});
+            el.addEventListener('touchend',e=>{
+                if(e.target.closest('#subtitle-container'))return; te=e.changedTouches[0].screenX;
+                if((new Date().getTime()-tt)<200 && Math.abs(te-ts)<10) { if(mode==='yt')togglePlay(); }
+                else if(Math.abs(te-ts)>30) { if(te-ts<0)jumpSubtitle(-1); else jumpSubtitle(1); }
+            },{passive:false});
         }
-        setupGestures(gestureLayer,'yt'); setupGestures(document.getElementById('video-wrapper'),'local');
+        setupGestures(gz,'yt'); setupGestures(gzl,'local');
+
+        // Drag & Select
         dragHandle.addEventListener('touchstart',e=>{isDragging=true; dragStartX=e.touches[0].clientX; dragStartY=e.touches[0].clientY; const r=subContainer.getBoundingClientRect(); initialTop=r.top; initialLeft=r.left; subContainer.style.bottom='auto'; subContainer.style.transform='none'; subContainer.style.top=initialTop+'px'; subContainer.style.left=initialLeft+'px';},{passive:false});
         dragHandle.addEventListener('touchmove',e=>{if(!isDragging)return; e.preventDefault(); subContainer.style.top=(initialTop+(e.touches[0].clientY-dragStartY))+'px'; subContainer.style.left=(initialLeft+(e.touches[0].clientX-dragStartX))+'px';},{passive:false});
         dragHandle.addEventListener('touchend',()=>isDragging=false);
 
-        // Selection
-        subContent.addEventListener('touchstart',e=>{if(e.target.classList.contains('translate-btn'))return;const el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);if(el&&el.classList.contains('word')){isSelecting=true;pauseAny();selectionStartIndex=parseInt(el.dataset.index);transCard.style.display='none';updateRange(selectionStartIndex);}},{passive:false});
+        subContent.addEventListener('touchstart',e=>{
+            if(e.target.classList.contains('translate-btn'))return;
+            const el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);
+            if(el&&el.classList.contains('word')){isSelecting=true;pauseAny();selectionStartIndex=parseInt(el.dataset.index);transCard.style.display='none';updateRange(selectionStartIndex);}
+        },{passive:false});
         subContent.addEventListener('touchmove',e=>{if(!isSelecting)return;e.preventDefault();const el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);if(el&&el.classList.contains('word'))updateRange(parseInt(el.dataset.index));},{passive:false});
         subContent.addEventListener('touchend',()=>{if(isSelecting){isSelecting=false;doTransSelection();}});
-        function updateRange(idx){document.querySelectorAll('.word.selected').forEach(x=>x.classList.remove('selected'));const s=Math.min(selectionStartIndex,idx);const e=Math.max(selectionStartIndex,idx);const w=subContent.querySelectorAll('.word');for(let i=s;i<=e;i++)if(w[i])w[i].classList.add('selected');}
-        function doTransSelection(){const sel=document.querySelectorAll('.word.selected');if(!sel.length)return;const w=Array.from(sel);const txt=w.map(x=>x.dataset.raw).join(' ');const dsp=w.map(x=>x.textContent).join('');translateText(txt,dsp);setTimeout(()=>{sel.forEach(x=>x.classList.remove('selected'))},1000);}
+
+        function updateRange(idx){
+            document.querySelectorAll('.word.selected').forEach(x=>x.classList.remove('selected'));
+            const s=Math.min(selectionStartIndex,idx); const e=Math.max(selectionStartIndex,idx);
+            const w=subContent.querySelectorAll('.word'); for(let i=s;i<=e;i++)if(w[i])w[i].classList.add('selected');
+        }
+        function doTransSelection(){
+            const sel=document.querySelectorAll('.word.selected'); if(!sel.length)return;
+            const w=Array.from(sel); const txt=w.map(x=>x.dataset.raw).join(' '); const dsp=w.map(x=>x.textContent).join('');
+            translateText(txt,dsp); setTimeout(()=>{sel.forEach(x=>x.classList.remove('selected'))},1000);
+        }
 
         async function translateText(src, dsp) {
-            currentTranslateSource = src; transCard.style.display='block'; transOrig.textContent=dsp; transRes.className='loading'; transRes.textContent='...';
+            currentTranslateSource = src;
+            transCard.style.display = 'block'; transOrig.textContent = dsp;
+            transRes.className = 'loading'; transRes.textContent = '...';
             document.getElementById('btn-save-vocab').innerText = "💾 Salvar";
+
             try {
                 const u = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(src)}&langpair=en|pt-BR`;
-                const r = await fetch(u); const d = await r.json(); if(d.responseData) { transRes.className = ''; transRes.textContent = d.responseData.translatedText; }
+                const r = await fetch(u); const d = await r.json();
+                if(d.responseData) {
+                    transRes.className = '';
+                    transRes.textContent = d.responseData.translatedText;
+                }
             } catch(e) { transRes.textContent = "Erro na rede."; }
         }
 
@@ -774,8 +849,9 @@
         textColorInput.addEventListener('input',e=>subContent.style.color=e.target.value);
         bgColorInput.addEventListener('input',e=>subBox.style.backgroundColor=`${e.target.value}bf`);
         window.addEventListener('resize',()=>{const r=subContainer.getBoundingClientRect();if(r.top>window.innerHeight-50||r.top<0){subContainer.style.top='auto';subContainer.style.bottom='12%';subContainer.style.left='50%';subContainer.style.transform='translateX(-50%)';}});
+
         if(localStorage.getItem('ejoy_theme')==='light')document.body.classList.add('light-mode');
-        
+
         function resetApp(){
             if(currentVideoURL)URL.revokeObjectURL(currentVideoURL);
             localStorage.removeItem('ejoy_subs');localStorage.removeItem('ejoy_vidName');localStorage.removeItem('ejoy_time');localStorage.removeItem('ejoy_ytUrl');localStorage.removeItem('ejoy_mode');

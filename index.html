@@ -1,330 +1,108 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tradutor de Voz Instantâneo</title>
-    <style>
-        :root {
-            --primary-color: #4a90e2;
-            --bg-color: #f4f7f6;
-            --card-bg: #ffffff;
-            --text-color: #333;
-            --note-color: #fff740;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
-
-        h1 {
-            color: var(--primary-color);
-            margin-bottom: 30px;
-        }
-
-        .main-container {
-            display: flex;
-            gap: 20px;
-            width: 100%;
-            max-width: 900px;
-            flex-wrap: wrap;
-        }
-
-        .translation-box {
-            flex: 2;
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            min-width: 300px;
-        }
-
-        .sidebar {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            min-width: 250px;
-        }
-
-        #output-text {
-            font-size: 1.5rem;
-            line-height: 1.6;
-            min-height: 150px;
-            padding: 15px;
-            border: 2px dashed #ddd;
-            border-radius: 8px;
-            margin-top: 20px;
-            cursor: text;
-        }
-
-        #output-text::selection {
-            background-color: #cce5ff;
-        }
-
-        .controls {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        button#mic-btn {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 80px;
-            height: 80px;
-            font-size: 30px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(74, 144, 226, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        button#mic-btn.listening {
-            background-color: #e74c3c;
-            animation: pulse 1.5s infinite;
-        }
-
-        button#mic-btn:hover {
-            transform: scale(1.05);
-        }
-
-        .status {
-            text-align: center;
-            margin-top: 10px;
-            font-style: italic;
-            color: #666;
-            height: 20px;
-        }
-
-        /* Post-its Styles */
-        .post-it-container {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .post-it {
-            background-color: var(--note-color);
-            padding: 15px;
-            border-radius: 2px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
-            font-family: 'Comic Sans MS', 'Comic Sans', cursive;
-            font-size: 0.9rem;
-            position: relative;
-            transform: rotate(-1deg);
-            transition: transform 0.2s;
-            border-top: 10px solid rgba(0,0,0,0.05);
-        }
-
-        .post-it:hover {
-            transform: rotate(0deg) scale(1.02);
-            z-index: 10;
-        }
-
-        .post-it strong {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 1.1em;
-            color: #000;
-        }
-
-        .post-it .close-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            color: #555;
-            font-family: sans-serif;
-        }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
-            70% { box-shadow: 0 0 0 20px rgba(231, 76, 60, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>Player de Inglês</title>
+  <style>
+    body, html { 
+      margin: 0; padding: 0; width: 100%; height: 100%; 
+      background-color: #121212; color: #fff; font-family: -apple-system, sans-serif;
+      overflow: hidden; touch-action: none; 
+    }
+    #video-container {
+      position: relative; width: 100%; height: 40vh; margin-top: 10vh;
+    }
+    #player { width: 100%; height: 100%; pointer-events: none; }
+    
+    /* Área invisível que capta os gestos em cima do vídeo */
+    #swipe-zone {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
+    }
+    .instrucoes {
+      text-align: center; padding: 30px 20px;
+    }
+    .gesto {
+      background: #2a2a2a; border-radius: 12px; padding: 15px; margin-bottom: 10px;
+    }
+  </style>
 </head>
 <body>
 
-    <h1>🎙️ Tradutor PT ➔ EN</h1>
+  <div id="video-container">
+    <div id="swipe-zone"></div>
+    <div id="player"></div>
+  </div>
 
-    <div class="main-container">
-        <div class="translation-box">
-            <div class="controls">
-                <button id="mic-btn" title="Clique para falar">🎙️</button>
-            </div>
-            <div class="status" id="status-text">Clique no microfone e fale em português...</div>
-            
-            <h3>Texto em Inglês:</h3>
-            <p style="font-size: 0.9rem; color: #888; margin-bottom: 5px;">Selecione qualquer palavra/frase abaixo para criar um estudo:</p>
-            <div id="output-text"></div>
-        </div>
+  <div class="instrucoes">
+    <h2>Controle por Gestos</h2>
+    <div class="gesto">⬅️ Deslize para a Esquerda:<br><strong>Voltar 5 segundos</strong></div>
+    <div class="gesto">➡️ Deslize para a Direita:<br><strong>Avançar 5 segundos</strong></div>
+  </div>
 
-        <div class="sidebar">
-            <h3>📝 Notas de Estudo</h3>
-            <div id="notes-area" class="post-it-container">
-                <div class="post-it" style="background-color: #e0f7fa;">
-                    <strong>Dica:</strong>
-                    Selecione um texto ao lado para ver exemplos de uso aqui!
-                </div>
-            </div>
-        </div>
-    </div>
+  <script>
+    // Carrega a API do YouTube
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-    <script>
-        // --- Configuração das APIs ---
-        const outputDiv = document.getElementById('output-text');
-        const statusText = document.getElementById('status-text');
-        const micBtn = document.getElementById('mic-btn');
-        const notesArea = document.getElementById('notes-area');
-
-        // Configuração de Reconhecimento de Voz (Web Speech API)
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        
-        if (!SpeechRecognition) {
-            alert("Seu navegador não suporta reconhecimento de voz. Por favor, use o Google Chrome.");
+    var player;
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        videoId: 'M7lc1UVf-VE', // Substitua pelo ID do vídeo desejado
+        playerVars: {
+          'playsinline': 1,
+          'cc_load_policy': 1, // Força as legendas do YouTube a ligarem automaticamente
+          'controls': 0, // Remove controles nativos para evitar conflito com o toque
+          'disablekb': 1,
+          'rel': 0
         }
+      });
+    }
 
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'pt-BR';
-        recognition.continuous = false;
-        recognition.interimResults = false;
+    // Lógica para detectar os "Swipes" (arrastar o dedo)
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const swipeZone = document.getElementById('swipe-zone');
 
-        let isListening = false;
+    swipeZone.addEventListener('touchstart', e => {
+      touchStartX = e.changedTouches[0].screenX;
+    });
 
-        // --- Eventos do Microfone ---
-        micBtn.addEventListener('click', () => {
-            if (isListening) {
-                recognition.stop();
-            } else {
-                recognition.start();
-            }
-        });
+    swipeZone.addEventListener('touchend', e => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    });
 
-        recognition.onstart = () => {
-            isListening = true;
-            micBtn.classList.add('listening');
-            statusText.textContent = "Escutando... (Pode falar)";
-        };
-
-        recognition.onend = () => {
-            isListening = false;
-            micBtn.classList.remove('listening');
-            statusText.textContent = "Clique para falar novamente.";
-        };
-
-        recognition.onresult = async (event) => {
-            const transcript = event.results[0][0].transcript;
-            statusText.textContent = `Traduzindo: "${transcript}"...`;
-            
-            // Chama a função de tradução
-            await translateAndSpeak(transcript);
-        };
-
-        recognition.onerror = (event) => {
-            statusText.textContent = "Erro no reconhecimento: " + event.error;
-        };
-
-        // --- Função de Tradução e Fala ---
-        async function translateAndSpeak(text) {
-            try {
-                // Usando API gratuita MyMemory para demonstração
-                // Nota: Em produção, substitua por uma API paga (Google/DeepL) para maior qualidade/volume.
-                const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=pt|en`);
-                const data = await response.json();
-                
-                if (data.responseData) {
-                    const translatedText = data.responseData.translatedText;
-                    
-                    // Mostra o texto
-                    outputDiv.innerHTML = translatedText;
-                    
-                    // Fala o texto (TTS)
-                    speakEnglish(translatedText);
-                    
-                    statusText.textContent = "Tradução concluída.";
-                }
-            } catch (error) {
-                console.error(error);
-                statusText.textContent = "Erro ao traduzir.";
-                outputDiv.textContent = "Error in translation service.";
-            }
+    function handleSwipe() {
+      const minSwipeDistance = 50; 
+      
+      if (touchEndX < touchStartX - minSwipeDistance) {
+        // Deslizou para a esquerda (Voltar)
+        if(player && player.getCurrentTime) {
+          player.seekTo(player.getCurrentTime() - 5, true);
         }
-
-        function speakEnglish(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'en-US';
-            utterance.rate = 1; // Velocidade normal
-            window.speechSynthesis.speak(utterance);
+      }
+      
+      if (touchEndX > touchStartX + minSwipeDistance) {
+        // Deslizou para a direita (Avançar)
+        if(player && player.getCurrentTime) {
+          player.seekTo(player.getCurrentTime() + 5, true);
         }
-
-        // --- Funcionalidade de Seleção e Post-its ---
-        
-        document.addEventListener('mouseup', handleSelection);
-
-        function handleSelection() {
-            const selection = window.getSelection();
-            const selectedText = selection.toString().trim();
-
-            // Verifica se a seleção está dentro da caixa de texto e não está vazia
-            if (selectedText.length > 0 && outputDiv.contains(selection.anchorNode.parentElement)) {
-                createPostIt(selectedText);
-                selection.removeAllRanges(); // Limpa a seleção após criar
-            }
+      }
+      
+      // Um toque simples na tela (sem arrastar) pausa ou dá play
+      if (Math.abs(touchEndX - touchStartX) < 10) {
+        if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+          player.pauseVideo();
+        } else {
+          player.playVideo();
         }
-
-        function createPostIt(term) {
-            // Simulação de IA gerando frases (No mundo real, aqui chamaria a API do Gemini/OpenAI)
-            const examples = generateMockExamples(term);
-            
-            const postIt = document.createElement('div');
-            postIt.className = 'post-it';
-            
-            // Cores aleatórias de post-it
-            const colors = ['#fff740', '#ffcccb', '#d1c4e9', '#c8e6c9'];
-            postIt.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-
-            postIt.innerHTML = `
-                <span class="close-btn" onclick="this.parentElement.remove()">x</span>
-                <strong>Expression: "${term}"</strong>
-                <p>Examples:</p>
-                <ul style="padding-left: 20px; margin: 5px 0;">
-                    <li>${examples[0]}</li>
-                    <li>${examples[1]}</li>
-                </ul>
-            `;
-
-            // Adiciona no topo
-            notesArea.insertBefore(postIt, notesArea.firstChild);
-        }
-
-        // Função "Mock" para gerar exemplos (já que não temos backend de IA neste arquivo estático)
-        function generateMockExamples(word) {
-            // Em um app real, isso viria de uma LLM. Aqui usamos templates simples.
-            const templates = [
-                `I really like using "${word}" in my daily life.`,
-                `Have you ever thought about the concept of "${word}"?`,
-                `The main issue is definitely "${word}".`,
-                `Never underestimate the power of "${word}".`
-            ];
-            
-            // Embaralha e pega 2
-            return templates.sort(() => 0.5 - Math.random()).slice(0, 2);
-        }
-    </script>
+      }
+    }
+  </script>
 </body>
 </html>

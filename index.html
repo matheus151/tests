@@ -3,29 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Player Estudo Pro (V29 - Firebase Sync)</title>
+    <title>Player Estudo Pro (V30 - Search Fix)</title>
     <style>
-        /* --- VARIÁVEIS DE DESIGN --- */
+        /* --- VARIÁVEIS DE DESIGN (Modo Claro Padrão para Leitura) --- */
         :root {
+            --bg-color: #f0f2f5;
+            --panel-color: #ffffff;
+            --input-bg: #e4e6eb;
+            --border-color: #ccc;
+            --text-main: #000000;
+            --text-dim: #444444;
+            --primary: #3498db;
+            --accent: #d35400;
+            --success: #27ae60;
+            --radius: 8px;
+        }
+
+        body.dark-mode {
             --bg-color: #121212;
             --panel-color: #1e1e1e;
             --input-bg: #2c2c2c;
             --border-color: #333;
             --text-main: #eee;
             --text-dim: #aaa;
-            --primary: #3498db;
-            --accent: #f1c40f;
-            --success: #2ecc71;
-            --radius: 8px;
-        }
-
-        body.light-mode {
-            --bg-color: #f0f2f5;
-            --panel-color: #ffffff;
-            --input-bg: #e4e6eb;
-            --border-color: #ccc;
-            --text-main: #1c1e21;
-            --text-dim: #65676b;
         }
 
         /* --- GERAL --- */
@@ -76,7 +76,7 @@
         }
         .icon-btn:active { filter: brightness(0.9); }
         .btn-primary { background: var(--primary); border: none; color: #fff; }
-        .btn-fav { color: var(--accent); border-color: var(--accent); }
+        .btn-fav { color: #fff; background-color: var(--accent); border-color: var(--accent); }
 
         /* LISTAS */
         .list-container {
@@ -104,7 +104,7 @@
             border-bottom: 1px solid var(--border-color); transition: background 0.2s;
             position: relative;
         }
-        .video-item:active { background: rgba(255,255,255,0.05); }
+        .video-item:active { background: rgba(0,0,0,0.05); }
         
         .video-thumb-wrapper { position: relative; width: 100px; height: 56px; flex-shrink: 0; }
         .video-thumb { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
@@ -116,7 +116,7 @@
         .video-info { flex-grow: 1; overflow: hidden; }
         .video-title { font-size: 0.85rem; line-height: 1.2; margin-bottom: 4px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--text-main); }
         .video-channel { font-size: 0.75rem; color: var(--text-dim); }
-        .loading-more { text-align: center; color: var(--text-dim); padding: 10px; font-size: 0.8rem; }
+        .loading-more { text-align: center; color: var(--text-dim); padding: 15px; font-size: 0.9rem; font-weight: bold; }
 
         .btn-del-fav {
             background: #c0392b; color: #fff; border: none; padding: 5px 10px;
@@ -125,10 +125,10 @@
 
         /* API KEY CONFIG */
         #api-key-config {
-            display: none; padding: 12px; background: #2c2500; border: 1px solid #665500;
-            border-radius: var(--radius); margin-bottom: 10px; font-size: 0.85rem;
+            display: none; padding: 12px; background: #fff3cd; border: 1px solid #ffeeba;
+            border-radius: var(--radius); margin-bottom: 10px; font-size: 0.85rem; color: #856404;
         }
-        .api-save-btn { background: #f1c40f; color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; margin-top: 5px; cursor: pointer; }
+        .api-save-btn { background: #28a745; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; margin-top: 5px; cursor: pointer; }
 
         /* ARQUIVOS & BOTÕES */
         .grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
@@ -149,7 +149,6 @@
             border: none; display: none; cursor: pointer;
         }
         
-        /* BOTÕES DE VOCABULÁRIO */
         #btn-dl-vocab { background: #8e44ad; color: #fff; width: 100%; padding: 10px; border-radius: var(--radius); font-weight: bold; border: none; cursor: pointer; }
         #btn-clear-vocab { background: #e74c3c; color: #fff; width: 100%; padding: 10px; border-radius: var(--radius); font-weight: bold; border: none; cursor: pointer; }
         .btn-reset { background: var(--input-bg); border: 1px solid var(--border-color); color: #e74c3c; width: 100%; padding: 10px; border-radius: var(--radius); font-weight: bold; margin-top: 5px; cursor: pointer; }
@@ -226,7 +225,7 @@
             font-size: 1em; padding: 2px 1px; border-radius: 4px; display: inline; cursor: pointer;
             box-decoration-break: clone; -webkit-box-decoration-break: clone;
         }
-        .word.selected { background-color: var(--accent) !important; color: #000 !important; font-weight: bold; }
+        .word.selected { background-color: var(--accent) !important; color: #fff !important; font-weight: bold; }
 
         .translate-btn {
             display: inline-flex; align-items: center; justify-content: center;
@@ -247,7 +246,6 @@
         #phrase-orig { font-weight: bold; color: #555; margin-bottom: 6px; font-size: 0.9rem; }
         #phrase-trans { font-size: 1.3rem; font-weight: 800; color: #000; line-height: 1.2; margin-bottom: 15px; }
         
-        /* Botões do Card */
         .trans-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
         .btn-card { padding: 8px 15px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
         #btn-close-trans { background: #eee; color: #333; }
@@ -271,22 +269,23 @@
 
     <div id="controls-wrapper">
         <div class="control-group">
-            <input type="text" id="yt-search-input" class="modern-input" placeholder="YouTube (Link ou Busca)...">
+            <input type="text" id="yt-search-input" class="modern-input" placeholder="YouTube (Link ou Busca)..." onkeypress="if(event.key==='Enter') initSearch()">
             <button class="icon-btn btn-primary" onclick="initSearch()">🔍</button>
             <button class="icon-btn btn-fav" onclick="toggleFavorites()" title="Meus Favoritos">⭐</button>
-            <button class="icon-btn" onclick="toggleTheme()" title="Mudar Tema">🌗</button> <button class="icon-btn" onclick="openApiConfig()">🔑</button>
+            <button class="icon-btn" onclick="toggleTheme()" title="Modo Escuro">🌗</button> 
+            <button class="icon-btn" onclick="openApiConfig()">🔑</button>
         </div>
         
         <div id="api-key-config">
-            <p style="margin:0 0 5px 0; color:#888;">⚠️ <b>API Key YouTube</b> necessária para busca:</p>
+            <p style="margin:0 0 5px 0;">⚠️ <b>API Key YouTube</b> necessária para busca:</p>
             <input type="text" id="api-key-input" class="modern-input" placeholder="Cole sua API Key aqui">
-            <button class="api-save-btn" onclick="saveApiKey()">Salvar</button>
-            <button class="api-save-btn" onclick="document.getElementById('api-key-config').style.display='none'" style="background:#444; color:#fff;">Fechar</button>
+            <button class="api-save-btn" onclick="saveApiKey()">Salvar Chave</button>
+            <button class="api-save-btn" onclick="document.getElementById('api-key-config').style.display='none'" style="background:#6c757d;">Fechar</button>
         </div>
 
         <div id="search-results-container" class="list-container">
             <div class="list-header" onclick="toggleContainer('search-results-list', 'results-arrow')">
-                <span>📺 Resultados</span>
+                <span>📺 Resultados da Pesquisa</span>
                 <span class="toggle-arrow" id="results-arrow">▼</span>
             </div>
             <div id="search-results-list" class="scroll-list"></div>
@@ -331,7 +330,7 @@
             </div>
         </div>
 
-        <button class="btn-reset" onclick="resetApp()">🗑️ Fechar Vídeo</button>
+        <button class="btn-reset" onclick="resetApp()">🗑️ Fechar Vídeo Atual</button>
     </div>
 
     <div id="ui-toggle-bar" onclick="toggleMainUI()">🔼</div>
@@ -427,13 +426,20 @@
         }
         function saveApiKey() {
             const k = document.getElementById('api-key-input').value.trim();
-            if(k){YOUTUBE_API_KEY=k;localStorage.setItem('ejoy_api_key',k);apiKeyConfig.style.display='none';alert("Salvo!");}
+            if(k){
+                YOUTUBE_API_KEY=k;
+                localStorage.setItem('ejoy_api_key',k);
+                apiKeyConfig.style.display='none';
+                alert("Chave API salva com sucesso!");
+                // Testa a pesquisa automaticamente se já houver algo digitado
+                if(ytInput.value.trim() !== "") { initSearch(); }
+            }
         }
         function openApiConfig(){apiKeyConfig.style.display='block';document.getElementById('api-key-input').value=YOUTUBE_API_KEY}
         
         function toggleTheme() {
-            document.body.classList.toggle('light-mode');
-            localStorage.setItem('ejoy_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('ejoy_theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
         }
 
         // Vocab & Favs
@@ -476,17 +482,20 @@
         }
         function removeFavorite(e,i){e.stopPropagation();if(confirm("Apagar?")){favorites.splice(i,1);localStorage.setItem('ejoy_favs',JSON.stringify(favorites));renderFavorites();}}
 
-        // --- INTEGRAÇÃO COM FIREBASE (Método eJoy) ---
+        // --- INTEGRAÇÃO COM FIREBASE ---
         async function fetchSubtitlesFromBackend(vid) {
             if (FIREBASE_FUNCTION_URL === "SEU_LINK_DO_FIREBASE_AQUI") {
-                alert("Para obter legendas automáticas, configure a URL do seu Firebase no código fonte.");
+                const statusBox = document.getElementById('resume-status');
+                statusBox.style.display = 'block';
+                statusBox.style.color = '#e74c3c';
+                statusBox.innerText = '⚠️ Configure o Link do Firebase no código do App.';
                 return;
             }
 
             const statusBox = document.getElementById('resume-status');
             statusBox.style.display = 'block';
             statusBox.style.color = '#3498db';
-            statusBox.innerText = '⚡ Conectando ao seu servidor Firebase...';
+            statusBox.innerText = '⚡ Extraindo legenda via Firebase...';
             
             try {
                 const response = await fetch(`${FIREBASE_FUNCTION_URL}?videoId=${vid}`);
@@ -497,7 +506,7 @@
                 if (data && data.length > 0) {
                     subtitles = data;
                     statusBox.style.color = 'var(--success)';
-                    statusBox.innerText = '✅ Legenda carregada do servidor!';
+                    statusBox.innerText = '✅ Legenda automática carregada!';
                     localStorage.setItem('ejoy_subs', JSON.stringify(subtitles));
                 } else {
                     throw new Error("Track vazia");
@@ -509,39 +518,97 @@
             }
         }
 
-        // Busca YT
+        // --- MOTOR DE BUSCA CORRIGIDO ---
         let nextPageToken=""; let isFetching=false;
+        
         async function initSearch() {
-            const q=ytInput.value.trim(); if(q.includes('youtu')){loadYouTubeFromInput();return;}
-            if(!YOUTUBE_API_KEY){openApiConfig();return;} if(!q)return;
-            nextPageToken=""; resultsList.innerHTML=""; document.getElementById('search-results-container').style.display='block';
-            resultsList.classList.remove('hidden'); await fetchVideos(q);
+            const q = ytInput.value.trim(); 
+            if(q.includes('youtu')){ loadYouTubeFromInput(); return; }
+            
+            // Força a abertura visual da aba de Resultados
+            const resultsContainer = document.getElementById('search-results-container');
+            resultsContainer.style.display = 'block';
+            resultsList.classList.remove('hidden');
+            document.getElementById('results-arrow').classList.remove('collapsed');
+
+            if(!YOUTUBE_API_KEY){
+                resultsList.innerHTML = `<div style="padding:15px;text-align:center;color:#e74c3c;"><b>API Key ausente!</b><br>Clique no ícone 🔑 acima, cole sua chave do YouTube e tente novamente.</div>`;
+                openApiConfig();
+                return; 
+            } 
+            if(!q) {
+                resultsList.innerHTML = `<div style="padding:15px;text-align:center;color:#e67e22;">Digite um termo para pesquisar.</div>`;
+                return;
+            }
+
+            nextPageToken = ""; 
+            resultsList.innerHTML = ""; 
+            await fetchVideos(q);
         }
+
         async function fetchVideos(q) {
-            if(isFetching)return; isFetching=true;
-            const loader=document.createElement('div');loader.innerText="Carregando...";loader.className="loading-more";resultsList.appendChild(loader);
+            if(isFetching) return; 
+            isFetching = true;
+            
+            const loader = document.createElement('div');
+            loader.innerText = "⏳ Buscando vídeos no YouTube...";
+            loader.className = "loading-more";
+            resultsList.appendChild(loader);
+            
             try {
-                let u=`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`;
-                if(nextPageToken)u+=`&pageToken=${nextPageToken}`;
-                const res=await fetch(u); const d=await res.json(); loader.remove();
-                if(d.error){alert(d.error.message);return;}
-                nextPageToken=d.nextPageToken||"";
+                let u = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`;
+                if(nextPageToken) u += `&pageToken=${nextPageToken}`;
+                
+                const res = await fetch(u); 
+                const d = await res.json(); 
+                loader.remove();
+                
+                // MENSAGEM VISUAL DE ERRO (Sem travar o app)
+                if(d.error) {
+                    resultsList.innerHTML = `<div style="padding:15px;color:#c0392b;font-size:0.9rem;text-align:center;"><b>Erro da API do YouTube:</b><br>${d.error.message}<br><br><i>Verifique se a sua Chave é válida e se a 'YouTube Data API v3' está ativada.</i></div>`;
+                    return;
+                }
+                
+                if(!d.items || d.items.length === 0) {
+                    resultsList.innerHTML = `<div style="padding:15px;text-align:center;color:#7f8c8d;">Nenhum vídeo encontrado para "${q}".</div>`;
+                    return;
+                }
+
+                nextPageToken = d.nextPageToken || "";
                 const videoIds = d.items.map(item => item.id.videoId).join(',');
                 let videosData = {};
+                
                 if (videoIds) {
                     const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${YOUTUBE_API_KEY}`;
-                    const resDetails = await fetch(detailsUrl); const dataDetails = await resDetails.json();
-                    if (!dataDetails.error) { dataDetails.items.forEach(v => { videosData[v.id] = parseDuration(v.contentDetails.duration); }); }
+                    try {
+                        const resDetails = await fetch(detailsUrl); 
+                        const dataDetails = await resDetails.json();
+                        if (!dataDetails.error && dataDetails.items) { 
+                            dataDetails.items.forEach(v => { videosData[v.id] = parseDuration(v.contentDetails.duration); }); 
+                        }
+                    } catch(e) { console.warn("Erro ao buscar durações"); }
                 }
-                d.items.forEach(i=>{
-                    const vid=i.id.videoId; const t=i.snippet.title; const th=i.snippet.thumbnails.medium.url;
+                
+                d.items.forEach(i => {
+                    const vid = i.id.videoId; 
+                    const t = i.snippet.title; 
+                    const th = i.snippet.thumbnails?.medium?.url || '';
                     const duration = videosData[vid] || "";
-                    const el=document.createElement('div'); el.className='video-item';
-                    el.innerHTML=`<div class="video-thumb-wrapper"><img src="${th}" class="video-thumb">${duration ? `<span class="video-duration">${duration}</span>` : ''}</div><div class="video-info"><div class="video-title">${t}</div><div class="video-channel">${i.snippet.channelTitle}</div></div>`;
-                    el.onclick=()=>{loadYouTube(vid,t,th)}; resultsList.appendChild(el);
+                    
+                    const el = document.createElement('div'); 
+                    el.className = 'video-item';
+                    el.innerHTML = `<div class="video-thumb-wrapper"><img src="${th}" class="video-thumb">${duration ? `<span class="video-duration">${duration}</span>` : ''}</div><div class="video-info"><div class="video-title">${t}</div><div class="video-channel">${i.snippet.channelTitle}</div></div>`;
+                    el.onclick = () => { loadYouTube(vid, t, th) }; 
+                    resultsList.appendChild(el);
                 });
-            } catch(e){loader.innerText="Erro";} finally{isFetching=false;}
+            } catch(e) {
+                loader.remove();
+                resultsList.innerHTML = `<div style="padding:15px;color:#c0392b;text-align:center;">Erro de conexão. Verifique sua internet.</div>`;
+            } finally {
+                isFetching = false;
+            }
         }
+        
         function parseDuration(pt) {
             const match = pt.match(/PT(\d+H)?(\d+M)?(\d+S)?/); if (!match) return "";
             const h = (match[1] || '').replace('H', ''); const m = (match[2] || '').replace('M', ''); const s = (match[3] || '').replace('S', '');
@@ -569,7 +636,6 @@
                 const rs = document.getElementById('resume-status');
                 rs.style.display='block'; rs.style.color='var(--success)'; rs.innerText='✅ Legenda Favorita Carregada';
             } else {
-                // CHAMA SEU FIREBASE BACKEND
                 fetchSubtitlesFromBackend(vid);
             }
 
@@ -713,7 +779,7 @@
         window.addEventListener('resize', fixSubtitlePosition);
         
         window.onload = () => {
-            if(localStorage.getItem('ejoy_theme')==='light') document.body.classList.add('light-mode');
+            if(localStorage.getItem('ejoy_theme')==='dark') document.body.classList.add('dark-mode');
             const savedSubs = localStorage.getItem('ejoy_subs');
             if (savedSubs) try { subtitles = JSON.parse(savedSubs); document.getElementById('resume-status').style.display='block'; document.getElementById('resume-status').innerText='✅ Legenda Memória OK'; } catch(e){}
             if(!YOUTUBE_API_KEY && !localStorage.getItem('ejoy_api_key')) document.getElementById('api-key-config').style.display='block';

@@ -3,54 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Player Estudo Pro (V29.0 - API Privada)</title>
+    <title>Player Estudo Pro (V27.6 - Direct Engine)</title>
     <style>
+        /* --- VARIÁVEIS DE DESIGN --- */
         :root {
             --bg-color: #121212; --panel-color: #1e1e1e; --input-bg: #2c2c2c; --border-color: #333;
             --text-main: #eee; --text-dim: #aaa; --primary: #3498db; --accent: #f1c40f; --success: #2ecc71; --radius: 8px;
         }
+
         body.light-mode {
             --bg-color: #f0f2f5; --panel-color: #ffffff; --input-bg: #e4e6eb; --border-color: #ccc;
             --text-main: #1c1e21; --text-dim: #65676b;
         }
+
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; transition: background 0.3s, color 0.3s; }
-        
-        #controls-wrapper { background: var(--panel-color); z-index: 50; padding: 12px; max-height: 85vh; overflow-y: auto; flex-shrink: 0; border-bottom: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #ui-toggle-bar { background: var(--panel-color); color: var(--text-dim); text-align: center; padding: 2px 0; cursor: pointer; border-bottom: 1px solid var(--border-color); z-index: 51; font-size: 1.2rem; line-height: 1; user-select: none; flex-shrink: 0; }
+
+        /* --- CONTROLES --- */
+        #controls-wrapper { background: var(--panel-color); z-index: 50; padding: 12px; transition: opacity 0.3s, background 0.3s; max-height: 85vh; overflow-y: auto; flex-shrink: 0; border-bottom: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        #ui-toggle-bar { background: var(--panel-color); color: var(--text-dim); text-align: center; padding: 2px 0; border-top: 1px solid var(--border-color); cursor: pointer; border-bottom: 1px solid var(--border-color); z-index: 51; font-size: 1.2rem; line-height: 1; user-select: none; flex-shrink: 0; transition: background 0.2s; }
+        #ui-toggle-bar:active { background: var(--border-color); }
+
         .control-group { display: flex; gap: 8px; margin-bottom: 10px; }
-        .modern-input { background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px 12px; border-radius: var(--radius); flex-grow: 1; font-size: 0.9rem; }
-        .icon-btn { background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); padding: 0 14px; border-radius: var(--radius); cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; }
+        .modern-input { background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px 12px; border-radius: var(--radius); flex-grow: 1; font-size: 0.9rem; transition: border 0.2s; }
+        .modern-input:focus { border-color: var(--primary); }
+        .icon-btn { background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); padding: 0 14px; border-radius: var(--radius); cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .icon-btn:active { filter: brightness(0.9); }
         .btn-primary { background: var(--primary); border: none; color: #fff; }
         .btn-fav { color: var(--accent); border-color: var(--accent); }
-        
+
+        /* LISTAS */
         .list-container { display: none; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
         .list-header { background: var(--panel-color); padding: 10px 12px; font-size: 0.85rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-bottom: 1px solid var(--border-color); color: var(--text-dim); }
         .toggle-arrow { transition: transform 0.3s; }
         .toggle-arrow.collapsed { transform: rotate(180deg); }
         .scroll-list { display: flex; flex-direction: column; padding: 0; gap: 0; max-height: 50vh; overflow-y: auto; transition: max-height 0.3s ease; }
         .scroll-list.hidden { max-height: 0; padding: 0; }
-        .video-item { display: flex; gap: 10px; padding: 10px; background: transparent; cursor: pointer; align-items: flex-start; border-bottom: 1px solid var(--border-color); position: relative; }
+        .video-item { display: flex; gap: 10px; padding: 10px; background: transparent; cursor: pointer; align-items: flex-start; border-bottom: 1px solid var(--border-color); transition: background 0.2s; position: relative; }
+        .video-item:active { background: rgba(255,255,255,0.05); }
         .video-thumb-wrapper { position: relative; width: 100px; height: 56px; flex-shrink: 0; }
         .video-thumb { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
         .video-duration { position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.85); color: #fff; font-size: 0.65rem; padding: 1px 3px; border-radius: 2px; }
         .video-info { flex-grow: 1; overflow: hidden; }
         .video-title { font-size: 0.85rem; line-height: 1.2; margin-bottom: 4px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--text-main); }
+        .video-channel { font-size: 0.75rem; color: var(--text-dim); }
+        .loading-more { text-align: center; color: var(--text-dim); padding: 10px; font-size: 0.8rem; }
         .btn-del-fav { background: #c0392b; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px; }
 
-        #api-key-config { display: none; padding: 12px; background: #1a252c; border: 1px solid #2980b9; border-radius: var(--radius); margin-bottom: 10px; font-size: 0.85rem; }
-        .api-save-btn { background: var(--primary); color: #fff; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; margin-top: 10px; cursor: pointer; }
+        #api-key-config { display: none; padding: 12px; background: #2c2500; border: 1px solid #665500; border-radius: var(--radius); margin-bottom: 10px; font-size: 0.85rem; }
+        .api-save-btn { background: #f1c40f; color: #000; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; margin-top: 5px; cursor: pointer; }
 
+        /* ARQUIVOS & BOTÕES */
         .grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .file-label { background: var(--input-bg); border: 1px solid var(--border-color); padding: 12px; border-radius: var(--radius); text-align: center; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--text-dim); display: flex; flex-direction: column; align-items: center; gap: 5px; }
-        .btn-external { border: none; padding: 12px; border-radius: var(--radius); font-size: 0.8rem; font-weight: 600; cursor: pointer; text-align: center; color: #fff; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .file-label { background: var(--input-bg); border: 1px solid var(--border-color); padding: 12px; border-radius: var(--radius); text-align: center; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--text-dim); display: flex; flex-direction: column; align-items: center; gap: 5px; transition: background 0.2s; }
+        .file-label:active { filter: brightness(0.95); }
+        .file-label span { font-size: 1.2rem; }
+        .btn-external { border: none; padding: 12px; border-radius: var(--radius); font-size: 0.8rem; font-weight: 600; cursor: pointer; text-align: center; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
         .btn-yt-dl { background: #c0392b; } 
         
-        .btn-magic { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: #fff; width: 100%; padding: 15px; border-radius: var(--radius); font-weight: bold; border: none; cursor: pointer; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(46, 204, 113, 0.3); text-transform: uppercase; font-size: 0.9rem; }
-        
+        /* BOTÃO MÁGICO DE LEGENDA */
+        .btn-magic { background: linear-gradient(135deg, #e67e22 0%, #d35400 100%); color: #fff; width: 100%; padding: 15px; border-radius: var(--radius); font-weight: bold; border: none; cursor: pointer; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(230, 126, 34, 0.3); text-transform: uppercase; font-size: 0.85rem; }
+
         .btn-reset { background: var(--input-bg); border: 1px solid var(--border-color); color: #e74c3c; width: 100%; padding: 10px; border-radius: var(--radius); font-weight: bold; margin-top: 5px; cursor: pointer; }
         #btn-fav-current { background: var(--success); color: #fff; width: 100%; padding: 10px; border-radius: var(--radius); font-weight: bold; margin-bottom: 10px; border: none; display: none; cursor: pointer; }
-        
         #btn-dl-vocab { background: #8e44ad; color: #fff; width: 100%; padding: 10px; border-radius: var(--radius); font-weight: bold; border: none; cursor: pointer; }
         #btn-clear-vocab { background: #e74c3c; color: #fff; width: 100%; padding: 10px; border-radius: var(--radius); font-weight: bold; border: none; cursor: pointer; }
 
@@ -63,6 +78,7 @@
         input[type="color"] { border: none; width: 20px; height: 20px; background: none; padding: 0; cursor: pointer; }
         input[type="file"] { display: none; }
 
+        /* --- VÍDEO --- */
         #video-wrapper { position: relative; flex-grow: 1; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden; width: 100%; height: 100%; }
         video { width: 100%; max-height: 100%; object-fit: contain; display: block; }
         #yt-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; z-index: 1; }
@@ -70,12 +86,13 @@
         #gesture-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
         #unlock-yt-btn { position: absolute; top: 10px; right: 10px; z-index: 60; background: rgba(0,0,0,0.6); color: #fff; border: 1px solid #555; padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; display: none; cursor: pointer; backdrop-filter: blur(4px); }
 
+        /* --- LEGENDAS --- */
         #subtitle-container { position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%); width: auto; min-width: 80%; max-width: 96%; z-index: 20; display: flex; flex-direction: column; align-items: center; }
         .subtitle-box { background-color: rgba(0, 0, 0, 0.75); color: #ffffff; padding: 0 14px 10px 14px; border-radius: 12px; pointer-events: auto; user-select: none; touch-action: none; line-height: 1.45; text-align: center; position: relative; transition: background-color 0.3s, color 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.4); font-size: 1.2rem; backdrop-filter: blur(2px); }
         #drag-handle { width: 50px; height: 4px; background-color: rgba(255,255,255,0.2); margin: 6px auto 8px auto; border-radius: 10px; cursor: move; position: relative; }
         #drag-handle::after { content: ''; position: absolute; top: -20px; bottom: -20px; left: -40px; right: -40px; }
 
-        .word { font-size: 1em; padding: 2px 1px; border-radius: 4px; display: inline; cursor: pointer; }
+        .word { font-size: 1em; padding: 2px 1px; border-radius: 4px; display: inline; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
         .word.selected { background-color: var(--accent) !important; color: #000 !important; }
         .translate-btn { display: inline-flex; align-items: center; justify-content: center; background: #fff; color: #000; border-radius: 50%; width: 22px; height: 22px; margin-left: 8px; font-size: 12px; cursor: pointer; vertical-align: middle; opacity: 0.9; }
 
@@ -93,26 +110,20 @@
     </style>
 </head>
 <body>
+
     <div id="controls-wrapper">
         <div class="control-group">
             <input type="text" id="yt-search-input" class="modern-input" placeholder="YouTube (Link ou Busca)...">
             <button class="icon-btn btn-primary" onclick="initSearch()">🔍</button>
-            <button class="icon-btn btn-fav" onclick="toggleFavorites()">⭐</button>
-            <button class="icon-btn" onclick="toggleTheme()">🌗</button> 
-            <button class="icon-btn" onclick="openApiConfig()">⚙️</button>
+            <button class="icon-btn btn-fav" onclick="toggleFavorites()" title="Meus Favoritos">⭐</button>
+            <button class="icon-btn" onclick="toggleTheme()" title="Mudar Tema">🌗</button> <button class="icon-btn" onclick="openApiConfig()">🔑</button>
         </div>
         
         <div id="api-key-config">
-            <p style="margin:0 0 5px 0; color:var(--text-main);">☁️ <b>1. Link do Replit (Seu Servidor)</b></p>
-            <input type="text" id="replit-url-input" class="modern-input" placeholder="Ex: https://meu-projeto.replit.co">
-            
-            <p style="margin:15px 0 5px 0; color:var(--text-main);">🔑 <b>2. API Key YouTube (Para Busca)</b></p>
-            <input type="text" id="api-key-input" class="modern-input" placeholder="Sua API Key do Google">
-            
-            <div style="display: flex; gap: 8px;">
-                <button class="api-save-btn" style="flex-grow: 1;" onclick="saveConfig()">💾 Salvar</button>
-                <button class="api-save-btn" style="background:#444; color:#fff;" onclick="document.getElementById('api-key-config').style.display='none'">Fechar</button>
-            </div>
+            <p style="margin:0 0 5px 0; color:#888;">⚠️ <b>API Key YouTube</b> necessária para busca:</p>
+            <input type="text" id="api-key-input" class="modern-input" placeholder="Cole sua API Key aqui">
+            <button class="api-save-btn" onclick="saveApiKey()">Salvar</button>
+            <button class="api-save-btn" onclick="document.getElementById('api-key-config').style.display='none'" style="background:#444; color:#fff;">Fechar</button>
         </div>
 
         <div id="search-results-container" class="list-container">
@@ -131,15 +142,15 @@
 
         <button id="btn-fav-current" onclick="addCurrentToFavorites()">❤️ Favoritar Vídeo Atual</button>
 
-        <button class="btn-magic" onclick="autoFetchSubtitles()">🤖 Baixar Legenda Automática</button>
+        <button class="btn-magic" onclick="autoExtractDirect()">🪄 Extrair Legenda (Automático no Cache)</button>
 
         <div class="grid-row">
-            <label class="file-label"><span>📁</span> Vídeo Local <input type="file" id="videoInput" accept="video/*"></label>
+            <label class="file-label"><span>📁</span> Vídeo Local <input type="file" id="videoInput" accept="video/mp4, video/x-m4v, video/*"></label>
             <label class="file-label"><span>📝</span> Legenda Local <input type="file" id="subInput" accept="*"></label>
         </div>
 
         <div class="grid-row" style="grid-template-columns: 1fr;">
-            <button class="btn-external btn-yt-dl" onclick="openExternalDownSub()">⬇️ DownSub (Site Backup)</button>
+            <button class="btn-external btn-yt-dl" onclick="openExternalDownSub()">⬇️ Baixar Legenda (Reserva)</button>
         </div>
         
         <div class="grid-row" style="margin-top: 5px;">
@@ -155,10 +166,11 @@
                 <button class="font-btn" onclick="changeFontSize(0.1)">A+</button>
             </div>
             <div class="style-group">
-                <input type="color" id="textColor" value="#ffffff">
-                <input type="color" id="bgColor" value="#000000">
+                <div class="color-picker-wrapper">Txt <input type="color" id="textColor" value="#ffffff"></div>
+                <div class="color-picker-wrapper">Bg <input type="color" id="bgColor" value="#000000"></div>
             </div>
         </div>
+
         <button class="btn-reset" onclick="resetApp()">🗑️ Fechar Vídeo</button>
     </div>
 
@@ -192,87 +204,147 @@
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <script>
-        // CONFIGURAÇÕES
-        let YOUTUBE_API_KEY = localStorage.getItem('ejoy_api_key') || "";
-        let REPLIT_SERVER_URL = localStorage.getItem('ejoy_replit_url') || "";
-
-        function openApiConfig() { 
-            document.getElementById('api-key-config').style.display = 'block'; 
-            document.getElementById('api-key-input').value = YOUTUBE_API_KEY; 
-            document.getElementById('replit-url-input').value = REPLIT_SERVER_URL; 
-        }
-
-        function saveConfig() {
-            const ytKey = document.getElementById('api-key-input').value.trim();
-            let repUrl = document.getElementById('replit-url-input').value.trim();
-            if (repUrl && repUrl.endsWith('/')) repUrl = repUrl.slice(0, -1);
-            
-            YOUTUBE_API_KEY = ytKey; localStorage.setItem('ejoy_api_key', ytKey);
-            REPLIT_SERVER_URL = repUrl; localStorage.setItem('ejoy_replit_url', repUrl);
-            
-            document.getElementById('api-key-config').style.display = 'none';
-            alert("Salvo!");
-        }
-
-        // --- CONEXÃO COM O REPLIT ---
-        async function autoFetchSubtitles() {
-            if(playerType !== 'youtube' || !currentPlayingYT) { alert("Carregue um vídeo do YouTube."); return; }
-            if(!REPLIT_SERVER_URL) { alert("Clique na engrenagem (⚙️) e insira o link do seu servidor Replit primeiro!"); return; }
-            
+        // --- MOTOR DE EXTRAÇÃO DIRETA (A SOLUÇÃO DEFINITIVA) ---
+        // Ele acessa os servidores Piped de código aberto diretamente. Sem proxies intermediários que caem.
+        async function autoExtractDirect() {
+            if(playerType !== 'youtube' || !currentPlayingYT) { alert("Carregue um vídeo do YouTube primeiro."); return; }
             const vid = currentPlayingYT.id;
             const st = document.getElementById('resume-status');
-            st.style.display = 'block'; st.style.color = '#f1c40f'; st.style.backgroundColor = 'rgba(241, 196, 15, 0.1)';
-            st.innerText = '⏳ Seu servidor Replit está extraindo a legenda...';
 
-            try {
-                const res = await fetch(`${REPLIT_SERVER_URL}/api/subs?v=${vid}`);
-                const json = await res.json();
+            st.style.display = 'block';
+            st.style.color = '#f1c40f';
+            st.style.backgroundColor = 'rgba(241, 196, 15, 0.1)';
+            st.innerText = '⏳ Conectando aos Servidores Espelho...';
 
-                if(json.success && json.data && json.data.length > 0) {
-                    subtitles = json.data;
-                    localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); 
-                    st.style.color = 'var(--success)'; st.style.backgroundColor = 'rgba(46, 204, 113, 0.1)';
-                    st.innerText = `✅ Legenda (${json.lang.toUpperCase()}) Carregada!`;
-                    if(ytPlayer && ytPlayer.getCurrentTime) renderLogic(ytPlayer.getCurrentTime() + 0.01);
-                } else {
-                    throw new Error("Erro do servidor");
+            // Servidores que têm o CORS aberto e não bloqueiam conexões diretas
+            const instances = [
+                'https://pipedapi.kavin.rocks',
+                'https://pipedapi.tokhmi.xyz',
+                'https://piapi.ggtyler.dev',
+                'https://pipedapi.smnz.de'
+            ];
+
+            let success = false;
+
+            for (let i = 0; i < instances.length; i++) {
+                if(i > 0) st.innerText = `⏳ Alternando rota de acesso (Tentativa ${i+1})...`;
+                
+                try {
+                    const response = await fetch(`${instances[i]}/streams/${vid}`);
+                    if (!response.ok) continue;
+                    
+                    const data = await response.json();
+                    
+                    if (data.subtitles && data.subtitles.length > 0) {
+                        // Tenta achar em Inglês, depois PT, ou pega a primeira
+                        const subTrack = data.subtitles.find(s => s.code.startsWith('en')) || 
+                                         data.subtitles.find(s => s.code.startsWith('pt')) || 
+                                         data.subtitles[0];
+                        
+                        // Baixa a legenda convertida do servidor
+                        const subRes = await fetch(subTrack.url);
+                        if (!subRes.ok) continue;
+                        
+                        const vttText = await subRes.text();
+                        subtitles = parseVTT(vttText);
+                        
+                        if (subtitles.length > 0) {
+                            // Salva no Cache do App para uso automático
+                            localStorage.setItem('ejoy_subs', JSON.stringify(subtitles));
+                            
+                            st.style.color = 'var(--success)';
+                            st.style.backgroundColor = 'rgba(46, 204, 113, 0.1)';
+                            st.innerText = `✅ Sucesso! Legenda Automática (${subTrack.name}) Salva no Cache!`;
+                            
+                            // Atualiza a tela imediatamente
+                            if (ytPlayer && ytPlayer.getCurrentTime) renderLogic(ytPlayer.getCurrentTime() + 0.01);
+                            success = true;
+                            break; // Para o loop pois achamos a legenda
+                        }
+                    }
+                } catch(e) {
+                    console.log(`Instância ${i+1} falhou.`);
                 }
-            } catch(e) {
-                st.style.color = '#e74c3c'; st.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
-                st.innerText = '❌ Erro de conexão com o servidor Replit ou vídeo sem legenda.';
+            }
+
+            if(!success) {
+                st.style.color = '#e74c3c';
+                st.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
+                st.innerText = '❌ Vídeo sem legenda disponível na nuvem. Use o botão reserva (DownSub).';
             }
         }
 
-        // --- SISTEMA RESTANTE ---
+        // Conversor nativo de formato VTT para o App
+        function parseVTT(vttText) {
+            const lines = vttText.split('\n');
+            const result = [];
+            let current = null;
+            for (let line of lines) {
+                line = line.trim();
+                if (line === "WEBVTT" || line === "") continue;
+                
+                if (line.includes('-->')) {
+                    if (current) result.push(current);
+                    const parts = line.split('-->');
+                    current = { 
+                        start: timeToSecVTT(parts[0].trim()), 
+                        end: timeToSecVTT(parts[1].trim()), 
+                        text: "" 
+                    };
+                } else if (current && !line.match(/^\d+$/)) {
+                    current.text += line + " ";
+                }
+            }
+            if (current) result.push(current);
+            return result.map(s => ({...s, text: s.text.replace(/<[^>]*>/g, '').trim()}));
+        }
+
+        function timeToSecVTT(str) {
+            const parts = str.split(':');
+            let sec = 0;
+            if (parts.length === 3) {
+                sec = (parseFloat(parts[0]) * 3600) + (parseFloat(parts[1]) * 60) + parseFloat(parts[2].replace(',','.'));
+            } else if (parts.length === 2) {
+                sec = (parseFloat(parts[0]) * 60) + parseFloat(parts[1].replace(',','.'));
+            }
+            return sec;
+        }
+
+        // --- SISTEMA RESTANTE (100% INTACTO DA V27.3) ---
         function openBingTranslator() { if(!currentTranslateSource) return; window.open(`https://www.bing.com/translator?from=en&to=pt&text=${encodeURIComponent(currentTranslateSource)}`, '_blank'); }
 
         let vocabList = JSON.parse(localStorage.getItem('ejoy_vocab')) || [];
         let favorites = JSON.parse(localStorage.getItem('ejoy_favs')) || [];
         let videoHistory = JSON.parse(localStorage.getItem('ejoy_vid_history')) || {};
-        let currentTranslateSource = ""; let currentPlayingYT = null; let currentVideoURL = null; let currentFontSize = 1.2; let playerType = 'local';
-        let ytPlayer = null; let ytTimer = null; let ytControlsLocked = true; let selectionStartIndex = -1; let isSelecting = false; let isDragging = false; let dragStartX=0, dragStartY=0, initialTop=0, initialLeft=0;
+        let currentTranslateSource = ""; let currentPlayingYT = null; let YOUTUBE_API_KEY = localStorage.getItem('ejoy_api_key') || "";
+        let currentVideoURL = null; let currentFontSize = 1.2; let playerType = 'local';
+        let ytPlayer = null; let ytTimer = null; let ytControlsLocked = true; let selectionStartIndex = -1;
+        let isSelecting = false; let isDragging = false; let dragStartX=0, dragStartY=0, initialTop=0, initialLeft=0;
 
         const video = document.getElementById('mainVideo'); const ytContainer = document.getElementById('yt-container'); const gestureLayer = document.getElementById('gesture-layer'); const unlockBtn = document.getElementById('unlock-yt-btn'); const subContent = document.getElementById('subtitle-content'); const subBox = document.getElementById('subtitle-box'); const subContainer = document.getElementById('subtitle-container'); const transCard = document.getElementById('translation-card'); const transOrig = document.getElementById('phrase-orig'); const transRes = document.getElementById('phrase-trans'); const apiKeyConfig = document.getElementById('api-key-config'); const ytInput = document.getElementById('yt-search-input'); const resultsList = document.getElementById('search-results-list'); const favoritesList = document.getElementById('favorites-list'); const btnFavCurrent = document.getElementById('btn-fav-current'); const dragHandle = document.getElementById('drag-handle');
 
         function changeFontSize(d) { currentFontSize+=d; if(currentFontSize<0.5)currentFontSize=0.5; if(currentFontSize>3)currentFontSize=3; subBox.style.fontSize=currentFontSize+'rem'; }
         function toggleMainUI() { const c = document.getElementById('controls-wrapper'); const b = document.getElementById('ui-toggle-bar'); if(c.style.display==='none'){c.style.display='block';b.innerText='🔼'}else{c.style.display='none';b.innerText='🔽'} }
         function toggleContainer(id, arrowId) { const el = document.getElementById(id); const ar = document.getElementById(arrowId); if(el.classList.contains('hidden')){el.classList.remove('hidden');ar.classList.remove('collapsed')}else{el.classList.add('hidden');ar.classList.add('collapsed')} }
+        function saveApiKey() { const k = document.getElementById('api-key-input').value.trim(); if(k){YOUTUBE_API_KEY=k;localStorage.setItem('ejoy_api_key',k);apiKeyConfig.style.display='none';alert("Salvo!");} }
+        function openApiConfig(){apiKeyConfig.style.display='block';document.getElementById('api-key-input').value=YOUTUBE_API_KEY}
         function toggleTheme() { document.body.classList.toggle('light-mode'); localStorage.setItem('ejoy_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark'); }
 
         function saveCurrentVocab() { if(!currentTranslateSource)return; if(!vocabList.includes(currentTranslateSource)){vocabList.push(currentTranslateSource);localStorage.setItem('ejoy_vocab',JSON.stringify(vocabList));document.getElementById('btn-save-vocab').innerText="✅";setTimeout(()=>document.getElementById('btn-save-vocab').innerText="💾 Salvar",1500);}else{alert("Já salvo");} }
         function downloadVocabulary() { if(!vocabList.length){alert("Vazio");return;} const b=new Blob([vocabList.join('\n\n')],{type:'text/plain'}); const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='vocab.txt';document.body.appendChild(a);a.click();document.body.removeChild(a); }
-        function clearVocabulary() { if(!vocabList.length){alert("Vazio.");return;} if(confirm("Apagar tudo?")) { vocabList = []; localStorage.removeItem('ejoy_vocab'); alert("Apagado!"); } }
+        function clearVocabulary() { if(!vocabList.length){alert("A lista já está vazia.");return;} if(confirm("Tem certeza que deseja apagar todo o vocabulário salvo?")) { vocabList = []; localStorage.removeItem('ejoy_vocab'); alert("Lista de vocabulário apagada!"); } }
         
         function toggleFavorites() { const c=document.getElementById('favorites-container'); c.style.display = c.style.display==='block'?'none':'block'; if(c.style.display==='block') renderFavorites(); }
         function renderFavorites() { favoritesList.innerHTML=""; if(!favorites.length){favoritesList.innerHTML="<div style='padding:10px;text-align:center'>Vazio</div>";return;} favorites.forEach((fav,i)=>{ const d=document.createElement('div'); d.className='video-item'; d.innerHTML=`<div class="video-thumb-wrapper"><img src="${fav.thumb}" class="video-thumb"></div><div class="video-info"><div class="video-title">${fav.title}</div></div><button class="btn-del-fav" onclick="removeFavorite(event,${i})">🗑️</button>`; d.onclick=(e)=>{if(!e.target.classList.contains('btn-del-fav'))loadYouTube(fav.id,fav.title,fav.thumb,fav.savedSubs)}; favoritesList.appendChild(d); }); }
-        function addCurrentToFavorites() { if (!currentPlayingYT) return; const existingIdx = favorites.findIndex(f => f.id === currentPlayingYT.id); const favObj = { ...currentPlayingYT, savedSubs: (subtitles && subtitles.length > 0) ? subtitles : null }; if (existingIdx !== -1) { favorites[existingIdx] = favObj; alert("Atualizado!"); } else { favorites.push(favObj); alert("Salvo!"); } try { localStorage.setItem('ejoy_favs', JSON.stringify(favorites)); renderFavorites(); } catch(e) { delete favObj.savedSubs; if(existingIdx !== -1) favorites[existingIdx] = favObj; else favorites.push(favObj); localStorage.setItem('ejoy_favs', JSON.stringify(favorites)); } }
+        
+        function addCurrentToFavorites() { if (!currentPlayingYT) return; const existingIdx = favorites.findIndex(f => f.id === currentPlayingYT.id); const favObj = { ...currentPlayingYT, savedSubs: (subtitles && subtitles.length > 0) ? subtitles : null }; if (existingIdx !== -1) { favorites[existingIdx] = favObj; alert("Atualizado (com legenda)!"); } else { favorites.push(favObj); alert("Salvo!"); } try { localStorage.setItem('ejoy_favs', JSON.stringify(favorites)); renderFavorites(); } catch(e) { alert("Erro: Memória cheia. Salvo sem legenda."); delete favObj.savedSubs; if(existingIdx !== -1) favorites[existingIdx] = favObj; else favorites.push(favObj); localStorage.setItem('ejoy_favs', JSON.stringify(favorites)); } }
         function removeFavorite(e,i){e.stopPropagation();if(confirm("Apagar?")){favorites.splice(i,1);localStorage.setItem('ejoy_favs',JSON.stringify(favorites));renderFavorites();}}
 
         function openExternalDownSub(){const u=localStorage.getItem('ejoy_ytUrl');if(playerType!=='youtube'||!u){alert("Abra um vídeo YT");return;}window.open(`https://downsub.com/?url=${encodeURIComponent(u)}`,'_blank');}
 
         let nextPageToken=""; let isFetching=false;
         async function initSearch() { const q=ytInput.value.trim(); if(q.includes('youtu')){loadYouTubeFromInput();return;} if(!YOUTUBE_API_KEY){openApiConfig();return;} if(!q)return; nextPageToken=""; resultsList.innerHTML=""; document.getElementById('search-results-container').style.display='block'; resultsList.classList.remove('hidden'); await fetchVideos(q); }
-        async function fetchVideos(q) { if(isFetching)return; isFetching=true; const loader=document.createElement('div');loader.innerText="Carregando...";resultsList.appendChild(loader); try { let u=`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`; if(nextPageToken)u+=`&pageToken=${nextPageToken}`; const res=await fetch(u); const d=await res.json(); loader.remove(); if(d.error){alert(d.error.message);return;} nextPageToken=d.nextPageToken||""; const videoIds = d.items.map(item => item.id.videoId).join(','); let videosData = {}; if (videoIds) { const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${YOUTUBE_API_KEY}`; const resDetails = await fetch(detailsUrl); const dataDetails = await resDetails.json(); if (!dataDetails.error) { dataDetails.items.forEach(v => { videosData[v.id] = parseDuration(v.contentDetails.duration); }); } } d.items.forEach(i=>{ const vid=i.id.videoId; const t=i.snippet.title; const th=i.snippet.thumbnails.medium.url; const duration = videosData[vid] || ""; const el=document.createElement('div'); el.className='video-item'; el.innerHTML=`<div class="video-thumb-wrapper"><img src="${th}" class="video-thumb">${duration ? `<span class="video-duration">${duration}</span>` : ''}</div><div class="video-info"><div class="video-title">${t}</div><div class="video-channel">${i.snippet.channelTitle}</div></div>`; el.onclick=()=>{loadYouTube(vid,t,th)}; resultsList.appendChild(el); }); } catch(e){loader.innerText="Erro";} finally{isFetching=false;} }
+        async function fetchVideos(q) { if(isFetching)return; isFetching=true; const loader=document.createElement('div');loader.innerText="Carregando...";loader.className="loading-more";resultsList.appendChild(loader); try { let u=`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`; if(nextPageToken)u+=`&pageToken=${nextPageToken}`; const res=await fetch(u); const d=await res.json(); loader.remove(); if(d.error){alert(d.error.message);return;} nextPageToken=d.nextPageToken||""; const videoIds = d.items.map(item => item.id.videoId).join(','); let videosData = {}; if (videoIds) { const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${YOUTUBE_API_KEY}`; const resDetails = await fetch(detailsUrl); const dataDetails = await resDetails.json(); if (!dataDetails.error) { dataDetails.items.forEach(v => { videosData[v.id] = parseDuration(v.contentDetails.duration); }); } } d.items.forEach(i=>{ const vid=i.id.videoId; const t=i.snippet.title; const th=i.snippet.thumbnails.medium.url; const duration = videosData[vid] || ""; const el=document.createElement('div'); el.className='video-item'; el.innerHTML=`<div class="video-thumb-wrapper"><img src="${th}" class="video-thumb">${duration ? `<span class="video-duration">${duration}</span>` : ''}</div><div class="video-info"><div class="video-title">${t}</div><div class="video-channel">${i.snippet.channelTitle}</div></div>`; el.onclick=()=>{loadYouTube(vid,t,th)}; resultsList.appendChild(el); }); } catch(e){loader.innerText="Erro";} finally{isFetching=false;} }
         function parseDuration(pt) { const match = pt.match(/PT(\d+H)?(\d+M)?(\d+S)?/); if (!match) return ""; const h = (match[1] || '').replace('H', ''); const m = (match[2] || '').replace('M', ''); const s = (match[3] || '').replace('S', ''); let str = ""; if (h) str += h + ":"; str += (h && m.length < 2 ? "0" + m : m || "0") + ":"; str += (s.length < 2 ? "0" + s : s || "00"); if (!h && !m) str = "0:" + str.replace(":", ""); if (str.endsWith(':')) str += "00"; return str; }
         resultsList.addEventListener('scroll',()=>{if(resultsList.scrollTop+resultsList.clientHeight>=resultsList.scrollHeight-50 && nextPageToken && !isFetching) fetchVideos(ytInput.value)});
 
@@ -284,10 +356,15 @@
             subtitles=[]; subContent.innerHTML=""; playerType='youtube'; if(currentVideoURL){URL.revokeObjectURL(currentVideoURL);currentVideoURL=null;}
             video.removeAttribute('src'); video.load(); video.style.display='none'; ytContainer.style.display='flex'; gestureLayer.style.display='block'; unlockBtn.style.display='block'; ytControlsLocked=true;
             currentPlayingYT={id:vid,title:title||"Video",thumb:thumb||""}; btnFavCurrent.style.display='block'; localStorage.setItem('ejoy_ytUrl',`https://www.youtube.com/watch?v=${vid}`); localStorage.setItem('ejoy_mode','youtube');
+            
             const statusEl = document.getElementById('resume-status'); statusEl.style.display = 'none';
 
-            if(savedSubs && savedSubs.length>0) { subtitles = savedSubs; statusEl.style.display='block'; statusEl.style.color='var(--success)'; statusEl.style.backgroundColor='rgba(46, 204, 113, 0.1)'; statusEl.innerText='✅ Legenda do Favorito'; } 
-            else { const cached = localStorage.getItem('ejoy_subs'); if (cached) { try { subtitles = JSON.parse(cached); if(subtitles.length > 0) { statusEl.style.display='block'; statusEl.style.color='var(--success)'; statusEl.style.backgroundColor='rgba(46, 204, 113, 0.1)'; statusEl.innerText='✅ Legenda em Cache'; } } catch(e){} } }
+            if(savedSubs && savedSubs.length>0) {
+                subtitles = savedSubs; statusEl.style.display='block'; statusEl.style.color='var(--success)'; statusEl.style.backgroundColor='rgba(46, 204, 113, 0.1)'; statusEl.innerText='✅ Legenda Salva do Favorito';
+            } else {
+                const cached = localStorage.getItem('ejoy_subs');
+                if (cached) { try { const parsedCache = JSON.parse(cached); if(parsedCache.length > 0) { subtitles = parsedCache; statusEl.style.display='block'; statusEl.style.color='var(--success)'; statusEl.style.backgroundColor='rgba(46, 204, 113, 0.1)'; statusEl.innerText='✅ Legenda em Cache (Memória)'; } } catch(e){} }
+            }
 
             const savedTime = videoHistory[vid] || 0;
             if(ytPlayer && ytPlayer.loadVideoById) { ytPlayer.loadVideoById({videoId: vid, startSeconds: savedTime}); } else { ytPlayer = new YT.Player('yt-player',{height:'100%',width:'100%',videoId:vid, playerVars:{'playsinline':1,'controls':1,'rel':0, 'start': Math.floor(savedTime)}}); }
@@ -298,7 +375,7 @@
 
         document.getElementById('videoInput').onchange = e => { const f=e.target.files[0]; if(f){ playerType='local'; ytContainer.style.display='none'; gestureLayer.style.display='none'; unlockBtn.style.display='none'; btnFavCurrent.style.display='none'; if(currentVideoURL)URL.revokeObjectURL(currentVideoURL); video.removeAttribute('src'); video.load(); currentVideoURL=URL.createObjectURL(f); video.src=currentVideoURL; video.style.display='block'; localStorage.setItem('ejoy_vidName',f.name); localStorage.setItem('ejoy_mode','local'); } };
         video.addEventListener('timeupdate', ()=>{ if(playerType==='local'){localStorage.setItem('ejoy_time',video.currentTime);renderLogic(video.currentTime)}});
-        document.getElementById('subInput').onchange = e => { const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=res=>{ subtitles=parseSubtitlesLocal(res.target.result); if(subtitles.length) { localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); const statusEl = document.getElementById('resume-status'); statusEl.style.display='block'; statusEl.style.color='var(--success)'; statusEl.innerText='✅ Arquivo de Legenda OK'; alert("Legenda Carregada!"); } }; r.readAsText(f); } };
+        document.getElementById('subInput').onchange = e => { const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=res=>{ subtitles=parseSubtitlesLocal(res.target.result); if(subtitles.length) { localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); const statusEl = document.getElementById('resume-status'); statusEl.style.display='block'; statusEl.style.color='var(--success)'; statusEl.style.backgroundColor='rgba(46, 204, 113, 0.1)'; statusEl.innerText='✅ Arquivo de Legenda OK'; alert("Legenda Carregada!"); } }; r.readAsText(f); } };
         function parseSubtitlesLocal(t) { t=t.replace(/\r\n/g,'\n').replace(/\r/g,'\n'); const p=/(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})\s-->\s(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})[^\n]*\n([\s\S]*?)(?=\n\n|$)/g; const res=[]; let m; while((m=p.exec(t))!==null){ res.push({start:timeToSecLocal(m[1]), end:timeToSecLocal(m[2]), text:m[3].trim().replace(/\n/g,' ').replace(/<[^>]*>/g,'')}); } return res; }
         function timeToSecLocal(s){ s=s.replace(',','.'); const p=s.split(':'); return (parseFloat(p[0])*3600)+(parseFloat(p[1])*60)+parseFloat(p[2]); }
 
@@ -312,7 +389,7 @@
         function seek(t){ if(playerType==='local')video.currentTime=t; else if(ytPlayer)ytPlayer.seekTo(t,true); }
         function getTime(){ return playerType==='local'?video.currentTime:(ytPlayer?ytPlayer.getCurrentTime():0); }
         
-        // V27.3: JUMP EXACT & FAST
+        // V27.3 Fast Seek FIX
         function jumpSubtitle(dir) {
             if(!subtitles.length) { seek(getTime()+(dir*10)); return; } 
             const now = getTime(); let targetIdx = 0;
@@ -341,7 +418,7 @@
         bgColorInput.addEventListener('input',e=>subBox.style.backgroundColor=`${e.target.value}bf`);
         window.addEventListener('resize',()=>{const r=subContainer.getBoundingClientRect();if(r.top>window.innerHeight-50||r.top<0){subContainer.style.top='auto';subContainer.style.bottom='12%';subContainer.style.left='50%';subContainer.style.transform='translateX(-50%)';}});
         
-        window.onload = () => { if(localStorage.getItem('ejoy_theme')==='light') document.body.classList.add('light-mode'); if(!YOUTUBE_API_KEY && !REPLIT_SERVER_URL && !localStorage.getItem('ejoy_api_key')) document.getElementById('api-key-config').style.display='block'; renderFavorites(); };
+        window.onload = () => { if(localStorage.getItem('ejoy_theme')==='light') document.body.classList.add('light-mode'); if(!YOUTUBE_API_KEY && !localStorage.getItem('ejoy_api_key')) document.getElementById('api-key-config').style.display='block'; renderFavorites(); };
 
         function resetApp(){ if(currentVideoURL)URL.revokeObjectURL(currentVideoURL); localStorage.removeItem('ejoy_subs'); localStorage.removeItem('ejoy_vidName'); localStorage.removeItem('ejoy_time'); localStorage.removeItem('ejoy_ytUrl'); localStorage.removeItem('ejoy_mode'); location.reload(); }
     </script>

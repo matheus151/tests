@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Player Estudo Pro (V27.5 - Auto Cache)</title>
+    <title>Player Estudo Pro (V28.0 - Brute Force)</title>
     <style>
         /* --- VARIÁVEIS DE DESIGN --- */
         :root {
@@ -78,7 +78,7 @@
         .btn-primary { background: var(--primary); border: none; color: #fff; }
         .btn-fav { color: var(--accent); border-color: var(--accent); }
 
-        /* LISTAS (COMPACTO) */
+        /* LISTAS */
         .list-container {
             display: none; background: var(--input-bg); border: 1px solid var(--border-color);
             border-radius: var(--radius); margin-bottom: 12px; overflow: hidden;
@@ -326,7 +326,7 @@
 
         <button id="btn-fav-current" onclick="addCurrentToFavorites()">❤️ Favoritar Vídeo Atual</button>
 
-        <button class="btn-magic" onclick="autoFetchSubtitles()">🪄 Baixar Legenda Automática (Cache)</button>
+        <button class="btn-magic" onclick="autoFetchSubtitlesBruteForce()">🪄 Baixar Legenda Automática (Cache)</button>
 
         <div class="grid-row">
             <label class="file-label">
@@ -334,13 +334,13 @@
                 <input type="file" id="videoInput" accept="video/mp4, video/x-m4v, video/*">
             </label>
             <label class="file-label">
-                <span>📝</span> Legenda
+                <span>📝</span> Legenda Local
                 <input type="file" id="subInput" accept="*">
             </label>
         </div>
 
         <div class="grid-row" style="grid-template-columns: 1fr;">
-            <button class="btn-external btn-yt-dl" onclick="openExternalDownSub()">⬇️ Legenda DownSub (Backup Manual)</button>
+            <button class="btn-external btn-yt-dl" onclick="openExternalDownSub()">⬇️ Legenda DownSub (Apenas se o botão mágico falhar)</button>
         </div>
         
         <div class="grid-row" style="margin-top: 5px;">
@@ -394,8 +394,8 @@
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <script>
-        // --- EXTRAÇÃO AUTOMÁTICA PARA O CACHE ---
-        async function autoFetchSubtitles() {
+        // --- EXTRAÇÃO FORÇA BRUTA (MULTI-SERVER) ---
+        async function autoFetchSubtitlesBruteForce() {
             if(playerType !== 'youtube' || !currentPlayingYT) {
                 alert("Carregue um vídeo do YouTube primeiro.");
                 return;
@@ -406,60 +406,90 @@
             st.style.display = 'block';
             st.style.color = '#f1c40f';
             st.style.backgroundColor = 'rgba(241, 196, 15, 0.1)';
-            st.innerText = '⏳ Extraindo legenda da nuvem...';
+            st.innerText = '⏳ Injetando Extrator no Servidor 1...';
 
-            try {
-                let xmlText = "";
+            // LISTA DE SERVIDORES ESPELHO (SE UM CAIR, ELE TENTA O OUTRO)
+            const apiServers = [
+                `https://pipedapi.kavin.rocks/streams/${vid}`,
+                `https://pipedapi.tokhmi.xyz/streams/${vid}`,
+                `https://api.piped.privacydev.net/streams/${vid}`,
+                `https://piped-api.garudalinux.org/streams/${vid}`
+            ];
+
+            let success = false;
+
+            for (let i = 0; i < apiServers.length; i++) {
+                if(i > 0) st.innerText = `⏳ YouTube bloqueou. Tentando Servidor ${i + 1}...`;
                 
-                // Tentativa 1: API Parceira via CorsProxy
                 try {
-                    const r1 = await fetch(`https://corsproxy.io/?` + encodeURIComponent(`https://youtubetranscript.com/?server_vid2=${vid}`));
-                    if(r1.ok) xmlText = await r1.text();
-                } catch(e1) { console.log("Proxy 1 falhou"); }
-
-                // Tentativa 2: Fallback Proxy (AllOrigins) caso o CorsProxy falhe
-                if(!xmlText || !xmlText.includes('<?xml')) {
-                    const r2 = await fetch(`https://api.allorigins.win/raw?url=` + encodeURIComponent(`https://youtubetranscript.com/?server_vid2=${vid}`));
-                    if(r2.ok) xmlText = await r2.text();
-                }
-
-                if (xmlText && xmlText.includes('<transcript>')) {
-                    subtitles = parseXMLToObjects(xmlText);
+                    const res = await fetch(apiServers[i]);
+                    if(!res.ok) continue; // Pula pro próximo se falhar
                     
-                    if (subtitles.length > 0) {
-                        localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); // MÁGICA: Salva no Cache do App
+                    const data = await res.json();
+                    
+                    if(data.subtitles && data.subtitles.length > 0) {
+                        // Prioriza Inglês (en), depois PT, depois qualquer um
+                        const subTrack = data.subtitles.find(s => s.code.startsWith('en')) || 
+                                         data.subtitles.find(s => s.code.startsWith('pt')) || 
+                                         data.subtitles[0];
                         
-                        st.style.color = 'var(--success)';
-                        st.style.backgroundColor = 'rgba(46, 204, 113, 0.1)';
-                        st.innerText = `✅ Legenda Automática Salva no Cache!`;
+                        const subRes = await fetch(subTrack.url);
+                        const subText = await subRes.text();
                         
-                        // Atualiza a legenda visual imediatamente
-                        if(ytPlayer && ytPlayer.getCurrentTime) renderLogic(ytPlayer.getCurrentTime() + 0.01);
-                        return;
+                        subtitles = parseVTT(subText);
+                        
+                        if(subtitles.length > 0) {
+                            localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); // SALVA NO CACHE
+                            st.style.color = 'var(--success)';
+                            st.style.backgroundColor = 'rgba(46, 204, 113, 0.1)';
+                            st.innerText = `✅ Sucesso! Legenda (${subTrack.name}) Salva no Cache via Servidor ${i + 1}!`;
+                            if(ytPlayer && ytPlayer.getCurrentTime) renderLogic(ytPlayer.getCurrentTime() + 0.01);
+                            success = true;
+                            break; // Para o loop pois conseguiu
+                        }
                     }
+                } catch(err) {
+                    console.log(`Falha no servidor ${i+1}`);
                 }
-                throw new Error("Sem legendas");
-            } catch(e) {
+            }
+
+            if(!success) {
                 st.style.color = '#e74c3c';
                 st.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
-                st.innerText = '❌ Bloqueado ou sem legenda. Use o botão DownSub abaixo.';
+                st.innerText = '❌ Todas as rotas ocultas foram bloqueadas. Por favor, baixe o arquivo via DownSub.';
             }
         }
 
-        // Função de conversão do XML para a engine do nosso Player
-        function parseXMLToObjects(xmlString) {
-            const parser = new DOMParser();
-            const xml = parser.parseFromString(xmlString, "text/xml");
-            const texts = xml.getElementsByTagName('text');
+        // Funções de Parseamento para o Extrator
+        function parseVTT(vttText) {
+            const lines = vttText.split('\n');
             const result = [];
-            for (let i = 0; i < texts.length; i++) {
-                const node = texts[i];
-                const start = parseFloat(node.getAttribute('start'));
-                const dur = parseFloat(node.getAttribute('dur') || "0");
-                const text = node.textContent.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\n/g, ' ').replace(/<[^>]*>/g, "").trim();
-                if (text) { result.push({ start: start, end: start + dur, text: text }); }
+            let current = null;
+            for (let line of lines) {
+                line = line.trim();
+                if (line === "WEBVTT" || line === "") continue;
+                
+                if (line.includes('-->')) {
+                    if (current) result.push(current);
+                    const parts = line.split('-->');
+                    current = { start: timeToSecVTT(parts[0].trim()), end: timeToSecVTT(parts[1].trim()), text: "" };
+                } else if (current && !line.match(/^\d+$/)) {
+                    current.text += line + " ";
+                }
             }
-            return result;
+            if (current) result.push(current);
+            return result.map(s => ({...s, text: s.text.replace(/<[^>]*>/g, '').trim()}));
+        }
+
+        function timeToSecVTT(str) {
+            const parts = str.split(':');
+            let sec = 0;
+            if (parts.length === 3) {
+                sec = (parseFloat(parts[0]) * 3600) + (parseFloat(parts[1]) * 60) + parseFloat(parts[2].replace(',','.'));
+            } else if (parts.length === 2) {
+                sec = (parseFloat(parts[0]) * 60) + parseFloat(parts[1].replace(',','.'));
+            }
+            return sec;
         }
 
         // --- BING TRANSLATOR ---
@@ -716,9 +746,10 @@
         document.getElementById('subInput').onchange = e => {
             const f=e.target.files[0]; if(f){
                 const r=new FileReader(); r.onload=res=>{
-                    subtitles=parseSubtitles(res.target.result); 
+                    subtitles=parseSubtitlesLocal(res.target.result); 
                     if(subtitles.length) { 
-                        localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); // Salva no cache
+                        // Update cache as well
+                        localStorage.setItem('ejoy_subs', JSON.stringify(subtitles));
                         const statusEl = document.getElementById('resume-status');
                         statusEl.style.display='block'; 
                         statusEl.style.color='var(--success)';
@@ -729,11 +760,11 @@
                 }; r.readAsText(f);
             }
         };
-        function parseSubtitles(t) {
+        function parseSubtitlesLocal(t) {
             t=t.replace(/\r\n/g,'\n').replace(/\r/g,'\n'); const p=/(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})\s-->\s(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})[^\n]*\n([\s\S]*?)(?=\n\n|$)/g;
-            const res=[]; let m; while((m=p.exec(t))!==null){ res.push({start:timeToSec(m[1]), end:timeToSec(m[2]), text:m[3].trim().replace(/\n/g,' ').replace(/<[^>]*>/g,'')}); } return res;
+            const res=[]; let m; while((m=p.exec(t))!==null){ res.push({start:timeToSecLocal(m[1]), end:timeToSecLocal(m[2]), text:m[3].trim().replace(/\n/g,' ').replace(/<[^>]*>/g,'')}); } return res;
         }
-        function timeToSec(s){ s=s.replace(',','.'); const p=s.split(':'); return (parseFloat(p[0])*3600)+(parseFloat(p[1])*60)+parseFloat(p[2]); }
+        function timeToSecLocal(s){ s=s.replace(',','.'); const p=s.split(':'); return (parseFloat(p[0])*3600)+(parseFloat(p[1])*60)+parseFloat(p[2]); }
 
         // Render
         let lastRenderedText="";
@@ -826,7 +857,6 @@
         window.onload = () => {
             if(localStorage.getItem('ejoy_theme')==='light') document.body.classList.add('light-mode');
             if(!YOUTUBE_API_KEY && !localStorage.getItem('ejoy_api_key')) document.getElementById('api-key-config').style.display='block';
-            window.addEventListener('resize', fixSubtitlePosition);
             renderFavorites();
         };
 

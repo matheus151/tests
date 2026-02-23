@@ -1,421 +1,1764 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Player Estudo Pro (V29.3 - ASR Extractor)</title>
-    <style>
-        /* --- VARIÁVEIS DE DESIGN --- */
-        :root {
-            --bg-color: #121212; --panel-color: #1e1e1e; --input-bg: #2c2c2c; --border-color: #333;
-            --text-main: #eee; --text-dim: #aaa; --primary: #3498db; --accent: #f1c40f; --success: #2ecc71; --radius: 8px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LingoCast — Learn English Through Video</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #13161b;
+    --surface2: #1c2028;
+    --border: #252a34;
+    --accent: #00e5a0;
+    --accent2: #ff6b6b;
+    --accent3: #ffd93d;
+    --text: #e8eaf0;
+    --text2: #8b93a7;
+    --text3: #5a6175;
+    --radius: 12px;
+    --glow: 0 0 20px rgba(0,229,160,0.2);
+  }
 
-        body.light-mode {
-            --bg-color: #f0f2f5; --panel-color: #ffffff; --input-bg: #e4e6eb; --border-color: #ccc;
-            --text-main: #1c1e21; --text-dim: #65676b;
-        }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; transition: background 0.3s, color 0.3s; }
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-        /* --- CONTROLES SUPERIORES --- */
-        #controls-wrapper { background: var(--panel-color); z-index: 50; padding: 12px; transition: opacity 0.3s, background 0.3s; max-height: 85vh; overflow-y: auto; flex-shrink: 0; border-bottom: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #ui-toggle-bar { background: var(--panel-color); color: var(--text-dim); text-align: center; padding: 2px 0; border-top: 1px solid var(--border-color); cursor: pointer; border-bottom: 1px solid var(--border-color); z-index: 51; font-size: 1.2rem; line-height: 1; user-select: none; flex-shrink: 0; transition: background 0.2s; }
-        #ui-toggle-bar:active { background: var(--border-color); }
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
 
-        /* INPUTS & GRUPOS */
-        .control-group { display: flex; gap: 8px; margin-bottom: 10px; }
-        .modern-input { background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px 12px; border-radius: var(--radius); flex-grow: 1; font-size: 0.9rem; transition: border 0.2s; }
-        .modern-input:focus { border-color: var(--primary); }
+  .logo {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
-        .icon-btn { background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color); padding: 0 14px; border-radius: var(--radius); cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
-        .icon-btn:active { filter: brightness(0.9); }
-        .btn-primary { background: var(--primary); border: none; color: #fff; }
-        .btn-fav { color: var(--accent); border-color: var(--accent); }
+  .logo span.green { color: var(--accent); }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
 
-        /* LISTAS */
-        .list-container { display: none; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
-        .list-header { background: var(--panel-color); padding: 10px 12px; font-size: 0.85rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-bottom: 1px solid var(--border-color); color: var(--text-dim); }
-        .toggle-arrow { transition: transform 0.3s; }
-        .toggle-arrow.collapsed { transform: rotate(180deg); }
-        .scroll-list { display: flex; flex-direction: column; padding: 0; gap: 0; max-height: 50vh; overflow-y: auto; transition: max-height 0.3s ease; }
-        .scroll-list.hidden { max-height: 0; padding: 0; }
-        .video-item { display: flex; gap: 10px; padding: 10px; background: transparent; cursor: pointer; align-items: flex-start; border-bottom: 1px solid var(--border-color); transition: background 0.2s; position: relative; }
-        .video-item:active { background: rgba(255,255,255,0.05); }
-        .video-thumb-wrapper { position: relative; width: 100px; height: 56px; flex-shrink: 0; }
-        .video-thumb { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
-        .video-duration { position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.85); color: #fff; font-size: 0.65rem; padding: 1px 3px; border-radius: 2px; }
-        .video-info { flex-grow: 1; overflow: hidden; }
-        .video-title { font-size: 0.85rem; line-height: 1.2; margin-bottom: 4px; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--text-main); }
-        .video-channel { font-size: 0.75rem; color: var(--text-dim); }
-        .btn-del-fav { background: #c0392b; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px; }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
 
-        /* API KEY CONFIG */
-        #api-key-config { display: none; padding: 12px; background: #1a242f; border: 1px solid #3498db; border-radius: var(--radius); margin-bottom: 10px; font-size: 0.85rem; }
-        .api-save-btn { background: #3498db; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; margin-top: 10px; cursor: pointer; width: 100%; }
+  .nav-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
 
-        /* ARQUIVOS & BOTÕES */
-        .grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .file-label { background: var(--input-bg); border: 1px solid var(--border-color); padding: 12px; border-radius: var(--radius); text-align: center; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--text-dim); display: flex; flex-direction: column; align-items: center; gap: 5px; transition: background 0.2s; }
-        .file-label:active { filter: brightness(0.95); }
-        .file-label span { font-size: 1.2rem; }
+  .nav-btn:hover, .nav-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,160,0.05);
+  }
 
-        .btn-external { border: none; padding: 12px; border-radius: var(--radius); font-size: 0.8rem; font-weight: 600; cursor: pointer; text-align: center; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; }
-        .btn-yt-dl { background: #c0392b; } 
-        
-        .btn-magic { background: linear-gradient(135deg, #10ac84 0%, #27ae60 100%); color: #fff; width: 100%; padding: 15px; border-radius: var(--radius); font-weight: 800; border: none; cursor: pointer; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(46, 204, 113, 0.3); text-transform: uppercase; font-size: 0.9rem; }
-        
-        .btn-reset { background: var(--input-bg); border: 1px solid var(--border-color); color: #e74c3c; width: 100%; padding: 10px; border-radius: var(--radius); font-weight: bold; margin-top: 5px; cursor: pointer; }
-        #btn-fav-current { background: var(--success); color: #fff; width: 100%; padding: 10px; border-radius: var(--radius); font-weight: bold; margin-bottom: 10px; border: none; display: none; cursor: pointer; }
-        
-        #btn-dl-vocab { background: #8e44ad; color: #fff; width: 100%; padding: 10px; border-radius: var(--radius); font-weight: bold; border: none; cursor: pointer; }
-        #btn-clear-vocab { background: #e74c3c; color: #fff; width: 100%; padding: 10px; border-radius: var(--radius); font-weight: bold; border: none; cursor: pointer; }
+  .vocab-count {
+    background: var(--accent);
+    color: #000;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
 
-        #resume-status { font-size: 0.85rem; font-weight: bold; text-align: center; margin: 8px 0; display: none; padding: 8px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); }
+  .vocab-count:hover { transform: scale(1.05); box-shadow: var(--glow); }
 
-        /* ESTILOS */
-        #style-controls { display: flex; justify-content: space-between; align-items: center; background: var(--input-bg); padding: 8px; border-radius: var(--radius); }
-        .style-group { display: flex; align-items: center; gap: 8px; }
-        .font-btn { background: var(--panel-color); color: var(--text-main); border: 1px solid var(--border-color); width: 32px; height: 32px; border-radius: 4px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .color-picker-wrapper { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--text-dim); background: var(--panel-color); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); }
-        input[type="color"] { border: none; width: 20px; height: 20px; background: none; padding: 0; cursor: pointer; }
-        input[type="file"] { display: none; }
+  /* MAIN LAYOUT */
+  .app-layout {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    height: calc(100vh - 65px);
+  }
 
-        /* --- ÁREA DO VÍDEO --- */
-        #video-wrapper { position: relative; flex-grow: 1; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden; width: 100%; height: 100%; }
-        video { width: 100%; max-height: 100%; object-fit: contain; display: block; }
-        #yt-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; z-index: 1; }
-        iframe { width: 100%; height: 100%; border: none; pointer-events: none; }
-        #gesture-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
-        #unlock-yt-btn { position: absolute; top: 10px; right: 10px; z-index: 60; background: rgba(0,0,0,0.6); color: #fff; border: 1px solid #555; padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; display: none; cursor: pointer; backdrop-filter: blur(4px); }
+  /* VIDEO PANEL */
+  .video-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 
-        /* --- LEGENDAS --- */
-        #subtitle-container { position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%); width: auto; min-width: 80%; max-width: 96%; z-index: 20; display: flex; flex-direction: column; align-items: center; }
-        .subtitle-box { background-color: rgba(0, 0, 0, 0.75); color: #ffffff; padding: 0 14px 10px 14px; border-radius: 12px; pointer-events: auto; user-select: none; -webkit-user-select: none; touch-action: none; line-height: 1.45; text-align: center; position: relative; transition: background-color 0.3s, color 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.4); font-size: 1.2rem; backdrop-filter: blur(2px); }
-        #drag-handle { width: 50px; height: 4px; background-color: rgba(255,255,255,0.2); margin: 6px auto 8px auto; border-radius: 10px; cursor: move; position: relative; }
-        #drag-handle::after { content: ''; position: absolute; top: -20px; bottom: -20px; left: -40px; right: -40px; }
-        .word { font-size: 1em; padding: 2px 1px; border-radius: 4px; display: inline; cursor: pointer; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-        .word.selected { background-color: var(--accent) !important; color: #000 !important; }
-        .translate-btn { display: inline-flex; align-items: center; justify-content: center; background: #fff; color: #000; border-radius: 50%; width: 22px; height: 22px; margin-left: 8px; font-size: 12px; cursor: pointer; vertical-align: middle; opacity: 0.9; }
+  .video-container {
+    background: #000;
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%;
+    flex-shrink: 0;
+  }
 
-        /* CARD TRADUÇÃO */
-        #translation-card { display: none; position: absolute; top: 10%; left: 50%; transform: translateX(-50%); width: 90%; background: rgba(255, 255, 255, 0.98); color: #222; padding: 16px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); z-index: 100; text-align: center; border: 1px solid #ccc; }
-        #phrase-orig { font-weight: bold; color: #555; margin-bottom: 6px; font-size: 0.9rem; }
-        #phrase-trans { font-size: 1.3rem; font-weight: 800; color: #000; line-height: 1.2; margin-bottom: 15px; }
-        .trans-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-        .btn-card { padding: 8px 15px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
-        #btn-close-trans { background: #eee; color: #333; }
-        #btn-save-vocab { background: #3498db; color: #fff; }
-        #btn-bing-ext { background: #fff; border: 1px solid #ccc; color: #333; }
-        #gesture-feedback { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 4rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; text-shadow: 0 0 15px rgba(0,0,0,0.8); z-index: 50; }
-        
-        @media (orientation: landscape) { #controls-wrapper { display: none; } #ui-toggle-bar { display: none; } #subtitle-container { bottom: 8%; z-index: 9999; } }
-    </style>
+  .video-container iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: none;
+  }
+
+  .video-placeholder {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: linear-gradient(135deg, #0d1117 0%, #1a2332 100%);
+  }
+
+  .placeholder-icon {
+    width: 80px; height: 80px;
+    background: var(--surface2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    border: 2px solid var(--border);
+  }
+
+  .video-url-bar {
+    display: flex;
+    gap: 8px;
+    padding: 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .url-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+  }
+
+  .url-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,229,160,0.1);
+  }
+
+  .load-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .load-btn:hover { transform: translateY(-1px); box-shadow: var(--glow); }
+
+  /* SUBTITLE AREA */
+  .subtitle-section {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+  }
+
+  .subtitle-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .subtitle-header h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .sub-controls {
+    display: flex;
+    gap: 8px;
+  }
+
+  .sub-ctrl {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text2);
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .sub-ctrl:hover, .sub-ctrl.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .subtitle-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    scroll-behavior: smooth;
+  }
+
+  .subtitle-scroll::-webkit-scrollbar { width: 4px; }
+  .subtitle-scroll::-webkit-scrollbar-track { background: transparent; }
+  .subtitle-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .sub-entry {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 4px;
+  }
+
+  .sub-entry:hover { background: var(--surface2); }
+  .sub-entry.active {
+    background: rgba(0,229,160,0.05);
+    border: 1px solid rgba(0,229,160,0.2);
+  }
+
+  .sub-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+    flex-shrink: 0;
+    padding-top: 2px;
+    width: 50px;
+  }
+
+  .sub-text-wrap {
+    flex: 1;
+  }
+
+  .sub-text-en {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.5;
+    user-select: text;
+    cursor: text;
+  }
+
+  .sub-text-pt {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 4px;
+    line-height: 1.4;
+    font-style: italic;
+  }
+
+  /* WORD TOKENS */
+  .word-token {
+    display: inline;
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 1px 2px;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .word-token:hover {
+    background: rgba(0,229,160,0.15);
+    color: var(--accent);
+  }
+
+  .word-token.saved {
+    background: rgba(0,229,160,0.1);
+    border-bottom: 2px solid var(--accent);
+    color: var(--accent);
+  }
+
+  .word-token.selected {
+    background: rgba(255,217,61,0.2);
+    color: var(--accent3);
+  }
+
+  /* TRANSLATION TOOLTIP */
+  .translation-popup {
+    position: fixed;
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 16px;
+    min-width: 240px;
+    max-width: 320px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6), var(--glow);
+    z-index: 1000;
+    display: none;
+    animation: popupIn 0.15s ease;
+  }
+
+  @keyframes popupIn {
+    from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .popup-word {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .popup-phonetic {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text3);
+    margin-bottom: 10px;
+  }
+
+  .popup-translation {
+    font-size: 15px;
+    color: var(--text);
+    font-weight: 500;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  .popup-example {
+    font-size: 12px;
+    color: var(--text2);
+    font-style: italic;
+    border-left: 2px solid var(--border);
+    padding-left: 8px;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  .popup-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .popup-save {
+    flex: 1;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 8px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .popup-save:hover { transform: scale(1.02); }
+  .popup-save.saved-state {
+    background: var(--surface);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+
+  .popup-close {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s;
+  }
+
+  .popup-close:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .popup-type {
+    display: inline-block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 8px;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-tab {
+    flex: 1;
+    padding: 14px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .sidebar-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(0,229,160,0.03);
+  }
+
+  .sidebar-tab:hover:not(.active) { color: var(--text2); }
+
+  .sidebar-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .tab-panel {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+    flex-direction: column;
+  }
+
+  .tab-panel.active { display: flex; }
+
+  /* VOCABULARY */
+  .vocab-search-wrap {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .vocab-search {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+  }
+
+  .vocab-search:focus { border-color: var(--accent); }
+
+  .vocab-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+
+  .vocab-list::-webkit-scrollbar { width: 4px; }
+  .vocab-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .vocab-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--surface2);
+    margin-bottom: 6px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    cursor: pointer;
+    animation: itemIn 0.3s ease;
+  }
+
+  @keyframes itemIn {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .vocab-item:hover { border-color: var(--border); background: var(--bg); }
+
+  .vocab-item-word {
+    flex: 1;
+  }
+
+  .vocab-word {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text);
+  }
+
+  .vocab-trans {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 2px;
+  }
+
+  .vocab-level {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+  }
+
+  .level-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+
+  .level-dot.filled { background: var(--accent); }
+
+  .vocab-delete {
+    background: none;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    font-size: 14px;
+    opacity: 0;
+    transition: all 0.2s;
+  }
+
+  .vocab-item:hover .vocab-delete { opacity: 1; }
+  .vocab-delete:hover { color: var(--accent2); }
+
+  .vocab-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text3);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .vocab-empty .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+  /* QUIZ panel */
+  .quiz-area {
+    flex: 1;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+  }
+
+  .quiz-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .quiz-prompt {
+    font-size: 13px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .quiz-word-display {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .quiz-answer {
+    font-size: 18px;
+    color: var(--accent);
+    font-weight: 500;
+    min-height: 28px;
+    transition: all 0.3s;
+  }
+
+  .quiz-reveal-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 8px;
+    padding: 10px 24px;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+
+  .quiz-reveal-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .quiz-nav {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .quiz-nav button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+    color: var(--text2);
+  }
+
+  .quiz-hard { border-color: var(--accent2) !important; color: var(--accent2) !important; }
+  .quiz-easy { border-color: var(--accent) !important; color: var(--accent) !important; }
+  .quiz-hard:hover { background: rgba(255,107,107,0.1) !important; }
+  .quiz-easy:hover { background: rgba(0,229,160,0.1) !important; }
+
+  /* STATS */
+  .stats-area {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .stat-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .stat-icon.green { background: rgba(0,229,160,0.1); }
+  .stat-icon.yellow { background: rgba(255,217,61,0.1); }
+  .stat-icon.red { background: rgba(255,107,107,0.1); }
+
+  .stat-label { font-size: 12px; color: var(--text3); }
+  .stat-value { font-size: 24px; font-weight: 800; color: var(--text); }
+
+  /* SUBTITLE IMPORT */
+  .import-area {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .import-area textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    resize: vertical;
+    min-height: 100px;
+    max-height: 140px;
+    outline: none;
+    transition: all 0.2s;
+  }
+
+  .import-area textarea:focus { border-color: var(--accent); }
+
+  .import-area textarea::placeholder { color: var(--text3); }
+
+  .import-btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .import-btn {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 8px;
+    padding: 8px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .import-btn.primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+
+  .import-btn:hover { opacity: 0.8; }
+
+  /* SELECTION highlight for drag */
+  .dragging .word-token {
+    transition: none;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 9999;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Loading dots */
+  .loading-dots {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .loading-dots span {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: dotPulse 1.2s ease-in-out infinite;
+  }
+
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes dotPulse {
+    0%, 100% { opacity: 0.2; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+
+  .sub-count-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .progress-bar-wrap {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .app-layout {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+      height: auto;
+      min-height: calc(100vh - 65px);
+    }
+    .sidebar {
+      border-left: none;
+      border-top: 1px solid var(--border);
+      max-height: 400px;
+    }
+  }
+</style>
 </head>
 <body>
 
-    <div id="controls-wrapper">
-        <div class="control-group">
-            <input type="text" id="yt-search-input" class="modern-input" placeholder="YouTube (Link ou Busca)...">
-            <button class="icon-btn btn-primary" onclick="initSearch()">🔍</button>
-            <button class="icon-btn btn-fav" onclick="toggleFavorites()" title="Meus Favoritos">⭐</button>
-            <button class="icon-btn" onclick="toggleTheme()" title="Mudar Tema">🌗</button> <button class="icon-btn" onclick="openApiConfig()">⚙️</button>
-        </div>
-        
-        <div id="api-key-config">
-            <p style="margin:0 0 5px 0; color:var(--text-main);">☁️ <b>1. URL do seu Google Apps Script (Robô):</b></p>
-            <input type="text" id="gas-url-input" class="modern-input" placeholder="Ex: https://script.google.com/macros/s/.../exec">
-            
-            <p style="margin:15px 0 5px 0; color:var(--text-main);">🔑 <b>2. API Key YouTube (Para Busca da Lupa):</b></p>
-            <input type="text" id="api-key-input" class="modern-input" placeholder="Sua API Key do Google">
+<header>
+  <div class="logo">
+    <div class="logo-icon">🎬</div>
+    Lingo<span class="green">Cast</span>
+  </div>
+  <div class="header-right">
+    <button class="nav-btn" onclick="showTips()">💡 Dicas</button>
+    <div class="vocab-count" onclick="switchTab('vocab')" title="Vocabulário salvo">
+      📚 <span id="vocabCountHeader">0</span> palavras
+    </div>
+  </div>
+</header>
 
-            <div style="display: flex; gap: 8px; margin-top: 10px;">
-                <button class="api-save-btn" style="flex-grow: 1; margin-top: 0;" onclick="saveConfig()">💾 Salvar Tudo</button>
-                <button class="api-save-btn" style="background:#444; color:#fff; margin-top: 0;" onclick="document.getElementById('api-key-config').style.display='none'">Fechar</button>
-            </div>
-        </div>
+<div class="app-layout">
 
-        <div id="search-results-container" class="list-container">
-            <div class="list-header" onclick="toggleContainer('search-results-list', 'results-arrow')">
-                <span>📺 Resultados</span>
-                <span class="toggle-arrow" id="results-arrow">▼</span>
-            </div>
-            <div id="search-results-list" class="scroll-list"></div>
-        </div>
+  <!-- VIDEO + SUBTITLE PANEL -->
+  <div class="video-panel">
 
-        <div id="favorites-container" class="list-container">
-            <div class="list-header" onclick="toggleContainer('favorites-list', 'fav-arrow')">
-                <span>⭐ Meus Favoritos</span>
-                <span class="toggle-arrow" id="fav-arrow">▼</span>
-            </div>
-            <div id="favorites-list" class="scroll-list"></div>
-        </div>
-
-        <button id="btn-fav-current" onclick="addCurrentToFavorites()">❤️ Favoritar Vídeo Atual</button>
-
-        <button class="btn-magic" onclick="autoFetchSubtitlesViaGoogle()">🤖 BAIXAR LEGENDA AUTOMÁTICA (CACHE)</button>
-
-        <div class="grid-row">
-            <label class="file-label">
-                <span>📁</span> Vídeo Local
-                <input type="file" id="videoInput" accept="video/mp4, video/x-m4v, video/*">
-            </label>
-            <label class="file-label">
-                <span>📝</span> Legenda Local
-                <input type="file" id="subInput" accept="*">
-            </label>
-        </div>
-        
-        <div class="grid-row" style="margin-top: 5px;">
-            <button id="btn-dl-vocab" onclick="downloadVocabulary()">📥 Baixar Vocabulário</button>
-            <button id="btn-clear-vocab" onclick="clearVocabulary()">🗑️ Limpar Vocabulário</button>
-        </div>
-
-        <div id="resume-status"></div>
-        
-        <div id="style-controls">
-            <div class="style-group">
-                <button class="font-btn" onclick="changeFontSize(-0.1)">A-</button>
-                <button class="font-btn" onclick="changeFontSize(0.1)">A+</button>
-            </div>
-            <div class="style-group">
-                <div class="color-picker-wrapper">Txt <input type="color" id="textColor" value="#ffffff"></div>
-                <div class="color-picker-wrapper">Bg <input type="color" id="bgColor" value="#000000"></div>
-            </div>
-        </div>
-
-        <button class="btn-reset" onclick="resetApp()">🗑️ Fechar Vídeo</button>
+    <!-- URL Bar -->
+    <div class="video-url-bar">
+      <input class="url-input" id="videoUrl" type="text"
+        placeholder="Cole a URL do YouTube aqui... ex: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        onkeydown="if(event.key==='Enter') loadVideo()">
+      <button class="load-btn" onclick="loadVideo()">▶ Carregar</button>
     </div>
 
-    <div id="ui-toggle-bar" onclick="toggleMainUI()">🔼</div>
-
-    <div id="video-wrapper">
-        <video id="mainVideo" controls playsinline preload="metadata"></video>
-        <div id="yt-container"><div id="yt-player"></div></div>
-        <div id="gesture-layer"></div>
-        <button id="unlock-yt-btn" onclick="toggleYtControls()">⚙️ Controles YouTube</button>
-        <div id="gesture-feedback">⏪</div>
-        
-        <div id="subtitle-container">
-            <div class="subtitle-box" id="subtitle-box">
-                <div id="drag-handle"></div>
-                <div id="subtitle-content"></div>
-            </div>
+    <!-- Video -->
+    <div class="video-container" id="videoContainer">
+      <div class="video-placeholder" id="videoPlaceholder">
+        <div class="placeholder-icon">🎬</div>
+        <div style="text-align:center">
+          <div style="font-size:16px;font-weight:600;margin-bottom:6px;">Carregue um vídeo do YouTube</div>
+          <div style="font-size:13px;color:var(--text2);">Cole a URL acima e pressione Carregar</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:8px;">Dica: ative as legendas no vídeo (CC) para melhor experiência</div>
         </div>
-
-        <div id="translation-card">
-            <div id="phrase-orig">Original</div>
-            <div id="phrase-trans">Tradução...</div>
-            <div class="trans-actions">
-                <button id="btn-save-vocab" class="btn-card" onclick="saveCurrentVocab()">💾 Salvar</button>
-                <button id="btn-bing-ext" class="btn-card" onclick="openBingTranslator()">Bing</button>
-                <button id="btn-close-trans" class="btn-card" onclick="document.getElementById('translation-card').style.display='none'">Fechar</button>
-            </div>
-        </div>
+      </div>
     </div>
 
-    <script src="https://www.youtube.com/iframe_api"></script>
+    <!-- Subtitle Section -->
+    <div class="subtitle-section">
+      <div class="subtitle-header">
+        <h3>Legendas</h3>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="sub-count-badge" id="subCountBadge">0 linhas</span>
+          <button class="sub-ctrl" onclick="toggleTranslation()" id="transToggle">🌐 PT</button>
+          <button class="sub-ctrl" id="autoScrollBtn" onclick="toggleAutoScroll()">↕ Auto</button>
+        </div>
+      </div>
 
-    <script>
-        // --- CONFIGURAÇÕES GLOBAIS DE SERVIDOR E API ---
-        let GOOGLE_SCRIPT_URL = localStorage.getItem('ejoy_gas_url') || "";
-        let YOUTUBE_API_KEY = localStorage.getItem('ejoy_api_key') || "";
+      <!-- Import subtitles -->
+      <div class="import-area">
+        <textarea id="srtInput" placeholder="Cole as legendas aqui no formato SRT, ou VTT, ou texto simples uma frase por linha...
+Exemplo:
+00:00:01,000 --> 00:00:04,000
+Hello, welcome to our channel!
 
-        function openApiConfig() { 
-            document.getElementById('api-key-config').style.display = 'block'; 
-            document.getElementById('gas-url-input').value = GOOGLE_SCRIPT_URL; 
-            document.getElementById('api-key-input').value = YOUTUBE_API_KEY; 
-        }
+00:00:05,000 --> 00:00:08,000
+Today we're going to learn something amazing."></textarea>
+        <div class="import-btn-row">
+          <button class="import-btn" onclick="loadSampleSubtitles()">📋 Exemplo</button>
+          <button class="import-btn primary" onclick="parseSRT()">✓ Carregar Legendas</button>
+        </div>
+      </div>
 
-        function saveConfig() {
-            const gasUrl = document.getElementById('gas-url-input').value.trim();
-            const ytKey = document.getElementById('api-key-input').value.trim();
-            
-            GOOGLE_SCRIPT_URL = gasUrl; 
-            localStorage.setItem('ejoy_gas_url', gasUrl);
-            
-            YOUTUBE_API_KEY = ytKey;
-            localStorage.setItem('ejoy_api_key', ytKey);
+      <div class="subtitle-scroll" id="subtitleScroll">
+        <div style="text-align:center;padding:40px 20px;color:var(--text3);">
+          <div style="font-size:30px;margin-bottom:12px;">📝</div>
+          <div style="font-size:14px;">Cole as legendas acima e clique em <strong style="color:var(--text2)">Carregar Legendas</strong></div>
+          <div style="font-size:12px;margin-top:8px;line-height:1.6;">Toque ou arraste sobre qualquer palavra<br>para ver a tradução instantânea</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-            document.getElementById('api-key-config').style.display = 'none';
-            alert("Configurações Salvas com Sucesso!");
-        }
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-tabs">
+      <div class="sidebar-tab active" onclick="switchTab('vocab')" id="tab-vocab">📚 Vocabulário</div>
+      <div class="sidebar-tab" onclick="switchTab('quiz')" id="tab-quiz">🧠 Quiz</div>
+      <div class="sidebar-tab" onclick="switchTab('stats')" id="tab-stats">📊 Stats</div>
+    </div>
 
-        // --- A EXTRAÇÃO DEFINITIVA VIA GOOGLE ---
-        async function autoFetchSubtitlesViaGoogle() {
-            if(playerType !== 'youtube' || !currentPlayingYT) { alert("Carregue um vídeo do YouTube primeiro."); return; }
-            if(!GOOGLE_SCRIPT_URL) { alert("Você precisa configurar a URL do seu Google Apps Script na engrenagem ⚙️."); openApiConfig(); return; }
+    <div class="sidebar-content">
 
-            const vid = currentPlayingYT.id;
-            const st = document.getElementById('resume-status');
+      <!-- VOCAB TAB -->
+      <div class="tab-panel active" id="panel-vocab">
+        <div class="vocab-search-wrap">
+          <input class="vocab-search" id="vocabSearch" placeholder="🔍 Buscar palavra..." oninput="filterVocab()">
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" id="vocabProgress" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="vocab-list" id="vocabList">
+          <div class="vocab-empty">
+            <div class="empty-icon">📖</div>
+            <div>Seu vocabulário está vazio.</div>
+            <div style="margin-top:8px;font-size:12px;">Toque em palavras nas legendas para<br>salvá-las aqui!</div>
+          </div>
+        </div>
+        <div style="padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;">
+          <button class="import-btn" onclick="exportVocab()">⬇ Exportar</button>
+          <button class="import-btn" onclick="clearVocab()" style="color:var(--accent2);">🗑 Limpar</button>
+        </div>
+      </div>
 
-            st.style.display = 'block';
-            st.style.color = '#f1c40f';
-            st.style.backgroundColor = 'rgba(241, 196, 15, 0.1)';
-            st.innerText = '⏳ Conectando aos Servidores do Google...';
+      <!-- QUIZ TAB -->
+      <div class="tab-panel" id="panel-quiz">
+        <div class="quiz-area">
+          <div class="quiz-card" id="quizCard">
+            <div class="quiz-prompt">Traduzir para português</div>
+            <div class="quiz-word-display" id="quizWord">—</div>
+            <div class="quiz-answer" id="quizAnswer"></div>
+            <button class="quiz-reveal-btn" onclick="revealAnswer()" id="revealBtn">Mostrar Resposta</button>
+          </div>
+          <div style="font-size:12px;color:var(--text3);text-align:center;" id="quizInfo">
+            Salve palavras no vocabulário para praticar o quiz!
+          </div>
+        </div>
+        <div class="quiz-nav" id="quizNav" style="display:none;">
+          <button class="quiz-hard" onclick="quizNext('hard')">😰 Difícil</button>
+          <button class="quiz-easy" onclick="quizNext('easy')">✅ Fácil</button>
+        </div>
+      </div>
 
-            try {
-                const response = await fetch(`${GOOGLE_SCRIPT_URL}?v=${vid}`);
-                const data = await response.json();
+      <!-- STATS TAB -->
+      <div class="tab-panel" id="panel-stats">
+        <div class="stats-area">
+          <div class="stat-card">
+            <div class="stat-icon green">📚</div>
+            <div>
+              <div class="stat-label">Palavras Salvas</div>
+              <div class="stat-value" id="statWords">0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon yellow">🎯</div>
+            <div>
+              <div class="stat-label">Palavras no Quiz</div>
+              <div class="stat-value" id="statQuiz">0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">✅</div>
+            <div>
+              <div class="stat-label">Acertos (Fácil)</div>
+              <div class="stat-value" id="statEasy">0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red">❌</div>
+            <div>
+              <div class="stat-label">Difíceis</div>
+              <div class="stat-value" id="statHard">0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon yellow">📺</div>
+            <div>
+              <div class="stat-label">Linhas de Legenda</div>
+              <div class="stat-value" id="statLines">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                if (data.success && data.xml) {
-                    subtitles = parseGoogleXML(data.xml);
-                    
-                    if (subtitles.length > 0) {
-                        localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); 
-                        
-                        st.style.color = 'var(--success)';
-                        st.style.backgroundColor = 'rgba(46, 204, 113, 0.1)';
-                        st.innerText = `✅ Legenda Automática (${data.name}) Carregada no Cache!`;
-                        
-                        if (ytPlayer && ytPlayer.getCurrentTime) renderLogic(ytPlayer.getCurrentTime() + 0.01);
-                    } else {
-                        throw new Error("Erro ao converter formato XML.");
-                    }
-                } else {
-                    throw new Error(data.error || "Vídeo sem legenda aberta.");
-                }
-            } catch(e) {
-                console.error(e);
-                st.style.color = '#e74c3c';
-                st.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
-                
-                if(e.message === 'Failed to fetch' || e.message === 'Load failed') {
-                    st.innerText = `❌ O Google bloqueou. Acesse seu Script, clique em "Nova Implantação" e marque "Quem pode acessar: Qualquer pessoa".`;
-                } else {
-                    st.innerText = `❌ Falha: ${e.message}`;
-                }
-            }
-        }
+    </div>
+  </div>
+</div>
 
-        function parseGoogleXML(xmlString) {
-            const parser = new DOMParser();
-            const xml = parser.parseFromString(xmlString, "text/xml");
-            const texts = xml.getElementsByTagName('text');
-            const result = [];
-            for (let i = 0; i < texts.length; i++) {
-                const node = texts[i];
-                const start = parseFloat(node.getAttribute('start'));
-                const dur = parseFloat(node.getAttribute('dur') || "0");
-                const text = node.textContent.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\n/g, ' ').replace(/<[^>]*>/g, "").trim();
-                if (text) { result.push({ start: start, end: start + dur, text: text }); }
-            }
-            return result;
-        }
+<!-- TRANSLATION POPUP -->
+<div class="translation-popup" id="translationPopup">
+  <div class="popup-word" id="popupWord"></div>
+  <div class="popup-phonetic" id="popupPhonetic"></div>
+  <span class="popup-type" id="popupType"></span>
+  <div class="popup-translation" id="popupTranslation">
+    <span class="loading-dots"><span></span><span></span><span></span></span>
+  </div>
+  <div class="popup-example" id="popupExample"></div>
+  <div class="popup-actions">
+    <button class="popup-save" id="popupSaveBtn" onclick="saveCurrentWord()">💾 Salvar</button>
+    <button class="popup-close" onclick="closePopup()">✕</button>
+  </div>
+</div>
 
-        // --- SISTEMA RESTANTE (100% INTACTO DA V27.3/27.4) ---
-        function openBingTranslator() { if(!currentTranslateSource) return; window.open(`https://www.bing.com/translator?from=en&to=pt&text=${encodeURIComponent(currentTranslateSource)}`, '_blank'); }
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
 
-        let vocabList = JSON.parse(localStorage.getItem('ejoy_vocab')) || [];
-        let favorites = JSON.parse(localStorage.getItem('ejoy_favs')) || [];
-        let videoHistory = JSON.parse(localStorage.getItem('ejoy_vid_history')) || {};
-        let currentTranslateSource = ""; let currentPlayingYT = null; 
-        let currentVideoURL = null; let currentFontSize = 1.2; let playerType = 'local';
-        let ytPlayer = null; let ytTimer = null; let ytControlsLocked = true; let selectionStartIndex = -1;
-        let isSelecting = false; let isDragging = false; let dragStartX=0, dragStartY=0, initialTop=0, initialLeft=0;
+<script>
+// =============================================
+// STATE
+// =============================================
+let vocabulary = JSON.parse(localStorage.getItem('lingocast_vocab') || '[]');
+let subtitles = [];
+let showTranslation = false;
+let autoScroll = true;
+let currentWord = null;
+let currentWordEl = null;
+let quizIndex = 0;
+let quizRevealed = false;
+let stats = JSON.parse(localStorage.getItem('lingocast_stats') || '{"easy":0,"hard":0}');
 
-        const video = document.getElementById('mainVideo'); const ytContainer = document.getElementById('yt-container'); const gestureLayer = document.getElementById('gesture-layer'); const unlockBtn = document.getElementById('unlock-yt-btn'); const subContent = document.getElementById('subtitle-content'); const subBox = document.getElementById('subtitle-box'); const subContainer = document.getElementById('subtitle-container'); const transCard = document.getElementById('translation-card'); const transOrig = document.getElementById('phrase-orig'); const transRes = document.getElementById('phrase-trans'); const apiKeyConfig = document.getElementById('api-key-config'); const ytInput = document.getElementById('yt-search-input'); const resultsList = document.getElementById('search-results-list'); const favoritesList = document.getElementById('favorites-list'); const btnFavCurrent = document.getElementById('btn-fav-current'); const dragHandle = document.getElementById('drag-handle');
+// Drag selection state
+let isDragging = false;
+let dragStartToken = null;
+let selectedTokens = [];
 
-        function changeFontSize(d) { currentFontSize+=d; if(currentFontSize<0.5)currentFontSize=0.5; if(currentFontSize>3)currentFontSize=3; subBox.style.fontSize=currentFontSize+'rem'; }
-        function toggleMainUI() { const c = document.getElementById('controls-wrapper'); const b = document.getElementById('ui-toggle-bar'); if(c.style.display==='none'){c.style.display='block';b.innerText='🔼'}else{c.style.display='none';b.innerText='🔽'} }
-        function toggleContainer(id, arrowId) { const el = document.getElementById(id); const ar = document.getElementById(arrowId); if(el.classList.contains('hidden')){el.classList.remove('hidden');ar.classList.remove('collapsed')}else{el.classList.add('hidden');ar.classList.add('collapsed')} }
-        function toggleTheme() { document.body.classList.toggle('light-mode'); localStorage.setItem('ejoy_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark'); }
+// =============================================
+// YOUTUBE VIDEO LOADING
+// =============================================
+function loadVideo() {
+  const url = document.getElementById('videoUrl').value.trim();
+  if (!url) { showToast('Cole uma URL do YouTube!'); return; }
 
-        function saveCurrentVocab() { if(!currentTranslateSource)return; if(!vocabList.includes(currentTranslateSource)){vocabList.push(currentTranslateSource);localStorage.setItem('ejoy_vocab',JSON.stringify(vocabList));document.getElementById('btn-save-vocab').innerText="✅";setTimeout(()=>document.getElementById('btn-save-vocab').innerText="💾 Salvar",1500);}else{alert("Já salvo");} }
-        function downloadVocabulary() { if(!vocabList.length){alert("Vazio");return;} const b=new Blob([vocabList.join('\n\n')],{type:'text/plain'}); const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='vocab.txt';document.body.appendChild(a);a.click();document.body.removeChild(a); }
-        function clearVocabulary() { if(!vocabList.length){alert("A lista já está vazia.");return;} if(confirm("Tem certeza que deseja apagar todo o vocabulário salvo?")) { vocabList = []; localStorage.removeItem('ejoy_vocab'); alert("Lista de vocabulário apagada!"); } }
-        
-        function toggleFavorites() { const c=document.getElementById('favorites-container'); c.style.display = c.style.display==='block'?'none':'block'; if(c.style.display==='block') renderFavorites(); }
-        function renderFavorites() { favoritesList.innerHTML=""; if(!favorites.length){favoritesList.innerHTML="<div style='padding:10px;text-align:center'>Vazio</div>";return;} favorites.forEach((fav,i)=>{ const d=document.createElement('div'); d.className='video-item'; d.innerHTML=`<div class="video-thumb-wrapper"><img src="${fav.thumb}" class="video-thumb"></div><div class="video-info"><div class="video-title">${fav.title}</div></div><button class="btn-del-fav" onclick="removeFavorite(event,${i})">🗑️</button>`; d.onclick=(e)=>{if(!e.target.classList.contains('btn-del-fav'))loadYouTube(fav.id,fav.title,fav.thumb,fav.savedSubs)}; favoritesList.appendChild(d); }); }
-        
-        function addCurrentToFavorites() { if (!currentPlayingYT) return; const existingIdx = favorites.findIndex(f => f.id === currentPlayingYT.id); const favObj = { ...currentPlayingYT, savedSubs: (subtitles && subtitles.length > 0) ? subtitles : null }; if (existingIdx !== -1) { favorites[existingIdx] = favObj; alert("Atualizado (com legenda)!"); } else { favorites.push(favObj); alert("Salvo!"); } try { localStorage.setItem('ejoy_favs', JSON.stringify(favorites)); renderFavorites(); } catch(e) { alert("Erro: Memória cheia. Salvo sem legenda."); delete favObj.savedSubs; if(existingIdx !== -1) favorites[existingIdx] = favObj; else favorites.push(favObj); localStorage.setItem('ejoy_favs', JSON.stringify(favorites)); } }
-        function removeFavorite(e,i){e.stopPropagation();if(confirm("Apagar?")){favorites.splice(i,1);localStorage.setItem('ejoy_favs',JSON.stringify(favorites));renderFavorites();}}
+  const videoId = extractYouTubeId(url);
+  if (!videoId) { showToast('URL inválida. Use um link do YouTube!'); return; }
 
-        // Busca YT
-        let nextPageToken=""; let isFetching=false;
-        async function initSearch() { const q=ytInput.value.trim(); if(q.includes('youtu')){loadYouTubeFromInput();return;} if(!YOUTUBE_API_KEY){openApiConfig();return;} if(!q)return; nextPageToken=""; resultsList.innerHTML=""; document.getElementById('search-results-container').style.display='block'; resultsList.classList.remove('hidden'); await fetchVideos(q); }
-        async function fetchVideos(q) { if(isFetching)return; isFetching=true; const loader=document.createElement('div');loader.innerText="Carregando...";loader.className="loading-more";resultsList.appendChild(loader); try { let u=`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`; if(nextPageToken)u+=`&pageToken=${nextPageToken}`; const res=await fetch(u); const d=await res.json(); loader.remove(); if(d.error){alert(d.error.message);return;} nextPageToken=d.nextPageToken||""; const videoIds = d.items.map(item => item.id.videoId).join(','); let videosData = {}; if (videoIds) { const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${YOUTUBE_API_KEY}`; const resDetails = await fetch(detailsUrl); const dataDetails = await resDetails.json(); if (!dataDetails.error) { dataDetails.items.forEach(v => { videosData[v.id] = parseDuration(v.contentDetails.duration); }); } } d.items.forEach(i=>{ const vid=i.id.videoId; const t=i.snippet.title; const th=i.snippet.thumbnails.medium.url; const duration = videosData[vid] || ""; const el=document.createElement('div'); el.className='video-item'; el.innerHTML=`<div class="video-thumb-wrapper"><img src="${th}" class="video-thumb">${duration ? `<span class="video-duration">${duration}</span>` : ''}</div><div class="video-info"><div class="video-title">${t}</div><div class="video-channel">${i.snippet.channelTitle}</div></div>`; el.onclick=()=>{loadYouTube(vid,t,th)}; resultsList.appendChild(el); }); } catch(e){loader.innerText="Erro";} finally{isFetching=false;} }
-        function parseDuration(pt) { const match = pt.match(/PT(\d+H)?(\d+M)?(\d+S)?/); if (!match) return ""; const h = (match[1] || '').replace('H', ''); const m = (match[2] || '').replace('M', ''); const s = (match[3] || '').replace('S', ''); let str = ""; if (h) str += h + ":"; str += (h && m.length < 2 ? "0" + m : m || "0") + ":"; str += (s.length < 2 ? "0" + s : s || "00"); if (!h && !m) str = "0:" + str.replace(":", ""); if (str.endsWith(':')) str += "00"; return str; }
-        resultsList.addEventListener('scroll',()=>{if(resultsList.scrollTop+resultsList.clientHeight>=resultsList.scrollHeight-50 && nextPageToken && !isFetching) fetchVideos(ytInput.value)});
+  const placeholder = document.getElementById('videoPlaceholder');
+  placeholder.style.display = 'none';
 
-        function loadYouTubeFromInput() { const v=extractVideoID(ytInput.value); if(v) loadYouTube(v,"Link",""); else alert("Link inválido"); }
-        function extractVideoID(u){ const m=u.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/); return (m&&m[2].length===11)?m[2]:null;}
-        function onYouTubeIframeAPIReady(){}
-        
-        function loadYouTube(vid,title,thumb, savedSubs=null) {
-            subtitles=[]; subContent.innerHTML=""; playerType='youtube'; if(currentVideoURL){URL.revokeObjectURL(currentVideoURL);currentVideoURL=null;}
-            video.removeAttribute('src'); video.load(); video.style.display='none'; ytContainer.style.display='flex'; gestureLayer.style.display='block'; unlockBtn.style.display='block'; ytControlsLocked=true;
-            currentPlayingYT={id:vid,title:title||"Video",thumb:thumb||""}; btnFavCurrent.style.display='block'; localStorage.setItem('ejoy_ytUrl',`https://www.youtube.com/watch?v=${vid}`); localStorage.setItem('ejoy_mode','youtube');
-            
-            const statusEl = document.getElementById('resume-status'); statusEl.style.display = 'none';
+  // Remove existing iframe
+  const existingIframe = document.querySelector('#videoContainer iframe');
+  if (existingIframe) existingIframe.remove();
 
-            if(savedSubs && savedSubs.length>0) {
-                subtitles = savedSubs; statusEl.style.display='block'; statusEl.style.color='var(--success)'; statusEl.style.backgroundColor='rgba(46, 204, 113, 0.1)'; statusEl.innerText='✅ Legenda Salva do Favorito';
-            } else {
-                const cached = localStorage.getItem('ejoy_subs');
-                if (cached) { try { const parsedCache = JSON.parse(cached); if(parsedCache.length > 0) { subtitles = parsedCache; statusEl.style.display='block'; statusEl.style.color='var(--success)'; statusEl.style.backgroundColor='rgba(46, 204, 113, 0.1)'; statusEl.innerText='✅ Legenda em Cache (Memória)'; } } catch(e){} }
-            }
+  const iframe = document.createElement('iframe');
+  iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&cc_load_policy=1&cc_lang_pref=en`;
+  iframe.allow = 'autoplay; encrypted-media';
+  iframe.allowFullscreen = true;
+  document.getElementById('videoContainer').appendChild(iframe);
+  showToast('✅ Vídeo carregado! Ative as legendas (CC) no player.');
+}
 
-            const savedTime = videoHistory[vid] || 0;
-            if(ytPlayer && ytPlayer.loadVideoById) { ytPlayer.loadVideoById({videoId: vid, startSeconds: savedTime}); } else { ytPlayer = new YT.Player('yt-player',{height:'100%',width:'100%',videoId:vid, playerVars:{'playsinline':1,'controls':1,'rel':0, 'start': Math.floor(savedTime)}}); }
-            startYTSync();
-        }
-        function startYTSync() { if(ytTimer) clearInterval(ytTimer); ytTimer = setInterval(()=>{ if(playerType==='youtube'&&ytPlayer&&ytPlayer.getCurrentTime){ const t=ytPlayer.getCurrentTime(); localStorage.setItem('ejoy_time',t); if(currentPlayingYT && currentPlayingYT.id) { videoHistory[currentPlayingYT.id] = t; localStorage.setItem('ejoy_vid_history', JSON.stringify(videoHistory)); } renderLogic(t); } },100); }
-        function toggleYtControls(){ const f=document.querySelector('iframe'); if(ytControlsLocked){gestureLayer.style.display='none';f.style.pointerEvents='auto';unlockBtn.innerText="🔒 Gestos";ytControlsLocked=false} else{gestureLayer.style.display='block';f.style.pointerEvents='none';unlockBtn.innerText="⚙️ YouTube";ytControlsLocked=true} }
+function extractYouTubeId(url) {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
 
-        document.getElementById('videoInput').onchange = e => { const f=e.target.files[0]; if(f){ playerType='local'; ytContainer.style.display='none'; gestureLayer.style.display='none'; unlockBtn.style.display='none'; btnFavCurrent.style.display='none'; if(currentVideoURL)URL.revokeObjectURL(currentVideoURL); video.removeAttribute('src'); video.load(); currentVideoURL=URL.createObjectURL(f); video.src=currentVideoURL; video.style.display='block'; localStorage.setItem('ejoy_vidName',f.name); localStorage.setItem('ejoy_mode','local'); } };
-        video.addEventListener('timeupdate', ()=>{ if(playerType==='local'){localStorage.setItem('ejoy_time',video.currentTime);renderLogic(video.currentTime)}});
-        document.getElementById('subInput').onchange = e => { const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=res=>{ subtitles=parseSubtitlesLocal(res.target.result); if(subtitles.length) { localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); const statusEl = document.getElementById('resume-status'); statusEl.style.display='block'; statusEl.style.color='var(--success)'; statusEl.style.backgroundColor='rgba(46, 204, 113, 0.1)'; statusEl.innerText='✅ Arquivo de Legenda OK'; alert("Legenda Carregada!"); } }; r.readAsText(f); } };
-        function parseSubtitlesLocal(t) { t=t.replace(/\r\n/g,'\n').replace(/\r/g,'\n'); const p=/(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})\s-->\s(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})[^\n]*\n([\s\S]*?)(?=\n\n|$)/g; const res=[]; let m; while((m=p.exec(t))!==null){ res.push({start:timeToSecLocal(m[1]), end:timeToSecLocal(m[2]), text:m[3].trim().replace(/\n/g,' ').replace(/<[^>]*>/g,'')}); } return res; }
-        function timeToSecLocal(s){ s=s.replace(',','.'); const p=s.split(':'); return (parseFloat(p[0])*3600)+(parseFloat(p[1])*60)+parseFloat(p[2]); }
+// =============================================
+// SRT PARSING
+// =============================================
+function parseSRT() {
+  const raw = document.getElementById('srtInput').value.trim();
+  if (!raw) { showToast('Cole as legendas primeiro!'); return; }
 
-        let lastRenderedText="";
-        function renderLogic(time) { const sub = subtitles.find(s => time >= s.start && time <= s.end); if(sub){ if(sub.text!==lastRenderedText){ renderSubtitle(sub.text); lastRenderedText=sub.text; } } else{ subContent.innerHTML=""; lastRenderedText=""; } }
-        function renderSubtitle(text) { subContent.innerHTML=""; const words = text.split(' '); words.forEach((w,i)=>{ const s=document.createElement('span'); s.textContent=w+' '; s.className='word'; s.dataset.index=i; s.dataset.raw=w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g,""); subContent.appendChild(s); }); const btn=document.createElement('span'); btn.className='translate-btn'; btn.innerHTML='🌐'; btn.addEventListener('touchstart',(e)=>{ e.stopPropagation();e.preventDefault(); pauseAny(); isSelecting=false; document.querySelectorAll('.word.selected').forEach(x=>x.classList.remove('selected')); translateText(text,text); }); btn.onclick=(e)=>{e.stopPropagation(); pauseAny(); translateText(text,text);}; subContent.appendChild(btn); }
+  subtitles = [];
 
-        function pauseAny(){ if(playerType==='local')video.pause(); else if(ytPlayer)ytPlayer.pauseVideo(); }
-        function playAny(){ if(playerType==='local')video.play(); else if(ytPlayer)ytPlayer.playVideo(); }
-        function togglePlay(){ if(playerType==='local')video.paused?video.play():video.pause(); else if(ytPlayer)(ytPlayer.getPlayerState()===1)?ytPlayer.pauseVideo():ytPlayer.playVideo(); }
-        function seek(t){ if(playerType==='local')video.currentTime=t; else if(ytPlayer)ytPlayer.seekTo(t,true); }
-        function getTime(){ return playerType==='local'?video.currentTime:(ytPlayer?ytPlayer.getCurrentTime():0); }
-        
-        // V27.3 Fast Seek FIX
-        function jumpSubtitle(dir) {
-            if(!subtitles.length) { seek(getTime()+(dir*10)); return; } 
-            const now = getTime(); let targetIdx = 0;
-            if (dir === 1) { targetIdx = subtitles.findIndex(s => s.start > now + 0.1); if(targetIdx === -1) targetIdx = subtitles.length - 1;
-            } else { let currentIdx = subtitles.findIndex(s => now >= s.start && now <= s.end); if (currentIdx !== -1) { targetIdx = currentIdx - 1; } else { targetIdx = -1; for (let i = subtitles.length - 1; i >= 0; i--) { if (subtitles[i].start < now - 0.1) { targetIdx = i; break; } } } }
-            if(targetIdx < 0) targetIdx = 0; if(targetIdx >= subtitles.length) targetIdx = subtitles.length - 1; 
-            let safeTime = subtitles[targetIdx].start - 0.3; if (safeTime < 0) safeTime = 0;
-            seek(safeTime); renderLogic(subtitles[targetIdx].start + 0.01); 
-        }
+  // Detect format
+  if (raw.includes('-->')) {
+    // SRT/VTT format
+    const blocks = raw.split(/\n\s*\n/);
+    blocks.forEach(block => {
+      const lines = block.trim().split('\n');
+      let timeLineIdx = lines.findIndex(l => l.includes('-->'));
+      if (timeLineIdx === -1) return;
 
-        function setupGestures(el, mode) { let ts=0,te=0,tt=0; el.addEventListener('touchstart',e=>{if(e.target.closest('#subtitle-container'))return; ts=e.changedTouches[0].screenX; tt=new Date().getTime();},{passive:false}); el.addEventListener('touchend',e=>{if(e.target.closest('#subtitle-container'))return; te=e.changedTouches[0].screenX; if((new Date().getTime()-tt)<200 && Math.abs(te-ts)<10) { if(mode==='yt')togglePlay(); } else if(Math.abs(te-ts)>30) { if(te-ts<0)jumpSubtitle(-1); else jumpSubtitle(1); }},{passive:false}); }
-        setupGestures(gestureLayer,'yt'); setupGestures(document.getElementById('video-wrapper'),'local');
-        dragHandle.addEventListener('touchstart',e=>{isDragging=true; dragStartX=e.touches[0].clientX; dragStartY=e.touches[0].clientY; const r=subContainer.getBoundingClientRect(); initialTop=r.top; initialLeft=r.left; subContainer.style.bottom='auto'; subContainer.style.transform='none'; subContainer.style.top=initialTop+'px'; subContainer.style.left=initialLeft+'px';},{passive:false});
-        dragHandle.addEventListener('touchmove',e=>{if(!isDragging)return; e.preventDefault(); subContainer.style.top=(initialTop+(e.touches[0].clientY-dragStartY))+'px'; subContainer.style.left=(initialLeft+(e.touches[0].clientX-dragStartX))+'px';},{passive:false});
-        dragHandle.addEventListener('touchend',()=>isDragging=false);
+      const timeLine = lines[timeLineIdx];
+      const startTime = parseTimecode(timeLine.split('-->')[0].trim());
+      const textLines = lines.slice(timeLineIdx + 1);
+      const text = textLines.join(' ').replace(/<[^>]+>/g, '').trim();
 
-        subContent.addEventListener('touchstart',e=>{if(e.target.classList.contains('translate-btn'))return;const el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);if(el&&el.classList.contains('word')){isSelecting=true;pauseAny();selectionStartIndex=parseInt(el.dataset.index);transCard.style.display='none';updateRange(selectionStartIndex);}},{passive:false});
-        subContent.addEventListener('touchmove',e=>{if(!isSelecting)return;e.preventDefault();const el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);if(el&&el.classList.contains('word'))updateRange(parseInt(el.dataset.index));},{passive:false});
-        subContent.addEventListener('touchend',()=>{if(isSelecting){isSelecting=false;doTransSelection();}});
-        function updateRange(idx){document.querySelectorAll('.word.selected').forEach(x=>x.classList.remove('selected'));const s=Math.min(selectionStartIndex,idx);const e=Math.max(selectionStartIndex,idx);const w=subContent.querySelectorAll('.word');for(let i=s;i<=e;i++)if(w[i])w[i].classList.add('selected');}
-        function doTransSelection(){const sel=document.querySelectorAll('.word.selected');if(!sel.length)return;const w=Array.from(sel);const txt=w.map(x=>x.dataset.raw).join(' ');const dsp=w.map(x=>x.textContent).join('');translateText(txt,dsp);setTimeout(()=>{sel.forEach(x=>x.classList.remove('selected'))},1000);}
+      if (text) {
+        subtitles.push({ start: startTime, text, translation: '' });
+      }
+    });
+  } else {
+    // Plain text (one line per subtitle)
+    raw.split('\n').forEach((line, i) => {
+      const t = line.trim();
+      if (t) subtitles.push({ start: i * 3, text: t, translation: '' });
+    });
+  }
 
-        async function translateText(src, dsp) { currentTranslateSource = src; transCard.style.display='block'; transOrig.textContent=dsp; transRes.className='loading'; transRes.textContent='...'; document.getElementById('btn-save-vocab').innerText = "💾 Salvar"; try { const u = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(src)}&langpair=en|pt-BR`; const r = await fetch(u); const d = await r.json(); if(d.responseData) { transRes.className = ''; transRes.textContent = d.responseData.translatedText; } } catch(e) { transRes.textContent = "Erro na rede."; } }
+  if (subtitles.length === 0) { showToast('Não foi possível parsear as legendas. Verifique o formato.'); return; }
 
-        textColorInput.addEventListener('input',e=>subContent.style.color=e.target.value);
-        bgColorInput.addEventListener('input',e=>subBox.style.backgroundColor=`${e.target.value}bf`);
-        window.addEventListener('resize',()=>{const r=subContainer.getBoundingClientRect();if(r.top>window.innerHeight-50||r.top<0){subContainer.style.top='auto';subContainer.style.bottom='12%';subContainer.style.left='50%';subContainer.style.transform='translateX(-50%)';}});
-        
-        window.onload = () => { 
-            if(localStorage.getItem('ejoy_theme')==='light') document.body.classList.add('light-mode'); 
-            if(!GOOGLE_SCRIPT_URL || !YOUTUBE_API_KEY) document.getElementById('api-key-config').style.display='block'; 
-            renderFavorites(); 
-        };
+  renderSubtitles();
+  updateStats();
+  showToast(`✅ ${subtitles.length} linhas de legenda carregadas!`);
+}
 
-        function resetApp(){ if(currentVideoURL)URL.revokeObjectURL(currentVideoURL); localStorage.removeItem('ejoy_subs'); localStorage.removeItem('ejoy_vidName'); localStorage.removeItem('ejoy_time'); localStorage.removeItem('ejoy_ytUrl'); localStorage.removeItem('ejoy_mode'); location.reload(); }
-    </script>
+function parseTimecode(tc) {
+  // HH:MM:SS,mmm or HH:MM:SS.mmm
+  tc = tc.replace(',', '.');
+  const parts = tc.split(':');
+  if (parts.length === 3) {
+    return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+  }
+  return 0;
+}
+
+function loadSampleSubtitles() {
+  document.getElementById('srtInput').value = `1
+00:00:01,000 --> 00:00:04,000
+Hello everyone, and welcome back to our channel!
+
+2
+00:00:04,500 --> 00:00:08,000
+Today we're going to explore some fascinating topics.
+
+3
+00:00:08,500 --> 00:00:13,000
+Language learning is one of the most rewarding challenges you can take on.
+
+4
+00:00:13,500 --> 00:00:18,000
+The key is to immerse yourself in authentic content every single day.
+
+5
+00:00:18,500 --> 00:00:23,000
+Watching videos with subtitles is an incredibly effective method.
+
+6
+00:00:23,500 --> 00:00:28,000
+You'll encounter new vocabulary in a meaningful context.
+
+7
+00:00:28,500 --> 00:00:33,000
+This makes it much easier to remember words and expressions.
+
+8
+00:00:33,500 --> 00:00:38,000
+Don't be afraid to make mistakes — they are your best teachers.
+
+9
+00:00:38,500 --> 00:00:43,000
+Consistency is absolutely crucial for achieving fluency.
+
+10
+00:00:43,500 --> 00:00:48,000
+Even just fifteen minutes of practice daily can make a tremendous difference.
+
+11
+00:00:48,500 --> 00:00:53,000
+Thank you so much for watching, and keep up the amazing work!`;
+  parseSRT();
+}
+
+// =============================================
+// RENDER SUBTITLES
+// =============================================
+function renderSubtitles() {
+  const container = document.getElementById('subtitleScroll');
+  container.innerHTML = '';
+
+  subtitles.forEach((sub, idx) => {
+    const entry = document.createElement('div');
+    entry.className = 'sub-entry';
+    entry.id = `sub-${idx}`;
+
+    const time = document.createElement('div');
+    time.className = 'sub-time';
+    time.textContent = formatTime(sub.start);
+
+    const textWrap = document.createElement('div');
+    textWrap.className = 'sub-text-wrap';
+
+    const enDiv = document.createElement('div');
+    enDiv.className = 'sub-text-en';
+    enDiv.appendChild(tokenizeText(sub.text, idx));
+
+    const ptDiv = document.createElement('div');
+    ptDiv.className = 'sub-text-pt';
+    ptDiv.id = `trans-${idx}`;
+    if (sub.translation) ptDiv.textContent = sub.translation;
+    if (!showTranslation) ptDiv.style.display = 'none';
+
+    textWrap.appendChild(enDiv);
+    textWrap.appendChild(ptDiv);
+    entry.appendChild(time);
+    entry.appendChild(textWrap);
+    container.appendChild(entry);
+  });
+
+  document.getElementById('subCountBadge').textContent = `${subtitles.length} linhas`;
+}
+
+function tokenizeText(text, subIdx) {
+  const frag = document.createDocumentFragment();
+  const words = text.split(/(\s+)/);
+  words.forEach(part => {
+    if (/^\s+$/.test(part)) {
+      frag.appendChild(document.createTextNode(part));
+    } else if (part) {
+      const span = document.createElement('span');
+      span.className = 'word-token';
+      span.textContent = part;
+      span.dataset.word = part.replace(/[^a-zA-Z'-]/g, '');
+      span.dataset.subIdx = subIdx;
+
+      // Check if already saved
+      const clean = span.dataset.word.toLowerCase();
+      if (vocabulary.find(v => v.word.toLowerCase() === clean)) {
+        span.classList.add('saved');
+      }
+
+      // Events
+      span.addEventListener('click', onWordClick);
+      span.addEventListener('mousedown', onDragStart);
+      span.addEventListener('mouseover', onDragOver);
+      span.addEventListener('touchstart', onTouchStart, { passive: true });
+      span.addEventListener('touchmove', onTouchMove, { passive: true });
+      span.addEventListener('touchend', onTouchEnd);
+
+      frag.appendChild(span);
+    }
+  });
+  return frag;
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60).toString().padStart(2, '0');
+  const s = Math.floor(secs % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+// =============================================
+// WORD INTERACTION (click & drag select)
+// =============================================
+function onWordClick(e) {
+  if (isDragging) return;
+  const word = e.target.dataset.word;
+  if (!word || word.length < 2) return;
+  showTranslationPopup(word, e.target);
+}
+
+// MOUSE drag
+let dragTokens = [];
+document.addEventListener('mousedown', () => { isDragging = false; dragTokens = []; });
+document.addEventListener('mouseup', (e) => {
+  if (dragTokens.length > 1) {
+    const phrase = dragTokens.map(t => t.textContent).join(' ').trim();
+    const lastToken = dragTokens[dragTokens.length - 1];
+    showTranslationPopup(phrase, lastToken, true);
+    dragTokens.forEach(t => t.classList.remove('selected'));
+    dragTokens = [];
+  }
+  isDragging = false;
+});
+
+function onDragStart(e) {
+  isDragging = false;
+  dragTokens = [e.target];
+  e.target.classList.add('selected');
+}
+
+function onDragOver(e) {
+  if (e.buttons !== 1) return;
+  isDragging = true;
+  if (!dragTokens.includes(e.target) && e.target.classList.contains('word-token')) {
+    dragTokens.push(e.target);
+    e.target.classList.add('selected');
+  }
+}
+
+// TOUCH drag
+let touchStartToken = null;
+let touchDragTokens = [];
+
+function onTouchStart(e) {
+  touchStartToken = e.target;
+  touchDragTokens = [e.target];
+  e.target.classList.add('selected');
+}
+
+function onTouchMove(e) {
+  const touch = e.touches[0];
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  if (el && el.classList.contains('word-token') && !touchDragTokens.includes(el)) {
+    touchDragTokens.push(el);
+    el.classList.add('selected');
+  }
+}
+
+function onTouchEnd(e) {
+  if (touchDragTokens.length > 1) {
+    const phrase = touchDragTokens.map(t => t.textContent).join(' ').trim();
+    const lastToken = touchDragTokens[touchDragTokens.length - 1];
+    showTranslationPopup(phrase, lastToken, true);
+    touchDragTokens.forEach(t => t.classList.remove('selected'));
+  } else if (touchDragTokens.length === 1) {
+    const word = touchStartToken.dataset.word;
+    if (word && word.length >= 2) showTranslationPopup(word, touchStartToken);
+  }
+  touchDragTokens = [];
+  touchStartToken = null;
+}
+
+// =============================================
+// TRANSLATION POPUP
+// =============================================
+const dict = {
+  'hello': { pt: 'Olá', type: 'interjeição', phonetic: '/həˈloʊ/', example: 'Hello, how are you?' },
+  'welcome': { pt: 'Bem-vindo', type: 'verbo/adj', phonetic: '/ˈwɛlkəm/', example: 'Welcome to our home.' },
+  'everyone': { pt: 'Todos, todo mundo', type: 'pronome', phonetic: '/ˈɛvrɪwʌn/', example: 'Everyone is invited.' },
+  'today': { pt: 'Hoje', type: 'advérbio', phonetic: '/təˈdeɪ/', example: "Today is a great day." },
+  'explore': { pt: 'Explorar', type: 'verbo', phonetic: '/ɪkˈsplɔːr/', example: 'We love to explore new places.' },
+  'fascinating': { pt: 'Fascinante', type: 'adjetivo', phonetic: '/ˈfæsɪneɪtɪŋ/', example: 'This is a fascinating story.' },
+  'topics': { pt: 'Tópicos, assuntos', type: 'substantivo', phonetic: '/ˈtɒpɪks/', example: 'We discussed many topics.' },
+  'language': { pt: 'Idioma, língua', type: 'substantivo', phonetic: '/ˈlæŋɡwɪdʒ/', example: 'Language connects people.' },
+  'learning': { pt: 'Aprendizado', type: 'substantivo/gerúndio', phonetic: '/ˈlɜːrnɪŋ/', example: 'Learning is a lifelong journey.' },
+  'rewarding': { pt: 'Gratificante, recompensador', type: 'adjetivo', phonetic: '/rɪˈwɔːrdɪŋ/', example: 'Teaching is very rewarding.' },
+  'challenges': { pt: 'Desafios', type: 'substantivo', phonetic: '/ˈtʃælɪndʒɪz/', example: 'Life is full of challenges.' },
+  'immerse': { pt: 'Imergir, mergulhar', type: 'verbo', phonetic: '/ɪˈmɜːrs/', example: 'Immerse yourself in the culture.' },
+  'authentic': { pt: 'Autêntico, genuíno', type: 'adjetivo', phonetic: '/ɔːˈθɛntɪk/', example: 'This is authentic cuisine.' },
+  'content': { pt: 'Conteúdo', type: 'substantivo', phonetic: '/ˈkɒntɛnt/', example: 'Create valuable content.' },
+  'every': { pt: 'Cada, todo', type: 'determinante', phonetic: '/ˈɛvri/', example: 'Every day is a new chance.' },
+  'single': { pt: 'Único, simples', type: 'adjetivo', phonetic: '/ˈsɪŋɡəl/', example: 'Every single moment matters.' },
+  'watching': { pt: 'Assistindo', type: 'gerúndio', phonetic: '/ˈwɒtʃɪŋ/', example: 'I enjoy watching movies.' },
+  'videos': { pt: 'Vídeos', type: 'substantivo', phonetic: '/ˈvɪdioʊz/', example: 'She watches many videos.' },
+  'subtitles': { pt: 'Legendas', type: 'substantivo', phonetic: '/ˈsʌbtaɪtəlz/', example: 'Turn on the subtitles.' },
+  'incredibly': { pt: 'Incrivelmente', type: 'advérbio', phonetic: '/ɪnˈkrɛdɪbli/', example: 'That was incredibly fast.' },
+  'effective': { pt: 'Eficaz, efetivo', type: 'adjetivo', phonetic: '/ɪˈfɛktɪv/', example: 'This is an effective method.' },
+  'method': { pt: 'Método', type: 'substantivo', phonetic: '/ˈmɛθəd/', example: 'Try a different method.' },
+  'encounter': { pt: 'Encontrar, se deparar com', type: 'verbo', phonetic: '/ɪnˈkaʊntər/', example: 'You will encounter obstacles.' },
+  'vocabulary': { pt: 'Vocabulário', type: 'substantivo', phonetic: '/vəˈkæbjʊlɛri/', example: 'Build your vocabulary daily.' },
+  'meaningful': { pt: 'Significativo', type: 'adjetivo', phonetic: '/ˈmiːnɪŋfəl/', example: 'Have meaningful conversations.' },
+  'context': { pt: 'Contexto', type: 'substantivo', phonetic: '/ˈkɒntɛkst/', example: 'Understand the context first.' },
+  'remember': { pt: 'Lembrar, memorizar', type: 'verbo', phonetic: '/rɪˈmɛmbər/', example: "I can't remember his name." },
+  'expressions': { pt: 'Expressões', type: 'substantivo', phonetic: '/ɪkˈsprɛʃənz/', example: 'Learn common expressions.' },
+  'afraid': { pt: 'Com medo', type: 'adjetivo', phonetic: '/əˈfreɪd/', example: "Don't be afraid of change." },
+  'mistakes': { pt: 'Erros, equívocos', type: 'substantivo', phonetic: '/mɪˈsteɪks/', example: 'We all make mistakes.' },
+  'teachers': { pt: 'Professores', type: 'substantivo', phonetic: '/ˈtiːtʃərz/', example: 'Teachers inspire students.' },
+  'consistency': { pt: 'Consistência', type: 'substantivo', phonetic: '/kənˈsɪstənsi/', example: 'Consistency is the key.' },
+  'absolutely': { pt: 'Absolutamente', type: 'advérbio', phonetic: '/ˈæbsəluːtli/', example: "Absolutely, I agree!" },
+  'crucial': { pt: 'Crucial, fundamental', type: 'adjetivo', phonetic: '/ˈkruːʃəl/', example: 'Sleep is crucial for health.' },
+  'achieving': { pt: 'Alcançar, conquistar', type: 'gerúndio', phonetic: '/əˈtʃiːvɪŋ/', example: 'Achieving goals takes effort.' },
+  'fluency': { pt: 'Fluência', type: 'substantivo', phonetic: '/ˈfluːənsi/', example: 'Reach fluency with practice.' },
+  'practice': { pt: 'Prática, praticar', type: 'substantivo/verbo', phonetic: '/ˈpræktɪs/', example: 'Practice makes perfect.' },
+  'daily': { pt: 'Diariamente, diário', type: 'advérbio/adjetivo', phonetic: '/ˈdeɪli/', example: 'Exercise daily for health.' },
+  'tremendous': { pt: 'Tremendo, enorme', type: 'adjetivo', phonetic: '/trɪˈmɛndəs/', example: 'A tremendous amount of work.' },
+  'difference': { pt: 'Diferença', type: 'substantivo', phonetic: '/ˈdɪfrəns/', example: 'You can make a difference.' },
+  'amazing': { pt: 'Incrível, fantástico', type: 'adjetivo', phonetic: '/əˈmeɪzɪŋ/', example: "What an amazing view!" },
+  'key': { pt: 'Chave, fundamental', type: 'substantivo/adjetivo', phonetic: '/kiː/', example: 'Hard work is the key.' },
+  'fifteen': { pt: 'Quinze', type: 'numeral', phonetic: '/ˌfɪfˈtiːn/', example: 'Meet me in fifteen minutes.' },
+  'minutes': { pt: 'Minutos', type: 'substantivo', phonetic: '/ˈmɪnɪts/', example: 'The meeting lasted 30 minutes.' },
+  'much': { pt: 'Muito', type: 'advérbio', phonetic: '/mʌtʃ/', example: 'Thank you so much!' },
+  'easier': { pt: 'Mais fácil', type: 'adjetivo', phonetic: '/ˈiːziər/', example: 'This makes it easier.' },
+  'channel': { pt: 'Canal', type: 'substantivo', phonetic: '/ˈtʃænəl/', example: 'Subscribe to the channel.' },
+  'back': { pt: 'De volta, atrás', type: 'advérbio', phonetic: '/bæk/', example: "I'll be back soon." },
+};
+
+async function showTranslationPopup(phrase, anchorEl, isPhrase = false) {
+  const popup = document.getElementById('translationPopup');
+  const wordClean = phrase.replace(/[^a-zA-Z\s'-]/g, '').trim().toLowerCase();
+  currentWord = wordClean;
+  currentWordEl = anchorEl;
+
+  // Position popup
+  const rect = anchorEl.getBoundingClientRect();
+  popup.style.display = 'block';
+
+  // Show loading
+  document.getElementById('popupWord').textContent = phrase;
+  document.getElementById('popupPhonetic').textContent = '';
+  document.getElementById('popupType').textContent = '';
+  document.getElementById('popupTranslation').innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+  document.getElementById('popupExample').textContent = '';
+
+  // Position
+  let top = rect.bottom + window.scrollY + 8;
+  let left = rect.left + window.scrollX;
+  if (left + 280 > window.innerWidth) left = window.innerWidth - 290;
+  if (top + 200 > window.scrollY + window.innerHeight) top = rect.top + window.scrollY - 220;
+  popup.style.top = top + 'px';
+  popup.style.left = left + 'px';
+
+  // Check save state
+  const isSaved = vocabulary.find(v => v.word.toLowerCase() === wordClean);
+  const saveBtn = document.getElementById('popupSaveBtn');
+  if (isSaved) {
+    saveBtn.textContent = '✓ Salvo';
+    saveBtn.className = 'popup-save saved-state';
+  } else {
+    saveBtn.textContent = '💾 Salvar';
+    saveBtn.className = 'popup-save';
+  }
+
+  // Lookup translation (dict first, then Claude API)
+  const firstWord = wordClean.split(' ')[0];
+  setTimeout(async () => {
+    let result = null;
+    if (!isPhrase && dict[firstWord]) {
+      result = dict[firstWord];
+      document.getElementById('popupPhonetic').textContent = result.phonetic || '';
+      document.getElementById('popupType').textContent = result.type || '';
+      document.getElementById('popupTranslation').textContent = result.pt;
+      document.getElementById('popupExample').textContent = result.example ? `"${result.example}"` : '';
+    } else {
+      // Use Claude API for translation
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            messages: [{
+              role: 'user',
+              content: `Traduza "${phrase}" do inglês para o português brasileiro. Responda APENAS em JSON com este formato exato:
+{"translation": "tradução aqui", "phonetic": "/fonética/", "type": "classe gramatical", "example": "exemplo de uso em inglês"}
+Sem markdown, sem explicações, apenas o JSON.`
+            }]
+          })
+        });
+        const data = await response.json();
+        const text = data.content?.[0]?.text || '{}';
+        const clean = text.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        document.getElementById('popupPhonetic').textContent = parsed.phonetic || '';
+        document.getElementById('popupType').textContent = parsed.type || '';
+        document.getElementById('popupTranslation').textContent = parsed.translation || 'Tradução não disponível';
+        document.getElementById('popupExample').textContent = parsed.example ? `"${parsed.example}"` : '';
+      } catch(e) {
+        // Fallback
+        document.getElementById('popupTranslation').textContent = 'Tradução não disponível. Verifique sua conexão.';
+      }
+    }
+  }, 200);
+}
+
+function closePopup() {
+  document.getElementById('translationPopup').style.display = 'none';
+  currentWord = null;
+  currentWordEl = null;
+  // Clear selected tokens
+  document.querySelectorAll('.word-token.selected').forEach(t => t.classList.remove('selected'));
+}
+
+document.addEventListener('click', (e) => {
+  const popup = document.getElementById('translationPopup');
+  if (!popup.contains(e.target) && !e.target.classList.contains('word-token')) {
+    closePopup();
+  }
+});
+
+// =============================================
+// VOCABULARY
+// =============================================
+function saveCurrentWord() {
+  if (!currentWord || currentWord.length < 2) return;
+  const translation = document.getElementById('popupTranslation').textContent;
+  saveWord(currentWord, translation);
+  closePopup();
+}
+
+function saveWord(word, translation) {
+  const clean = word.toLowerCase();
+  if (vocabulary.find(v => v.word.toLowerCase() === clean)) {
+    showToast('Palavra já salva!');
+    return;
+  }
+
+  vocabulary.push({ word: word, translation, addedAt: Date.now(), level: 0 });
+  localStorage.setItem('lingocast_vocab', JSON.stringify(vocabulary));
+  renderVocab();
+  updateStats();
+
+  // Mark all tokens with this word as saved
+  document.querySelectorAll('.word-token').forEach(t => {
+    if (t.dataset.word?.toLowerCase() === clean) {
+      t.classList.add('saved');
+    }
+  });
+
+  showToast(`✅ "${word}" salvo no vocabulário!`);
+}
+
+function renderVocab(filter = '') {
+  const list = document.getElementById('vocabList');
+  const filtered = vocabulary.filter(v =>
+    v.word.toLowerCase().includes(filter.toLowerCase()) ||
+    v.translation?.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="vocab-empty">
+      <div class="empty-icon">${filter ? '🔍' : '📖'}</div>
+      <div>${filter ? 'Nenhuma palavra encontrada.' : 'Seu vocabulário está vazio.'}</div>
+      ${filter ? '' : '<div style="margin-top:8px;font-size:12px;">Toque em palavras nas legendas<br>para salvá-las aqui!</div>'}
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  filtered.slice().reverse().forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'vocab-item';
+    div.innerHTML = `
+      <div class="vocab-item-word">
+        <div class="vocab-word">${item.word}</div>
+        <div class="vocab-trans">${item.translation || '—'}</div>
+      </div>
+      <div class="vocab-level">
+        ${[1,2,3].map(l => `<div class="level-dot ${item.level >= l ? 'filled' : ''}"></div>`).join('')}
+      </div>
+      <button class="vocab-delete" onclick="deleteVocab('${item.word}', event)" title="Remover">✕</button>
+    `;
+    div.onclick = () => {
+      currentWord = item.word;
+      document.getElementById('popupWord').textContent = item.word;
+      document.getElementById('popupTranslation').textContent = item.translation;
+      document.getElementById('popupType').textContent = '';
+      document.getElementById('popupPhonetic').textContent = '';
+      document.getElementById('popupExample').textContent = '';
+      const popup = document.getElementById('translationPopup');
+      popup.style.display = 'block';
+      popup.style.top = '50%';
+      popup.style.left = '50%';
+      popup.style.transform = 'translate(-50%, -50%)';
+      document.getElementById('popupSaveBtn').textContent = '✓ Já Salvo';
+      document.getElementById('popupSaveBtn').className = 'popup-save saved-state';
+    };
+    list.appendChild(div);
+  });
+
+  document.getElementById('vocabCountHeader').textContent = vocabulary.length;
+  // Progress bar
+  const maxWords = 100;
+  document.getElementById('vocabProgress').style.width = Math.min(vocabulary.length / maxWords * 100, 100) + '%';
+}
+
+function deleteVocab(word, e) {
+  e.stopPropagation();
+  vocabulary = vocabulary.filter(v => v.word !== word);
+  localStorage.setItem('lingocast_vocab', JSON.stringify(vocabulary));
+  renderVocab(document.getElementById('vocabSearch').value);
+  updateStats();
+  document.querySelectorAll('.word-token').forEach(t => {
+    if (t.dataset.word?.toLowerCase() === word.toLowerCase()) {
+      t.classList.remove('saved');
+    }
+  });
+  showToast('Palavra removida');
+}
+
+function filterVocab() {
+  renderVocab(document.getElementById('vocabSearch').value);
+}
+
+function clearVocab() {
+  if (vocabulary.length === 0) { showToast('Vocabulário já está vazio!'); return; }
+  if (confirm(`Remover todas as ${vocabulary.length} palavras?`)) {
+    vocabulary = [];
+    localStorage.setItem('lingocast_vocab', JSON.stringify(vocabulary));
+    renderVocab();
+    updateStats();
+    document.querySelectorAll('.word-token.saved').forEach(t => t.classList.remove('saved'));
+    showToast('Vocabulário limpo!');
+  }
+}
+
+function exportVocab() {
+  if (vocabulary.length === 0) { showToast('Vocabulário está vazio!'); return; }
+  const content = vocabulary.map(v => `${v.word}\t${v.translation}`).join('\n');
+  const blob = new Blob([content], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lingocast-vocabulary.txt';
+  a.click();
+  showToast('✅ Vocabulário exportado!');
+}
+
+// =============================================
+// QUIZ
+// =============================================
+let quizQueue = [];
+
+function startQuiz() {
+  if (vocabulary.length === 0) return;
+  // Sort by level (lower level = needs more practice)
+  quizQueue = [...vocabulary].sort((a, b) => (a.level || 0) - (b.level || 0));
+  quizIndex = 0;
+  showQuizCard();
+}
+
+function showQuizCard() {
+  if (quizQueue.length === 0) { startQuiz(); return; }
+  const item = quizQueue[quizIndex % quizQueue.length];
+  document.getElementById('quizWord').textContent = item.word;
+  document.getElementById('quizAnswer').textContent = '';
+  document.getElementById('revealBtn').style.display = 'block';
+  document.getElementById('quizNav').style.display = 'none';
+  quizRevealed = false;
+  document.getElementById('quizInfo').textContent = `${quizIndex + 1} / ${quizQueue.length} palavras`;
+}
+
+function revealAnswer() {
+  if (quizQueue.length === 0) return;
+  const item = quizQueue[quizIndex % quizQueue.length];
+  document.getElementById('quizAnswer').textContent = item.translation || '—';
+  document.getElementById('revealBtn').style.display = 'none';
+  document.getElementById('quizNav').style.display = 'flex';
+  quizRevealed = true;
+}
+
+function quizNext(result) {
+  const item = quizQueue[quizIndex % quizQueue.length];
+  const vocabItem = vocabulary.find(v => v.word === item.word);
+  if (vocabItem) {
+    if (result === 'easy') {
+      vocabItem.level = Math.min((vocabItem.level || 0) + 1, 3);
+      stats.easy++;
+    } else {
+      vocabItem.level = Math.max((vocabItem.level || 0) - 1, 0);
+      stats.hard++;
+    }
+    localStorage.setItem('lingocast_vocab', JSON.stringify(vocabulary));
+    localStorage.setItem('lingocast_stats', JSON.stringify(stats));
+  }
+  quizIndex++;
+  showQuizCard();
+  renderVocab(document.getElementById('vocabSearch').value);
+  updateStats();
+}
+
+// =============================================
+// STATS
+// =============================================
+function updateStats() {
+  document.getElementById('statWords').textContent = vocabulary.length;
+  document.getElementById('statLines').textContent = subtitles.length;
+  document.getElementById('statEasy').textContent = stats.easy;
+  document.getElementById('statHard').textContent = stats.hard;
+  document.getElementById('vocabCountHeader').textContent = vocabulary.length;
+
+  // Quiz count
+  const quizReady = vocabulary.filter(v => (v.level || 0) < 3).length;
+  document.getElementById('statQuiz').textContent = quizReady;
+
+  if (vocabulary.length > 0) {
+    document.getElementById('quizInfo').textContent = `${quizQueue.length || vocabulary.length} palavras para praticar`;
+  }
+}
+
+// =============================================
+// UI CONTROLS
+// =============================================
+function toggleTranslation() {
+  showTranslation = !showTranslation;
+  document.querySelectorAll('.sub-text-pt').forEach(el => {
+    el.style.display = showTranslation ? 'block' : 'none';
+  });
+  document.getElementById('transToggle').classList.toggle('active', showTranslation);
+}
+
+function toggleAutoScroll() {
+  autoScroll = !autoScroll;
+  document.getElementById('autoScrollBtn').classList.toggle('active', autoScroll);
+}
+
+function switchTab(name) {
+  ['vocab', 'quiz', 'stats'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === name);
+    document.getElementById(`panel-${t}`).classList.toggle('active', t === name);
+  });
+
+  if (name === 'quiz') {
+    if (vocabulary.length > 0) {
+      startQuiz();
+    } else {
+      document.getElementById('quizWord').textContent = '—';
+      document.getElementById('quizInfo').textContent = 'Salve palavras no vocabulário para praticar o quiz!';
+    }
+  }
+}
+
+// =============================================
+// TOAST
+// =============================================
+let toastTimer;
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
+}
+
+function showTips() {
+  alert(`💡 Como usar o LingoCast:
+
+1. 📺 Cole a URL do YouTube e carregue o vídeo
+   • Ative as legendas no player (botão CC)
+
+2. 📝 Cole legendas no formato SRT, VTT ou texto simples
+   • Clique em "Exemplo" para ver como fica
+   • Clique "Carregar Legendas"
+
+3. 👆 Toque em qualquer palavra para tradução instantânea
+   • Arraste o dedo sobre várias palavras para traduzir frases inteiras
+   • Palavras salvas ficam destacadas em verde
+
+4. 💾 Salve palavras no vocabulário
+   • Acesse pelo painel lateral
+
+5. 🧠 Pratique com o Quiz
+   • Sistema de repetição espaçada: palavras difíceis aparecem mais
+
+6. 🌐 Ative PT para ver a tradução de cada linha`);
+}
+
+// =============================================
+// INIT
+// =============================================
+renderVocab();
+updateStats();
+</script>
 </body>
 </html>

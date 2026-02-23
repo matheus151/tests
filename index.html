@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Player Estudo Pro (V33 - Auto Sub Duplo)</title>
+    <title>Player Estudo Pro (V27.5 - Auto Cache)</title>
     <style>
         /* --- VARIÁVEIS DE DESIGN --- */
         :root {
@@ -78,7 +78,7 @@
         .btn-primary { background: var(--primary); border: none; color: #fff; }
         .btn-fav { color: var(--accent); border-color: var(--accent); }
 
-        /* LISTAS */
+        /* LISTAS (COMPACTO) */
         .list-container {
             display: none; background: var(--input-bg); border: 1px solid var(--border-color);
             border-radius: var(--radius); margin-bottom: 12px; overflow: hidden;
@@ -149,9 +149,16 @@
             display: flex; align-items: center; justify-content: center; gap: 6px;
             text-decoration: none;
         }
-        .btn-yt-dl { background: #c0392b; }
-        .btn-auto-local { background: #16a085; }
+        .btn-yt-dl { background: #c0392b; } 
         
+        .btn-magic {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: #fff; width: 100%; padding: 12px; border-radius: var(--radius); 
+            font-weight: bold; border: none; cursor: pointer; margin-bottom: 10px;
+            box-shadow: 0 4px 10px rgba(46, 204, 113, 0.3);
+            text-transform: uppercase; font-size: 0.85rem;
+        }
+
         .btn-reset { 
             background: var(--input-bg); border: 1px solid var(--border-color); color: #e74c3c; width: 100%; 
             padding: 10px; border-radius: var(--radius); font-weight: bold; margin-top: 5px; cursor: pointer;
@@ -174,8 +181,8 @@
         }
 
         #resume-status { 
-            font-size: 0.75rem; color: var(--success); text-align: center; margin: 8px 0; display: none; 
-            background: rgba(46, 204, 113, 0.1); padding: 8px; border-radius: 4px; font-weight: bold;
+            font-size: 0.8rem; font-weight: bold; text-align: center; margin: 8px 0; display: none; 
+            padding: 6px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1);
         }
 
         /* ESTILOS */
@@ -216,25 +223,24 @@
             backdrop-filter: blur(4px);
         }
 
-        /* --- LEGENDAS (Otimizado para Leitura do Documento) --- */
+        /* --- LEGENDAS --- */
         #subtitle-container {
             position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%);
             width: auto; min-width: 80%; max-width: 96%; z-index: 20; 
             display: flex; flex-direction: column; align-items: center;
         }
         .subtitle-box {
-            background-color: rgba(255, 255, 255, 0.95);
-            color: #000000; /* Texto preto para leitura superior conforme regra */
+            background-color: rgba(0, 0, 0, 0.75); color: #ffffff;
             padding: 0 14px 10px 14px; border-radius: 12px;
             pointer-events: auto; user-select: none; -webkit-user-select: none; touch-action: none; 
             line-height: 1.45; text-align: center; position: relative;
             transition: background-color 0.3s, color 0.3s; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            font-size: 1.2rem; backdrop-filter: blur(2px); font-weight: 500;
+            font-size: 1.2rem; backdrop-filter: blur(2px);
         }
         
         #drag-handle {
-            width: 50px; height: 4px; background-color: rgba(0,0,0,0.2);
+            width: 50px; height: 4px; background-color: rgba(255,255,255,0.2);
             margin: 6px auto 8px auto; border-radius: 10px; cursor: move; position: relative;
         }
         #drag-handle::after { content: ''; position: absolute; top: -20px; bottom: -20px; left: -40px; right: -40px; }
@@ -244,11 +250,11 @@
             font-size: 1em; padding: 2px 1px; border-radius: 4px; display: inline; cursor: pointer;
             box-decoration-break: clone; -webkit-box-decoration-break: clone;
         }
-        .word.selected { background-color: var(--accent) !important; color: #000 !important; font-weight: bold; }
+        .word.selected { background-color: var(--accent) !important; color: #000 !important; }
 
         .translate-btn {
             display: inline-flex; align-items: center; justify-content: center;
-            background: #333; color: #fff; border-radius: 50%;
+            background: #fff; color: #000; border-radius: 50%;
             width: 22px; height: 22px; margin-left: 8px; 
             font-size: 12px; cursor: pointer; vertical-align: middle; opacity: 0.9;
         }
@@ -289,7 +295,7 @@
 
     <div id="controls-wrapper">
         <div class="control-group">
-            <input type="text" id="yt-search-input" class="modern-input" placeholder="YouTube (Link ou Busca)..." onkeypress="if(event.key==='Enter') initSearch()">
+            <input type="text" id="yt-search-input" class="modern-input" placeholder="YouTube (Link ou Busca)...">
             <button class="icon-btn btn-primary" onclick="initSearch()">🔍</button>
             <button class="icon-btn btn-fav" onclick="toggleFavorites()" title="Meus Favoritos">⭐</button>
             <button class="icon-btn" onclick="toggleTheme()" title="Mudar Tema">🌗</button> <button class="icon-btn" onclick="openApiConfig()">🔑</button>
@@ -320,20 +326,21 @@
 
         <button id="btn-fav-current" onclick="addCurrentToFavorites()">❤️ Favoritar Vídeo Atual</button>
 
+        <button class="btn-magic" onclick="autoFetchSubtitles()">🪄 Baixar Legenda Automática (Cache)</button>
+
         <div class="grid-row">
             <label class="file-label">
                 <span>📁</span> Vídeo Local
                 <input type="file" id="videoInput" accept="video/mp4, video/x-m4v, video/*">
             </label>
             <label class="file-label">
-                <span>📝</span> Legenda Manual
+                <span>📝</span> Legenda
                 <input type="file" id="subInput" accept="*">
             </label>
         </div>
 
         <div class="grid-row" style="grid-template-columns: 1fr;">
-            <button class="btn-external btn-auto-local" onclick="startLocalAutoCaption()" id="btn-local-caption" style="display:none;">🎙️ Gerar Legenda Local (Beta)</button>
-            <button class="btn-external btn-yt-dl" onclick="openExternalDownSub()">⬇️ Extração Falhou? Usar DownSub</button>
+            <button class="btn-external btn-yt-dl" onclick="openExternalDownSub()">⬇️ Legenda DownSub (Backup Manual)</button>
         </div>
         
         <div class="grid-row" style="margin-top: 5px;">
@@ -349,12 +356,12 @@
                 <button class="font-btn" onclick="changeFontSize(0.1)">A+</button>
             </div>
             <div class="style-group">
-                <div class="color-picker-wrapper">Txt <input type="color" id="textColor" value="#000000"></div>
-                <div class="color-picker-wrapper">Bg <input type="color" id="bgColor" value="#ffffff"></div>
+                <div class="color-picker-wrapper">Txt <input type="color" id="textColor" value="#ffffff"></div>
+                <div class="color-picker-wrapper">Bg <input type="color" id="bgColor" value="#000000"></div>
             </div>
         </div>
 
-        <button class="btn-reset" onclick="resetApp()">🗑️ Fechar Vídeo / Reiniciar</button>
+        <button class="btn-reset" onclick="resetApp()">🗑️ Fechar Vídeo</button>
     </div>
 
     <div id="ui-toggle-bar" onclick="toggleMainUI()">🔼</div>
@@ -387,6 +394,74 @@
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <script>
+        // --- EXTRAÇÃO AUTOMÁTICA PARA O CACHE ---
+        async function autoFetchSubtitles() {
+            if(playerType !== 'youtube' || !currentPlayingYT) {
+                alert("Carregue um vídeo do YouTube primeiro.");
+                return;
+            }
+            const vid = currentPlayingYT.id;
+            const st = document.getElementById('resume-status');
+
+            st.style.display = 'block';
+            st.style.color = '#f1c40f';
+            st.style.backgroundColor = 'rgba(241, 196, 15, 0.1)';
+            st.innerText = '⏳ Extraindo legenda da nuvem...';
+
+            try {
+                let xmlText = "";
+                
+                // Tentativa 1: API Parceira via CorsProxy
+                try {
+                    const r1 = await fetch(`https://corsproxy.io/?` + encodeURIComponent(`https://youtubetranscript.com/?server_vid2=${vid}`));
+                    if(r1.ok) xmlText = await r1.text();
+                } catch(e1) { console.log("Proxy 1 falhou"); }
+
+                // Tentativa 2: Fallback Proxy (AllOrigins) caso o CorsProxy falhe
+                if(!xmlText || !xmlText.includes('<?xml')) {
+                    const r2 = await fetch(`https://api.allorigins.win/raw?url=` + encodeURIComponent(`https://youtubetranscript.com/?server_vid2=${vid}`));
+                    if(r2.ok) xmlText = await r2.text();
+                }
+
+                if (xmlText && xmlText.includes('<transcript>')) {
+                    subtitles = parseXMLToObjects(xmlText);
+                    
+                    if (subtitles.length > 0) {
+                        localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); // MÁGICA: Salva no Cache do App
+                        
+                        st.style.color = 'var(--success)';
+                        st.style.backgroundColor = 'rgba(46, 204, 113, 0.1)';
+                        st.innerText = `✅ Legenda Automática Salva no Cache!`;
+                        
+                        // Atualiza a legenda visual imediatamente
+                        if(ytPlayer && ytPlayer.getCurrentTime) renderLogic(ytPlayer.getCurrentTime() + 0.01);
+                        return;
+                    }
+                }
+                throw new Error("Sem legendas");
+            } catch(e) {
+                st.style.color = '#e74c3c';
+                st.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
+                st.innerText = '❌ Bloqueado ou sem legenda. Use o botão DownSub abaixo.';
+            }
+        }
+
+        // Função de conversão do XML para a engine do nosso Player
+        function parseXMLToObjects(xmlString) {
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(xmlString, "text/xml");
+            const texts = xml.getElementsByTagName('text');
+            const result = [];
+            for (let i = 0; i < texts.length; i++) {
+                const node = texts[i];
+                const start = parseFloat(node.getAttribute('start'));
+                const dur = parseFloat(node.getAttribute('dur') || "0");
+                const text = node.textContent.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/\n/g, ' ').replace(/<[^>]*>/g, "").trim();
+                if (text) { result.push({ start: start, end: start + dur, text: text }); }
+            }
+            return result;
+        }
+
         // --- BING TRANSLATOR ---
         function openBingTranslator() {
             if(!currentTranslateSource) return;
@@ -412,8 +487,8 @@
         let isSelecting = false;
         let isDragging = false;
         let dragStartX=0, dragStartY=0, initialTop=0, initialLeft=0;
-        let localSpeechRecognition = null;
 
+        // Elementos
         const video = document.getElementById('mainVideo');
         const ytContainer = document.getElementById('yt-container');
         const gestureLayer = document.getElementById('gesture-layer');
@@ -424,6 +499,7 @@
         const transCard = document.getElementById('translation-card');
         const transOrig = document.getElementById('phrase-orig');
         const transRes = document.getElementById('phrase-trans');
+        const gestureIcon = document.getElementById('gesture-feedback');
         const textColorInput = document.getElementById('textColor');
         const bgColorInput = document.getElementById('bgColor');
         const apiKeyConfig = document.getElementById('api-key-config');
@@ -432,7 +508,6 @@
         const favoritesList = document.getElementById('favorites-list');
         const btnFavCurrent = document.getElementById('btn-fav-current');
         const dragHandle = document.getElementById('drag-handle');
-        const btnLocalCaption = document.getElementById('btn-local-caption');
 
         // UI Helpers
         function changeFontSize(d) { currentFontSize+=d; if(currentFontSize<0.5)currentFontSize=0.5; if(currentFontSize>3)currentFontSize=3; subBox.style.fontSize=currentFontSize+'rem'; }
@@ -471,7 +546,9 @@
         function clearVocabulary() {
             if(!vocabList.length){alert("A lista já está vazia.");return;}
             if(confirm("Tem certeza que deseja apagar todo o vocabulário salvo?")) {
-                vocabList = []; localStorage.removeItem('ejoy_vocab'); alert("Lista de vocabulário apagada!");
+                vocabList = [];
+                localStorage.removeItem('ejoy_vocab');
+                alert("Lista de vocabulário apagada!");
             }
         }
         
@@ -492,13 +569,17 @@
         function addCurrentToFavorites() {
             if (!currentPlayingYT) return;
             const existingIdx = favorites.findIndex(f => f.id === currentPlayingYT.id);
-            const favObj = { ...currentPlayingYT, savedSubs: (subtitles && subtitles.length > 0) ? subtitles : null };
+            const favObj = {
+                ...currentPlayingYT,
+                savedSubs: (subtitles && subtitles.length > 0) ? subtitles : null
+            };
 
             if (existingIdx !== -1) { favorites[existingIdx] = favObj; alert("Atualizado (com legenda)!"); } 
             else { favorites.push(favObj); alert("Salvo!"); }
             
             try {
-                localStorage.setItem('ejoy_favs', JSON.stringify(favorites)); renderFavorites();
+                localStorage.setItem('ejoy_favs', JSON.stringify(favorites));
+                renderFavorites();
             } catch(e) {
                 alert("Erro: Memória cheia. Salvo sem legenda.");
                 delete favObj.savedSubs;
@@ -508,140 +589,7 @@
         }
         function removeFavorite(e,i){e.stopPropagation();if(confirm("Apagar?")){favorites.splice(i,1);localStorage.setItem('ejoy_favs',JSON.stringify(favorites));renderFavorites();}}
 
-        function openExternalDownSub(){const u=localStorage.getItem('ejoy_ytUrl');if(playerType!=='youtube'||!u){alert("Abra um vídeo YT primeiro.");return;}window.open(`https://downsub.com/?url=${encodeURIComponent(u)}`,'_blank');}
-
-
-        // ==========================================================
-        // --- AUTO LEGENDA YOUTUBE (NOVO MÉTODO BLINDADO) ---
-        // ==========================================================
-        async function autoFetchYTSubtitles(vid) {
-            const statusBox = document.getElementById('resume-status');
-            statusBox.style.display = 'block';
-            statusBox.style.color = '#3498db';
-            statusBox.innerText = '⏳ Conectando e gerando legendas automáticas...';
-            
-            let fetchedSubs = [];
-
-            // TENTATIVA 1: API PIPED (Servidor aberto alternativo)
-            try {
-                const res = await fetch(`https://pipedapi.kavin.rocks/streams/${vid}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.subtitles && data.subtitles.length > 0) {
-                        // Prioriza a legenda oficial em inglês, ou a auto-gerada
-                        let track = data.subtitles.find(t => t.code === 'en' && !t.autoGenerated) 
-                                 || data.subtitles.find(t => t.code === 'en') 
-                                 || data.subtitles[0];
-                        
-                        const subRes = await fetch(track.url);
-                        const subText = await subRes.text();
-                        
-                        // O Piped pode entregar em VTT nativo ou XML antigo
-                        if (subText.includes('-->')) {
-                            fetchedSubs = parseSubtitles(subText);
-                        } else {
-                            fetchedSubs = parseXML(subText);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.log("Falha na API 1, iniciando fallback...");
-            }
-
-            // TENTATIVA 2: PROXY SCRAPING (Caso a API primária esteja offline)
-            if (fetchedSubs.length === 0) {
-                try {
-                    const proxyUrl = 'https://api.allorigins.win/raw?url=';
-                    const ytUrl = encodeURIComponent(`https://www.youtube.com/watch?v=${vid}`);
-                    const response = await fetch(proxyUrl + ytUrl);
-                    const html = await response.text();
-
-                    const regex = /"captionTracks":(\[.*?\])/;
-                    const match = regex.exec(html);
-                    
-                    if (match) {
-                        const tracks = JSON.parse(match[1]);
-                        let track = tracks.find(t => t.languageCode === 'en' || t.vssId.includes('en')) || tracks[0];
-                        const xmlResponse = await fetch(proxyUrl + encodeURIComponent(track.baseUrl));
-                        const xmlText = await xmlResponse.text();
-                        
-                        fetchedSubs = parseXML(xmlText);
-                    }
-                } catch (error) {
-                    console.log("Falha no Proxy de Fallback.");
-                }
-            }
-
-            // AVALIA RESULTADO DAS TENTATIVAS
-            if (fetchedSubs.length > 0) {
-                subtitles = fetchedSubs;
-                statusBox.style.color = 'var(--success)';
-                statusBox.innerText = '✅ Legenda Automática Pronta!';
-                localStorage.setItem('ejoy_subs', JSON.stringify(subtitles));
-            } else {
-                statusBox.style.color = '#e74c3c';
-                statusBox.innerText = '❌ Legenda indisponível para este vídeo no momento. (Tente o DownSub)';
-            }
-        }
-
-        // Auxiliar para ler XML das legendas antigas
-        function parseXML(xmlText) {
-            try {
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-                const textNodes = xmlDoc.getElementsByTagName("text");
-                let newSubs = [];
-                for (let i = 0; i < textNodes.length; i++) {
-                    const node = textNodes[i];
-                    const start = parseFloat(node.getAttribute("start"));
-                    const dur = parseFloat(node.getAttribute("dur") || "2.0");
-                    const text = node.textContent.replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-                    
-                    if (text.trim() === '') continue;
-                    newSubs.push({
-                        start: start,
-                        end: start + dur,
-                        text: text.replace(/\n/g, ' ')
-                    });
-                }
-                return newSubs;
-            } catch (e) { return []; }
-        }
-
-
-        // --- AUTO LEGENDA LOCAL (SPEECH API) ---
-        function startLocalAutoCaption() {
-            if (!('webkitSpeechRecognition' in window)) {
-                alert("Seu navegador não suporta geração de legenda por voz offline nativa. Use Google Chrome ou Edge."); return;
-            }
-            
-            const statusBox = document.getElementById('resume-status');
-            statusBox.style.display = 'block'; statusBox.style.color = '#f1c40f';
-            statusBox.innerText = '🎙️ Escutando e gerando legendas experimentais ao vivo...';
-            
-            if (localSpeechRecognition) { localSpeechRecognition.stop(); }
-            
-            subtitles = []; // Reseta subs
-            localSpeechRecognition = new webkitSpeechRecognition();
-            localSpeechRecognition.continuous = true;
-            localSpeechRecognition.interimResults = true;
-            localSpeechRecognition.lang = 'en-US'; 
-
-            localSpeechRecognition.onresult = function(event) {
-                let final_transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) { final_transcript += event.results[i][0].transcript; }
-                }
-                if(final_transcript) {
-                    const now = video.currentTime;
-                    subtitles.push({ start: Math.max(0, now - 1), end: now + 4, text: final_transcript });
-                    renderLogic(now);
-                }
-            };
-            
-            localSpeechRecognition.onerror = function(e) { console.log('Speech error:', e); }
-            localSpeechRecognition.start(); video.play();
-        }
+        function openExternalDownSub(){const u=localStorage.getItem('ejoy_ytUrl');if(playerType!=='youtube'||!u){alert("Abra um vídeo YT");return;}window.open(`https://downsub.com/?url=${encodeURIComponent(u)}`,'_blank');}
 
         // Busca YT
         let nextPageToken=""; let isFetching=false;
@@ -691,9 +639,6 @@
         function onYouTubeIframeAPIReady(){}
         
         function loadYouTube(vid,title,thumb, savedSubs=null) {
-            btnLocalCaption.style.display = 'none'; // Esconde gerador local
-            if (localSpeechRecognition) { localSpeechRecognition.stop(); }
-
             subtitles=[]; subContent.innerHTML=""; playerType='youtube';
             if(currentVideoURL){URL.revokeObjectURL(currentVideoURL);currentVideoURL=null;}
             video.removeAttribute('src'); video.load(); video.style.display='none';
@@ -701,13 +646,31 @@
             currentPlayingYT={id:vid,title:title||"Video",thumb:thumb||""}; btnFavCurrent.style.display='block';
             localStorage.setItem('ejoy_ytUrl',`https://www.youtube.com/watch?v=${vid}`); localStorage.setItem('ejoy_mode','youtube');
             
+            // PRIORIDADES DE LEGENDA:
+            const statusEl = document.getElementById('resume-status');
+            statusEl.style.display = 'none';
+
             if(savedSubs && savedSubs.length>0) {
+                // 1. Veio do Favorito
                 subtitles = savedSubs;
-                const rs = document.getElementById('resume-status');
-                rs.style.display='block'; rs.style.color='var(--success)'; rs.innerText='✅ Legenda Favorita Carregada';
+                statusEl.style.display='block'; 
+                statusEl.style.color='var(--success)';
+                statusEl.style.backgroundColor='rgba(46, 204, 113, 0.1)';
+                statusEl.innerText='✅ Legenda Salva do Favorito';
             } else {
-                // ACIONA O AUTO-EXTRACTOR COM DUPLA TENTATIVA
-                autoFetchYTSubtitles(vid);
+                // 2. Vê se existe algo no Cache do último botão "Mágico" clicado
+                const cached = localStorage.getItem('ejoy_subs');
+                if (cached) {
+                    try { 
+                        subtitles = JSON.parse(cached); 
+                        if(subtitles.length > 0) {
+                            statusEl.style.display='block'; 
+                            statusEl.style.color='var(--success)';
+                            statusEl.style.backgroundColor='rgba(46, 204, 113, 0.1)';
+                            statusEl.innerText='✅ Legenda em Cache (Memória)';
+                        }
+                    } catch(e){}
+                }
             }
 
             const savedTime = videoHistory[vid] || 0;
@@ -720,7 +683,6 @@
             }
             startYTSync();
         }
-        
         function startYTSync() {
             if(ytTimer) clearInterval(ytTimer);
             ytTimer = setInterval(()=>{
@@ -743,7 +705,6 @@
         // Local Video
         document.getElementById('videoInput').onchange = e => {
             const f=e.target.files[0]; if(f){
-                btnLocalCaption.style.display = 'block'; // Mostra botão de auto caption local
                 playerType='local'; ytContainer.style.display='none'; gestureLayer.style.display='none'; unlockBtn.style.display='none'; btnFavCurrent.style.display='none';
                 if(currentVideoURL)URL.revokeObjectURL(currentVideoURL); video.removeAttribute('src'); video.load();
                 currentVideoURL=URL.createObjectURL(f); video.src=currentVideoURL; video.style.display='block';
@@ -757,35 +718,22 @@
                 const r=new FileReader(); r.onload=res=>{
                     subtitles=parseSubtitles(res.target.result); 
                     if(subtitles.length) { 
-                        const rs = document.getElementById('resume-status');
-                        rs.style.display='block'; rs.style.color='var(--success)'; rs.innerText='✅ Legenda Manual OK'; 
-                        alert("Legenda Manual Carregada!"); 
+                        localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); // Salva no cache
+                        const statusEl = document.getElementById('resume-status');
+                        statusEl.style.display='block'; 
+                        statusEl.style.color='var(--success)';
+                        statusEl.style.backgroundColor='rgba(46, 204, 113, 0.1)';
+                        statusEl.innerText='✅ Arquivo de Legenda OK (Em Cache)'; 
+                        alert("Legenda Carregada!"); 
                     }
                 }; r.readAsText(f);
             }
         };
-
-        // PARSER MELHORADO (Suporta SRT e VTT com pontos ou vírgulas perfeitamente)
         function parseSubtitles(t) {
-            t = t.replace(/<[^>]+>/g, '').replace(/\r\n/g,'\n').replace(/\r/g,'\n'); 
-            const p = /(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3}|\d{1,2}:\d{2}[,.]\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3}|\d{1,2}:\d{2}[,.]\d{1,3})[^\n]*\n([\s\S]*?)(?=\n\n|$)/g;
-            const res = []; let m; 
-            while((m = p.exec(t)) !== null){ 
-                res.push({
-                    start: timeToSec(m[1]), 
-                    end: timeToSec(m[2]), 
-                    text: m[3].trim().replace(/\n/g,' ')
-                }); 
-            } 
-            return res;
+            t=t.replace(/\r\n/g,'\n').replace(/\r/g,'\n'); const p=/(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})\s-->\s(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})[^\n]*\n([\s\S]*?)(?=\n\n|$)/g;
+            const res=[]; let m; while((m=p.exec(t))!==null){ res.push({start:timeToSec(m[1]), end:timeToSec(m[2]), text:m[3].trim().replace(/\n/g,' ').replace(/<[^>]*>/g,'')}); } return res;
         }
-
-        function timeToSec(s){ 
-            s = s.replace(',', '.'); 
-            const p = s.split(':'); 
-            if(p.length === 2) return (parseFloat(p[0])*60) + parseFloat(p[1]); // Formato MM:SS.mmm
-            return (parseFloat(p[0])*3600) + (parseFloat(p[1])*60) + parseFloat(p[2]); // Formato HH:MM:SS.mmm
-        }
+        function timeToSec(s){ s=s.replace(',','.'); const p=s.split(':'); return (parseFloat(p[0])*3600)+(parseFloat(p[1])*60)+parseFloat(p[2]); }
 
         // Render
         let lastRenderedText="";
@@ -810,6 +758,7 @@
         function seek(t){ if(playerType==='local')video.currentTime=t; else if(ytPlayer)ytPlayer.seekTo(t,true); }
         function getTime(){ return playerType==='local'?video.currentTime:(ytPlayer?ytPlayer.getCurrentTime():0); }
         
+        // V27.3: JUMP EXACT & FAST
         function jumpSubtitle(dir) {
             if(!subtitles.length) { seek(getTime()+(dir*10)); return; } 
             const now = getTime(); 
@@ -825,7 +774,10 @@
                 } else {
                     targetIdx = -1;
                     for (let i = subtitles.length - 1; i >= 0; i--) {
-                        if (subtitles[i].start < now - 0.1) { targetIdx = i; break; }
+                        if (subtitles[i].start < now - 0.1) {
+                            targetIdx = i;
+                            break;
+                        }
                     }
                 }
             }
@@ -868,25 +820,18 @@
 
         // Init
         textColorInput.addEventListener('input',e=>subContent.style.color=e.target.value);
-        bgColorInput.addEventListener('input',e=>subBox.style.backgroundColor=`${e.target.value}f2`); 
-        
-        // Ajuste no Resize
-        function fixSubtitlePosition() {
-            const r=subContainer.getBoundingClientRect();if(r.top>window.innerHeight-50||r.top<0){subContainer.style.top='auto';subContainer.style.bottom='12%';subContainer.style.left='50%';subContainer.style.transform='translateX(-50%)';}
-        }
-        window.addEventListener('resize', fixSubtitlePosition);
+        bgColorInput.addEventListener('input',e=>subBox.style.backgroundColor=`${e.target.value}bf`);
+        window.addEventListener('resize',()=>{const r=subContainer.getBoundingClientRect();if(r.top>window.innerHeight-50||r.top<0){subContainer.style.top='auto';subContainer.style.bottom='12%';subContainer.style.left='50%';subContainer.style.transform='translateX(-50%)';}});
         
         window.onload = () => {
             if(localStorage.getItem('ejoy_theme')==='light') document.body.classList.add('light-mode');
-            const savedSubs = localStorage.getItem('ejoy_subs');
-            if (savedSubs) try { subtitles = JSON.parse(savedSubs); document.getElementById('resume-status').style.display='block'; document.getElementById('resume-status').innerText='✅ Legenda Memória OK'; } catch(e){}
             if(!YOUTUBE_API_KEY && !localStorage.getItem('ejoy_api_key')) document.getElementById('api-key-config').style.display='block';
+            window.addEventListener('resize', fixSubtitlePosition);
             renderFavorites();
         };
 
         function resetApp(){
             if(currentVideoURL)URL.revokeObjectURL(currentVideoURL);
-            if(localSpeechRecognition) localSpeechRecognition.stop();
             localStorage.removeItem('ejoy_subs');localStorage.removeItem('ejoy_vidName');localStorage.removeItem('ejoy_time');localStorage.removeItem('ejoy_ytUrl');localStorage.removeItem('ejoy_mode');
             location.reload();
         }

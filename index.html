@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Player Estudo Pro (V29.1 - Search Fixed)</title>
+    <title>Player Estudo Pro (V29.2 - Ultimate Edition)</title>
     <style>
         /* --- VARIÁVEIS DE DESIGN --- */
         :root {
@@ -109,7 +109,7 @@
         #btn-save-vocab { background: #3498db; color: #fff; }
         #btn-bing-ext { background: #fff; border: 1px solid #ccc; color: #333; }
         #gesture-feedback { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 4rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; text-shadow: 0 0 15px rgba(0,0,0,0.8); z-index: 50; }
-
+        
         @media (orientation: landscape) { #controls-wrapper { display: none; } #ui-toggle-bar { display: none; } #subtitle-container { bottom: 8%; z-index: 9999; } }
     </style>
 </head>
@@ -124,10 +124,10 @@
         </div>
         
         <div id="api-key-config">
-            <p style="margin:0 0 5px 0; color:var(--text-main);">☁️ <b>1. URL do Servidor Google (Apps Script):</b></p>
+            <p style="margin:0 0 5px 0; color:var(--text-main);">☁️ <b>1. URL do seu Google Apps Script (Robô):</b></p>
             <input type="text" id="gas-url-input" class="modern-input" placeholder="Ex: https://script.google.com/macros/s/.../exec">
             
-            <p style="margin:15px 0 5px 0; color:var(--text-main);">🔑 <b>2. API Key YouTube (Para Busca):</b></p>
+            <p style="margin:15px 0 5px 0; color:var(--text-main);">🔑 <b>2. API Key YouTube (Para Busca da Lupa):</b></p>
             <input type="text" id="api-key-input" class="modern-input" placeholder="Sua API Key do Google">
 
             <div style="display: flex; gap: 8px; margin-top: 10px;">
@@ -256,7 +256,7 @@
             st.innerText = '⏳ Conectando aos Servidores do Google...';
 
             try {
-                // Acessa o seu servidor Google que ignora qualquer bloqueio do YouTube
+                // Acessa o seu servidor Google que ignora qualquer bloqueio
                 const response = await fetch(`${GOOGLE_SCRIPT_URL}?v=${vid}`);
                 const data = await response.json();
 
@@ -281,7 +281,13 @@
                 console.error(e);
                 st.style.color = '#e74c3c';
                 st.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
-                st.innerText = `❌ Falha: ${e.message}`;
+                
+                // Tratamento específico se o usuário errou na hora de criar o Link
+                if(e.message === 'Failed to fetch' || e.message === 'Load failed') {
+                    st.innerText = `❌ O Google bloqueou. Acesse seu Script, clique em "Nova Implantação" e tenha certeza de marcar "Quem pode acessar: Qualquer pessoa".`;
+                } else {
+                    st.innerText = `❌ Falha: ${e.message}`;
+                }
             }
         }
 

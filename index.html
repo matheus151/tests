@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Player Estudo Pro (V29.0 - Definitivo)</title>
+    <title>Player Estudo Pro (V29.1 - Search Fixed)</title>
     <style>
         /* --- VARIÁVEIS DE DESIGN --- */
         :root {
@@ -109,7 +109,7 @@
         #btn-save-vocab { background: #3498db; color: #fff; }
         #btn-bing-ext { background: #fff; border: 1px solid #ccc; color: #333; }
         #gesture-feedback { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 4rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; text-shadow: 0 0 15px rgba(0,0,0,0.8); z-index: 50; }
-        
+
         @media (orientation: landscape) { #controls-wrapper { display: none; } #ui-toggle-bar { display: none; } #subtitle-container { bottom: 8%; z-index: 9999; } }
     </style>
 </head>
@@ -124,9 +124,16 @@
         </div>
         
         <div id="api-key-config">
-            <p style="margin:0 0 5px 0; color:var(--text-main);">☁️ <b>URL do seu Servidor Google (Apps Script):</b></p>
+            <p style="margin:0 0 5px 0; color:var(--text-main);">☁️ <b>1. URL do Servidor Google (Apps Script):</b></p>
             <input type="text" id="gas-url-input" class="modern-input" placeholder="Ex: https://script.google.com/macros/s/.../exec">
-            <button class="api-save-btn" onclick="saveConfig()">Salvar e Fechar</button>
+            
+            <p style="margin:15px 0 5px 0; color:var(--text-main);">🔑 <b>2. API Key YouTube (Para Busca):</b></p>
+            <input type="text" id="api-key-input" class="modern-input" placeholder="Sua API Key do Google">
+
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <button class="api-save-btn" style="flex-grow: 1; margin-top: 0;" onclick="saveConfig()">💾 Salvar Tudo</button>
+                <button class="api-save-btn" style="background:#444; color:#fff; margin-top: 0;" onclick="document.getElementById('api-key-config').style.display='none'">Fechar</button>
+            </div>
         </div>
 
         <div id="search-results-container" class="list-container">
@@ -211,20 +218,28 @@
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <script>
-        // --- CONFIGURAÇÃO GOOGLE SCRIPT ---
+        // --- CONFIGURAÇÕES GLOBAIS DE SERVIDOR E API ---
         let GOOGLE_SCRIPT_URL = localStorage.getItem('ejoy_gas_url') || "";
+        let YOUTUBE_API_KEY = localStorage.getItem('ejoy_api_key') || "";
 
         function openApiConfig() { 
             document.getElementById('api-key-config').style.display = 'block'; 
             document.getElementById('gas-url-input').value = GOOGLE_SCRIPT_URL; 
+            document.getElementById('api-key-input').value = YOUTUBE_API_KEY; 
         }
 
         function saveConfig() {
-            const url = document.getElementById('gas-url-input').value.trim();
-            GOOGLE_SCRIPT_URL = url; 
-            localStorage.setItem('ejoy_gas_url', url);
+            const gasUrl = document.getElementById('gas-url-input').value.trim();
+            const ytKey = document.getElementById('api-key-input').value.trim();
+            
+            GOOGLE_SCRIPT_URL = gasUrl; 
+            localStorage.setItem('ejoy_gas_url', gasUrl);
+            
+            YOUTUBE_API_KEY = ytKey;
+            localStorage.setItem('ejoy_api_key', ytKey);
+
             document.getElementById('api-key-config').style.display = 'none';
-            alert("Servidor Google Vinculado!");
+            alert("Configurações Salvas com Sucesso!");
         }
 
         // --- A EXTRAÇÃO DEFINITIVA VIA GOOGLE ---
@@ -313,10 +328,13 @@
         function addCurrentToFavorites() { if (!currentPlayingYT) return; const existingIdx = favorites.findIndex(f => f.id === currentPlayingYT.id); const favObj = { ...currentPlayingYT, savedSubs: (subtitles && subtitles.length > 0) ? subtitles : null }; if (existingIdx !== -1) { favorites[existingIdx] = favObj; alert("Atualizado (com legenda)!"); } else { favorites.push(favObj); alert("Salvo!"); } try { localStorage.setItem('ejoy_favs', JSON.stringify(favorites)); renderFavorites(); } catch(e) { alert("Erro: Memória cheia. Salvo sem legenda."); delete favObj.savedSubs; if(existingIdx !== -1) favorites[existingIdx] = favObj; else favorites.push(favObj); localStorage.setItem('ejoy_favs', JSON.stringify(favorites)); } }
         function removeFavorite(e,i){e.stopPropagation();if(confirm("Apagar?")){favorites.splice(i,1);localStorage.setItem('ejoy_favs',JSON.stringify(favorites));renderFavorites();}}
 
+        // Busca YT Restabelecida com YOUTUBE_API_KEY
         let nextPageToken=""; let isFetching=false;
-        async function initSearch() { const q=ytInput.value.trim(); if(q.includes('youtu')){loadYouTubeFromInput();return;} if(!q)return; nextPageToken=""; resultsList.innerHTML=""; document.getElementById('search-results-container').style.display='block'; resultsList.classList.remove('hidden'); await fetchVideos(q); }
-        async function fetchVideos(q) { if(isFetching)return; isFetching=true; const loader=document.createElement('div');loader.innerText="Carregando...";loader.className="loading-more";resultsList.appendChild(loader); try { let u=`https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(q)}&filter=videos`; const res=await fetch(u); const d=await res.json(); loader.remove(); d.items.slice(0, 15).forEach(i=>{ const vid=i.url.split('?v=')[1]; const t=i.title; const th=i.thumbnail; const duration = ""; const el=document.createElement('div'); el.className='video-item'; el.innerHTML=`<div class="video-thumb-wrapper"><img src="${th}" class="video-thumb"></div><div class="video-info"><div class="video-title">${t}</div><div class="video-channel">${i.uploaderName}</div></div>`; el.onclick=()=>{loadYouTube(vid,t,th)}; resultsList.appendChild(el); }); } catch(e){loader.innerText="Erro na busca sem API Key.";} finally{isFetching=false;} }
-        
+        async function initSearch() { const q=ytInput.value.trim(); if(q.includes('youtu')){loadYouTubeFromInput();return;} if(!YOUTUBE_API_KEY){openApiConfig();return;} if(!q)return; nextPageToken=""; resultsList.innerHTML=""; document.getElementById('search-results-container').style.display='block'; resultsList.classList.remove('hidden'); await fetchVideos(q); }
+        async function fetchVideos(q) { if(isFetching)return; isFetching=true; const loader=document.createElement('div');loader.innerText="Carregando...";loader.className="loading-more";resultsList.appendChild(loader); try { let u=`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`; if(nextPageToken)u+=`&pageToken=${nextPageToken}`; const res=await fetch(u); const d=await res.json(); loader.remove(); if(d.error){alert(d.error.message);return;} nextPageToken=d.nextPageToken||""; const videoIds = d.items.map(item => item.id.videoId).join(','); let videosData = {}; if (videoIds) { const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${YOUTUBE_API_KEY}`; const resDetails = await fetch(detailsUrl); const dataDetails = await resDetails.json(); if (!dataDetails.error) { dataDetails.items.forEach(v => { videosData[v.id] = parseDuration(v.contentDetails.duration); }); } } d.items.forEach(i=>{ const vid=i.id.videoId; const t=i.snippet.title; const th=i.snippet.thumbnails.medium.url; const duration = videosData[vid] || ""; const el=document.createElement('div'); el.className='video-item'; el.innerHTML=`<div class="video-thumb-wrapper"><img src="${th}" class="video-thumb">${duration ? `<span class="video-duration">${duration}</span>` : ''}</div><div class="video-info"><div class="video-title">${t}</div><div class="video-channel">${i.snippet.channelTitle}</div></div>`; el.onclick=()=>{loadYouTube(vid,t,th)}; resultsList.appendChild(el); }); } catch(e){loader.innerText="Erro";} finally{isFetching=false;} }
+        function parseDuration(pt) { const match = pt.match(/PT(\d+H)?(\d+M)?(\d+S)?/); if (!match) return ""; const h = (match[1] || '').replace('H', ''); const m = (match[2] || '').replace('M', ''); const s = (match[3] || '').replace('S', ''); let str = ""; if (h) str += h + ":"; str += (h && m.length < 2 ? "0" + m : m || "0") + ":"; str += (s.length < 2 ? "0" + s : s || "00"); if (!h && !m) str = "0:" + str.replace(":", ""); if (str.endsWith(':')) str += "00"; return str; }
+        resultsList.addEventListener('scroll',()=>{if(resultsList.scrollTop+resultsList.clientHeight>=resultsList.scrollHeight-50 && nextPageToken && !isFetching) fetchVideos(ytInput.value)});
+
         function loadYouTubeFromInput() { const v=extractVideoID(ytInput.value); if(v) loadYouTube(v,"Link",""); else alert("Link inválido"); }
         function extractVideoID(u){ const m=u.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/); return (m&&m[2].length===11)?m[2]:null;}
         function onYouTubeIframeAPIReady(){}
@@ -358,6 +376,7 @@
         function seek(t){ if(playerType==='local')video.currentTime=t; else if(ytPlayer)ytPlayer.seekTo(t,true); }
         function getTime(){ return playerType==='local'?video.currentTime:(ytPlayer?ytPlayer.getCurrentTime():0); }
         
+        // V27.3 Fast Seek FIX
         function jumpSubtitle(dir) {
             if(!subtitles.length) { seek(getTime()+(dir*10)); return; } 
             const now = getTime(); let targetIdx = 0;
@@ -386,7 +405,11 @@
         bgColorInput.addEventListener('input',e=>subBox.style.backgroundColor=`${e.target.value}bf`);
         window.addEventListener('resize',()=>{const r=subContainer.getBoundingClientRect();if(r.top>window.innerHeight-50||r.top<0){subContainer.style.top='auto';subContainer.style.bottom='12%';subContainer.style.left='50%';subContainer.style.transform='translateX(-50%)';}});
         
-        window.onload = () => { if(localStorage.getItem('ejoy_theme')==='light') document.body.classList.add('light-mode'); if(!GOOGLE_SCRIPT_URL) document.getElementById('api-key-config').style.display='block'; renderFavorites(); };
+        window.onload = () => { 
+            if(localStorage.getItem('ejoy_theme')==='light') document.body.classList.add('light-mode'); 
+            if(!GOOGLE_SCRIPT_URL || !YOUTUBE_API_KEY) document.getElementById('api-key-config').style.display='block'; 
+            renderFavorites(); 
+        };
 
         function resetApp(){ if(currentVideoURL)URL.revokeObjectURL(currentVideoURL); localStorage.removeItem('ejoy_subs'); localStorage.removeItem('ejoy_vidName'); localStorage.removeItem('ejoy_time'); localStorage.removeItem('ejoy_ytUrl'); localStorage.removeItem('ejoy_mode'); location.reload(); }
     </script>

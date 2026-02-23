@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Player Estudo Pro (V29.2 - Ultimate Edition)</title>
+    <title>Player Estudo Pro (V29.3 - ASR Extractor)</title>
     <style>
         /* --- VARIÁVEIS DE DESIGN --- */
         :root {
@@ -256,7 +256,6 @@
             st.innerText = '⏳ Conectando aos Servidores do Google...';
 
             try {
-                // Acessa o seu servidor Google que ignora qualquer bloqueio
                 const response = await fetch(`${GOOGLE_SCRIPT_URL}?v=${vid}`);
                 const data = await response.json();
 
@@ -264,11 +263,11 @@
                     subtitles = parseGoogleXML(data.xml);
                     
                     if (subtitles.length > 0) {
-                        localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); // CACHE IMEDIATO
+                        localStorage.setItem('ejoy_subs', JSON.stringify(subtitles)); 
                         
                         st.style.color = 'var(--success)';
                         st.style.backgroundColor = 'rgba(46, 204, 113, 0.1)';
-                        st.innerText = `✅ Legenda Automática (${data.lang.toUpperCase()}) Carregada no Cache!`;
+                        st.innerText = `✅ Legenda Automática (${data.name}) Carregada no Cache!`;
                         
                         if (ytPlayer && ytPlayer.getCurrentTime) renderLogic(ytPlayer.getCurrentTime() + 0.01);
                     } else {
@@ -282,9 +281,8 @@
                 st.style.color = '#e74c3c';
                 st.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
                 
-                // Tratamento específico se o usuário errou na hora de criar o Link
                 if(e.message === 'Failed to fetch' || e.message === 'Load failed') {
-                    st.innerText = `❌ O Google bloqueou. Acesse seu Script, clique em "Nova Implantação" e tenha certeza de marcar "Quem pode acessar: Qualquer pessoa".`;
+                    st.innerText = `❌ O Google bloqueou. Acesse seu Script, clique em "Nova Implantação" e marque "Quem pode acessar: Qualquer pessoa".`;
                 } else {
                     st.innerText = `❌ Falha: ${e.message}`;
                 }
@@ -334,7 +332,7 @@
         function addCurrentToFavorites() { if (!currentPlayingYT) return; const existingIdx = favorites.findIndex(f => f.id === currentPlayingYT.id); const favObj = { ...currentPlayingYT, savedSubs: (subtitles && subtitles.length > 0) ? subtitles : null }; if (existingIdx !== -1) { favorites[existingIdx] = favObj; alert("Atualizado (com legenda)!"); } else { favorites.push(favObj); alert("Salvo!"); } try { localStorage.setItem('ejoy_favs', JSON.stringify(favorites)); renderFavorites(); } catch(e) { alert("Erro: Memória cheia. Salvo sem legenda."); delete favObj.savedSubs; if(existingIdx !== -1) favorites[existingIdx] = favObj; else favorites.push(favObj); localStorage.setItem('ejoy_favs', JSON.stringify(favorites)); } }
         function removeFavorite(e,i){e.stopPropagation();if(confirm("Apagar?")){favorites.splice(i,1);localStorage.setItem('ejoy_favs',JSON.stringify(favorites));renderFavorites();}}
 
-        // Busca YT Restabelecida com YOUTUBE_API_KEY
+        // Busca YT
         let nextPageToken=""; let isFetching=false;
         async function initSearch() { const q=ytInput.value.trim(); if(q.includes('youtu')){loadYouTubeFromInput();return;} if(!YOUTUBE_API_KEY){openApiConfig();return;} if(!q)return; nextPageToken=""; resultsList.innerHTML=""; document.getElementById('search-results-container').style.display='block'; resultsList.classList.remove('hidden'); await fetchVideos(q); }
         async function fetchVideos(q) { if(isFetching)return; isFetching=true; const loader=document.createElement('div');loader.innerText="Carregando...";loader.className="loading-more";resultsList.appendChild(loader); try { let u=`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`; if(nextPageToken)u+=`&pageToken=${nextPageToken}`; const res=await fetch(u); const d=await res.json(); loader.remove(); if(d.error){alert(d.error.message);return;} nextPageToken=d.nextPageToken||""; const videoIds = d.items.map(item => item.id.videoId).join(','); let videosData = {}; if (videoIds) { const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${YOUTUBE_API_KEY}`; const resDetails = await fetch(detailsUrl); const dataDetails = await resDetails.json(); if (!dataDetails.error) { dataDetails.items.forEach(v => { videosData[v.id] = parseDuration(v.contentDetails.duration); }); } } d.items.forEach(i=>{ const vid=i.id.videoId; const t=i.snippet.title; const th=i.snippet.thumbnails.medium.url; const duration = videosData[vid] || ""; const el=document.createElement('div'); el.className='video-item'; el.innerHTML=`<div class="video-thumb-wrapper"><img src="${th}" class="video-thumb">${duration ? `<span class="video-duration">${duration}</span>` : ''}</div><div class="video-info"><div class="video-title">${t}</div><div class="video-channel">${i.snippet.channelTitle}</div></div>`; el.onclick=()=>{loadYouTube(vid,t,th)}; resultsList.appendChild(el); }); } catch(e){loader.innerText="Erro";} finally{isFetching=false;} }

@@ -653,7 +653,7 @@
             const myToken = ++autoFetchToken;
             setStatus('⏳ Buscando legenda automática...', 'info');
             try {
-                const url = `https://api.supadata.ai/v1/transcript?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + vid)}`;
+                const url = `https://api.supadata.ai/v1/transcript?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + vid)}&lang=en`;
                 const res = await fetch(url, { headers: { 'x-api-key': SUPADATA_API_KEY } });
                 const data = await res.json();
                 if(myToken !== autoFetchToken) return; // vídeo trocado enquanto buscava

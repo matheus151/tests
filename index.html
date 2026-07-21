@@ -499,23 +499,43 @@
         let cardFontSize = parseFloat(localStorage.getItem('ejoy_card_font')) || 1.1;
 
         // Ajuste de sincronia da legenda (segundos). Positivo = adianta a legenda (mostra antes).
+        // O ajuste é lembrado POR VÍDEO e o último valor vira o padrão dos próximos vídeos —
+        // assim, após calibrar uma vez, a legenda já vem sincronizada sozinha ao reabrir.
+        let subOffsets = JSON.parse(localStorage.getItem('ejoy_sub_offsets') || '{}');
         let subtitleOffset = parseFloat(localStorage.getItem('ejoy_sub_offset')) || 0;
+
+        function currentSubKey() {
+            if(playerType === 'youtube' && currentPlayingYT) return 'yt_' + currentPlayingYT.id;
+            if(playerType === 'local' && currentLocalFileName) return 'local_' + currentLocalFileName;
+            return null;
+        }
         function applySubOffsetLabel() {
             const el = document.getElementById('sub-offset-label');
             if(el) el.textContent = (subtitleOffset > 0 ? '+' : '') + subtitleOffset.toFixed(1) + 's';
         }
+        function persistOffset() {
+            localStorage.setItem('ejoy_sub_offset', subtitleOffset); // padrão global para novos vídeos
+            const key = currentSubKey();
+            if(key) { subOffsets[key] = subtitleOffset; localStorage.setItem('ejoy_sub_offsets', JSON.stringify(subOffsets)); }
+            applySubOffsetLabel();
+        }
+        // Carrega o offset salvo do vídeo atual; se não houver, usa o último valor conhecido (padrão global)
+        function loadOffsetForCurrent() {
+            const key = currentSubKey();
+            if(key && subOffsets[key] != null) subtitleOffset = subOffsets[key];
+            else subtitleOffset = parseFloat(localStorage.getItem('ejoy_sub_offset')) || 0;
+            applySubOffsetLabel();
+            lastRenderedText = "";
+        }
         function changeSubOffset(d) {
             subtitleOffset = Math.round((subtitleOffset + d) * 10) / 10;
-            localStorage.setItem('ejoy_sub_offset', subtitleOffset);
-            applySubOffsetLabel();
+            persistOffset();
             lastRenderedText = ""; // força re-render imediato com o novo ajuste
             renderLogic(getTime());
         }
-
         function setSubOffset(v) {
             subtitleOffset = Math.round(v * 10) / 10;
-            localStorage.setItem('ejoy_sub_offset', subtitleOffset);
-            applySubOffsetLabel();
+            persistOffset();
             lastRenderedText = "";
             renderLogic(getTime());
         }
@@ -803,6 +823,7 @@
 
             statusEl.style.display = 'none';
             autoFetchToken++; // invalida qualquer busca de legenda pendente do vídeo anterior
+            loadOffsetForCurrent(); // aplica o ajuste de sincronia salvo deste vídeo (ou o padrão)
 
             if(savedSubs && savedSubs.length>0) {
                 subtitles = savedSubs;
@@ -858,6 +879,7 @@
                 localStorage.setItem('ejoy_vidName',f.name); localStorage.setItem('ejoy_mode','local');
                 currentPlayingYT = null; // Reseta YouTube
                 autoFetchToken++; // invalida qualquer busca de legenda automática pendente
+                loadOffsetForCurrent(); // aplica o ajuste de sincronia salvo deste arquivo (ou o padrão)
 
                 if (window.pendingLocalFav && window.pendingLocalFav.title === f.name) {
                     subtitles = window.pendingLocalFav.savedSubs || [];
@@ -928,35 +950,43 @@
         // JUMP EXACT & FAST
         function jumpSubtitle(dir) {
             if(!subtitles.length) { seek(getTime()+(dir*10)); return; }
-            const now = getTime();
-            let targetIdx = 0;
+            // Trabalha na MESMA linha do tempo das legendas (com o offset aplicado),
+            // senão o "anterior" pula demais quando há ajuste de sincronia.
+            const eff = getTime() + subtitleOffset;
+            let targetIdx;
 
-            if (dir === 1) {
-                targetIdx = subtitles.findIndex(s => s.start > now + 0.1);
-                if(targetIdx === -1) targetIdx = subtitles.length - 1;
+            // Descobre em qual legenda estamos agora
+            let currentIdx = subtitles.findIndex(s => eff >= s.start && eff <= s.end);
+            if(currentIdx === -1) {
+                currentIdx = -1;
+                for(let i = subtitles.length - 1; i >= 0; i--) {
+                    if(subtitles[i].start <= eff) { currentIdx = i; break; }
+                }
+            }
+
+            if(dir === 1) {
+                targetIdx = currentIdx + 1; // próxima legenda
             } else {
-                let currentIdx = subtitles.findIndex(s => now >= s.start && now <= s.end);
-                if (currentIdx !== -1) {
-                    targetIdx = currentIdx - 1;
+                // Estilo Ejoy: se já passou +1s do início da linha atual, "anterior" reinicia a linha atual;
+                // se está bem no começo dela, vai para a linha anterior de fato.
+                if(currentIdx >= 0 && (eff - subtitles[currentIdx].start) > 1.0) {
+                    targetIdx = currentIdx;
                 } else {
-                    targetIdx = -1;
-                    for (let i = subtitles.length - 1; i >= 0; i--) {
-                        if (subtitles[i].start < now - 0.1) {
-                            targetIdx = i;
-                            break;
-                        }
-                    }
+                    targetIdx = currentIdx - 1;
                 }
             }
 
             if(targetIdx < 0) targetIdx = 0;
             if(targetIdx >= subtitles.length) targetIdx = subtitles.length - 1;
 
-            let safeTime = subtitles[targetIdx].start - 0.3;
-            if (safeTime < 0) safeTime = 0;
+            const target = subtitles[targetIdx];
+            // Converte de volta para o tempo real de reprodução, aterrissando exatamente no início da fala
+            let safeTime = target.start - subtitleOffset + 0.02;
+            if(safeTime < 0) safeTime = 0;
 
             seek(safeTime);
-            renderLogic(subtitles[targetIdx].start + 0.01);
+            lastRenderedText = "";
+            renderLogic(safeTime); // mostra a legenda alvo imediatamente
         }
 
         function setupGestures(el, mode) {

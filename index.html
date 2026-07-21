@@ -187,6 +187,31 @@
             background: var(--input-bg); padding: 8px; border-radius: var(--radius);
         }
         .style-group { display: flex; align-items: center; gap: 8px; }
+
+        #sync-controls {
+            background: var(--input-bg); padding: 8px; border-radius: var(--radius); margin-bottom: 10px;
+        }
+        .sync-row { display: flex; align-items: center; gap: 8px; }
+        .sync-row:first-child { justify-content: space-between; margin-bottom: 8px; }
+        .sync-row:last-child { justify-content: center; }
+        .sync-title { font-size: 0.8rem; font-weight: 600; color: var(--text-dim); }
+        .sync-btn {
+            background: var(--panel-color); color: var(--text-main); border: 1px solid var(--border-color);
+            padding: 8px 10px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; cursor: pointer;
+        }
+        .sync-btn:active { filter: brightness(0.9); }
+        .sync-auto { flex-grow: 1; background: var(--primary); color: #fff; border: none; }
+        .sync-auto.listening { background: var(--accent); color: #000; }
+        .sync-label { min-width: 48px; text-align: center; font-weight: bold; font-size: 0.85rem; color: var(--accent); }
+        .sync-hint { font-size: 0.72rem; color: var(--text-dim); margin-top: 8px; line-height: 1.35; text-align: center; }
+
+        #btn-toggle-tools {
+            background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-dim);
+            width: 100%; padding: 9px; border-radius: var(--radius); font-weight: bold;
+            font-size: 0.85rem; margin-bottom: 10px; cursor: pointer;
+        }
+        #btn-toggle-tools:active { filter: brightness(0.9); }
+        #tools-section.hidden { display: none; }
         .font-btn {
             background: var(--panel-color); color: var(--text-main); border: 1px solid var(--border-color);
             width: 32px; height: 32px; border-radius: 4px; font-weight: bold;
@@ -332,28 +357,45 @@
 
         <button id="btn-fav-current" onclick="addCurrentToFavorites()">❤️ Favoritar Vídeo Atual (Salva Progresso)</button>
 
-        <div class="grid-row">
-            <label class="file-label">
-                <span>📁</span> Vídeo Local
-                <input type="file" id="videoInput" accept="video/mp4, video/x-m4v, video/*">
-            </label>
-            <label class="file-label">
-                <span>📝</span> Legenda Local
-                <input type="file" id="subInput" accept="*">
-            </label>
-        </div>
+        <button id="btn-toggle-tools" onclick="toggleTools()">🧰 Ocultar Ferramentas</button>
 
-        <div class="grid-row">
-            <button class="btn-external btn-auto-sub" onclick="manualFetchAutoSub()">🤖 Legenda Automática</button>
-            <button class="btn-external btn-yt-dl" onclick="openExternalDownSub()">⬇️ DownSub (Backup)</button>
-        </div>
+        <div id="tools-section">
+            <div class="grid-row">
+                <label class="file-label">
+                    <span>📁</span> Vídeo Local
+                    <input type="file" id="videoInput" accept="video/mp4, video/x-m4v, video/*">
+                </label>
+                <label class="file-label">
+                    <span>📝</span> Legenda Local
+                    <input type="file" id="subInput" accept="*">
+                </label>
+            </div>
 
-        <div class="grid-row" style="margin-top: 5px;">
-            <button id="btn-dl-vocab" onclick="downloadVocabulary()">📥 Baixar Vocabulário</button>
-            <button id="btn-clear-vocab" onclick="clearVocabulary()">🗑️ Limpar Vocabulário</button>
+            <div class="grid-row">
+                <button class="btn-external btn-auto-sub" onclick="manualFetchAutoSub()">🤖 Legenda Automática</button>
+                <button class="btn-external btn-yt-dl" onclick="openExternalDownSub()">⬇️ DownSub (Backup)</button>
+            </div>
+
+            <div class="grid-row" style="margin-top: 5px;">
+                <button id="btn-dl-vocab" onclick="downloadVocabulary()">📥 Baixar Vocabulário</button>
+                <button id="btn-clear-vocab" onclick="clearVocabulary()">🗑️ Limpar Vocabulário</button>
+            </div>
         </div>
 
         <div id="resume-status"></div>
+
+        <div id="sync-controls">
+            <div class="sync-row">
+                <span class="sync-title">⏱️ Sincronia da Legenda</span>
+                <span id="sub-offset-label" class="sync-label">0.0s</span>
+            </div>
+            <div class="sync-row">
+                <button class="sync-btn" onclick="changeSubOffset(-0.5)" title="Atrasar legenda">◀ -0.5s</button>
+                <button id="btn-auto-sync" class="sync-btn sync-auto" onclick="autoSyncTap()" title="Calibração automática">🎯 Auto-sincronizar</button>
+                <button class="sync-btn" onclick="changeSubOffset(0.5)" title="Adiantar legenda">+0.5s ▶</button>
+            </div>
+            <div class="sync-hint">🎯 Toque em Auto-sincronizar no exato momento em que ouvir a legenda ser falada — o ajuste é calculado sozinho.</div>
+        </div>
 
         <div id="style-controls">
             <div class="style-group">
@@ -455,6 +497,65 @@
 
         // Controle de Fonte do Card de Tradução (salva no localStorage)
         let cardFontSize = parseFloat(localStorage.getItem('ejoy_card_font')) || 1.1;
+
+        // Ajuste de sincronia da legenda (segundos). Positivo = adianta a legenda (mostra antes).
+        let subtitleOffset = parseFloat(localStorage.getItem('ejoy_sub_offset')) || 0;
+        function applySubOffsetLabel() {
+            const el = document.getElementById('sub-offset-label');
+            if(el) el.textContent = (subtitleOffset > 0 ? '+' : '') + subtitleOffset.toFixed(1) + 's';
+        }
+        function changeSubOffset(d) {
+            subtitleOffset = Math.round((subtitleOffset + d) * 10) / 10;
+            localStorage.setItem('ejoy_sub_offset', subtitleOffset);
+            applySubOffsetLabel();
+            lastRenderedText = ""; // força re-render imediato com o novo ajuste
+            renderLogic(getTime());
+        }
+
+        function setSubOffset(v) {
+            subtitleOffset = Math.round(v * 10) / 10;
+            localStorage.setItem('ejoy_sub_offset', subtitleOffset);
+            applySubOffsetLabel();
+            lastRenderedText = "";
+            renderLogic(getTime());
+        }
+
+        // Calibração automática por 1 toque: o usuário toca ao ouvir a legenda ser falada,
+        // e o app calcula o offset exato para alinhar a legenda com o áudio.
+        const REACTION_COMP = 0.15; // compensa o tempo médio de reação humano ao tocar
+        function autoSyncTap() {
+            if(!subtitles.length) { alert('Carregue uma legenda primeiro (automática ou local).'); return; }
+            const now = getTime() - REACTION_COMP; // momento real em que a fala começou
+            // Acha a legenda cujo início original está mais próximo do momento ouvido
+            let best = null, bestDiff = Infinity;
+            for(const s of subtitles) {
+                const diff = Math.abs(s.start - now);
+                if(diff < bestDiff) { bestDiff = diff; best = s; }
+            }
+            if(!best || bestDiff > 6) {
+                setStatus('⚠️ Nenhuma legenda próxima deste ponto. Toque durante uma fala com legenda na tela.', 'warn');
+                return;
+            }
+            setSubOffset(best.start - now);
+            const btn = document.getElementById('btn-auto-sync');
+            btn.classList.add('listening');
+            setTimeout(()=>btn.classList.remove('listening'), 600);
+            setStatus('🎯 Sincronizado automaticamente (ajuste: ' + (subtitleOffset>0?'+':'') + subtitleOffset.toFixed(1) + 's). Refine com ◀ ▶ se precisar.', 'success');
+        }
+
+        // Mostrar/ocultar o conjunto de ferramentas (vídeo/legenda local, legenda automática, downsub, vocabulário)
+        let toolsHidden = localStorage.getItem('ejoy_tools_hidden') === '1';
+        function applyToolsVisibility() {
+            const sec = document.getElementById('tools-section');
+            const btn = document.getElementById('btn-toggle-tools');
+            if(toolsHidden) { sec.classList.add('hidden'); btn.textContent = '🧰 Mostrar Ferramentas'; }
+            else { sec.classList.remove('hidden'); btn.textContent = '🧰 Ocultar Ferramentas'; }
+        }
+        function toggleTools() {
+            toolsHidden = !toolsHidden;
+            localStorage.setItem('ejoy_tools_hidden', toolsHidden ? '1' : '0');
+            applyToolsVisibility();
+        }
 
         function applyCardFontSize() {
             if(transOrig) transOrig.style.fontSize = cardFontSize + 'rem';
@@ -803,7 +904,8 @@
         // Render
         let lastRenderedText="";
         function renderLogic(time) {
-            const sub = subtitles.find(s => time >= s.start && time <= s.end);
+            const t = time + subtitleOffset; // aplica ajuste de sincronia
+            const sub = subtitles.find(s => t >= s.start && t <= s.end);
             if(sub){ if(sub.text!==lastRenderedText){ renderSubtitle(sub.text); lastRenderedText=sub.text; } } else{ subContent.innerHTML=""; lastRenderedText=""; }
         }
         function renderSubtitle(text) {
@@ -900,6 +1002,8 @@
             if(!SUPADATA_API_KEY) document.getElementById('worker-config').style.display='block';
             renderFavorites();
             applyCardFontSize(); // Aplica a fonte do card ao iniciar
+            applySubOffsetLabel(); // Mostra o ajuste de sincronia salvo
+            applyToolsVisibility(); // Aplica o estado salvo de mostrar/ocultar ferramentas
         };
 
         function resetApp(){

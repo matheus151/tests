@@ -181,9 +181,9 @@
 
         /* Status */
         #resume-status {
-            font-size: 0.78rem; font-weight: 600; text-align: center; display: none;
-            padding: 9px; border-radius: var(--radius); margin-bottom: 12px;
-            background: var(--input-bg); line-height: 1.4;
+            flex: 0 0 auto; font-size: 0.75rem; font-weight: 600; text-align: center; display: none;
+            padding: 7px 12px; background: var(--input-bg); line-height: 1.35;
+            border-bottom: 1px solid var(--border-color);
         }
         #resume-status.clickable { cursor: pointer; text-decoration: underline; }
 
@@ -210,25 +210,57 @@
         }
         input[type="color"] { border: none; width: 24px; height: 24px; background: none; padding: 0; cursor: pointer; }
 
-        /* ===================== LEGENDAS SOBRE O VÍDEO ===================== */
+        /* ===================== LEGENDA: FAIXA ABAIXO DO VÍDEO ===================== */
+        /* Em retrato a legenda fica logo abaixo do vídeo, bem mais legível que sobreposta */
+        #subtitle-strip {
+            flex: 0 0 auto;
+            background: var(--panel-color);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 12px;
+            min-height: 62px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #subtitle-placeholder {
+            display: none; font-size: 0.8rem; color: var(--text-dim); text-align: center;
+        }
+        #subtitle-strip.empty #subtitle-placeholder { display: block; }
+        #subtitle-strip.empty #subtitle-container { display: none; }
+
         #subtitle-container {
-            position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%);
-            width: auto; min-width: 84%; max-width: 96%; z-index: 20;
-            display: flex; flex-direction: column; align-items: center;
+            width: 100%; display: flex; flex-direction: column; align-items: center;
         }
         .subtitle-box {
             background-color: rgba(0,0,0,0.75); color: #fff;
-            padding: 0 12px 8px 12px; border-radius: 12px;
+            padding: 0 12px 8px 12px; border-radius: 12px; max-width: 100%;
             pointer-events: auto; user-select: none; -webkit-user-select: none; touch-action: none;
             line-height: 1.4; text-align: center; position: relative;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.45);
-            font-size: 1.2rem; backdrop-filter: blur(3px);
+            box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+            font-size: 1.2rem;
         }
+        /* O arraste só faz sentido quando a legenda está sobre o vídeo (paisagem) */
         #drag-handle {
+            display: none;
             width: 46px; height: 4px; background-color: rgba(255,255,255,0.28);
             margin: 6px auto 7px auto; border-radius: 10px; cursor: move; position: relative;
         }
         #drag-handle::after { content: ''; position: absolute; top: -18px; bottom: -16px; left: -40px; right: -40px; }
+        .subtitle-box > #subtitle-content:first-child { padding-top: 8px; }
+
+        /* ===================== BARRA DA SETINHA ===================== */
+        #collapse-bar {
+            flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 8px;
+            background: var(--panel-color); border-bottom: 1px solid var(--border-color);
+            padding: 7px 0; cursor: pointer; user-select: none;
+            color: var(--text-dim); font-size: 0.72rem; font-weight: 700;
+        }
+        #collapse-bar:active { filter: brightness(0.9); }
+        #collapse-arrow { font-size: 0.7rem; transition: transform 0.25s; display: inline-block; }
+
+        /* Modo foco: painel e abas ocultos, vídeo ocupa o espaço livre */
+        body.panel-collapsed #tab-bar,
+        body.panel-collapsed #panel { display: none; }
+        body.panel-collapsed #player-zone { aspect-ratio: auto; flex: 1 1 auto; max-height: none; }
+        body.panel-collapsed #collapse-arrow { transform: rotate(180deg); }
 
         .word {
             font-size: 1em; padding: 2px 1px; border-radius: 4px; display: inline; cursor: pointer;
@@ -293,10 +325,22 @@
         .btn-card-soft { background: var(--card-sub); color: var(--card-text); border: 1px solid var(--card-border); }
 
         /* ===================== MODO PAISAGEM = CINEMA ===================== */
+        /* Vídeo em tela cheia e legenda sobreposta (aqui não há espaço abaixo) */
         @media (orientation: landscape) {
-            #tab-bar, #panel { display: none; }
-            #player-zone { aspect-ratio: auto; max-height: none; height: 100vh; height: 100dvh; }
-            #subtitle-container { bottom: 7%; z-index: 9999; }
+            #tab-bar, #panel, #collapse-bar, #resume-status { display: none !important; }
+            #player-zone { aspect-ratio: auto; flex: 1 1 auto; max-height: none; }
+            #subtitle-strip {
+                position: static; height: 0; min-height: 0; overflow: visible;
+                padding: 0; background: transparent; border: none;
+            }
+            #subtitle-placeholder { display: none !important; }
+            #subtitle-container {
+                position: fixed; bottom: 7%; left: 50%; transform: translateX(-50%);
+                width: auto; min-width: 84%; max-width: 96%; z-index: 9999;
+            }
+            .subtitle-box { backdrop-filter: blur(3px); box-shadow: 0 4px 14px rgba(0,0,0,0.45); }
+            #drag-handle { display: block; }
+            .subtitle-box > #subtitle-content:first-child { padding-top: 0; }
         }
     </style>
 </head>
@@ -312,13 +356,23 @@
         </div>
         <div id="gesture-layer"></div>
         <button id="unlock-yt-btn" onclick="toggleYtControls()">⚙️ YouTube</button>
+    </div>
 
+    <!-- ============ LEGENDA (abaixo do vídeo em retrato, sobreposta em paisagem) ============ -->
+    <div id="subtitle-strip" class="empty">
+        <div id="subtitle-placeholder">As legendas aparecerão aqui</div>
         <div id="subtitle-container">
             <div class="subtitle-box" id="subtitle-box">
                 <div id="drag-handle"></div>
                 <div id="subtitle-content"></div>
             </div>
         </div>
+    </div>
+
+    <!-- ============ SETINHA: OCULTA / MOSTRA TUDO ABAIXO ============ -->
+    <div id="collapse-bar" onclick="togglePanel()">
+        <span id="collapse-arrow">▼</span>
+        <span id="collapse-text">Ocultar busca</span>
     </div>
 
     <!-- ============ ABAS ============ -->
@@ -337,10 +391,11 @@
         </button>
     </div>
 
+    <!-- Status da legenda: fora do painel, para continuar visível no modo foco -->
+    <div id="resume-status"></div>
+
     <!-- ============ PAINEL ============ -->
     <div id="panel">
-
-        <div id="resume-status"></div>
 
         <!-- ---------- ABA BUSCAR ---------- -->
         <section class="tab-page active" id="page-buscar">
@@ -550,6 +605,7 @@
         const subContent = document.getElementById('subtitle-content');
         const subBox = document.getElementById('subtitle-box');
         const subContainer = document.getElementById('subtitle-container');
+        const subStrip = document.getElementById('subtitle-strip');
         const transCard = document.getElementById('translation-card');
         const sheetBackdrop = document.getElementById('sheet-backdrop');
         const transOrig = document.getElementById('phrase-orig');
@@ -575,6 +631,29 @@
             document.getElementById('panel').scrollTop = 0;
             if(name === 'favoritos') renderFavorites();
             if(name === 'ajustes') updateVocabCount();
+        }
+
+        // ===================== MODO FOCO (setinha) =====================
+        // Oculta abas e painel de uma vez, deixando só vídeo + legenda na tela
+        let panelCollapsed = false;
+        function applyPanelState() {
+            document.body.classList.toggle('panel-collapsed', panelCollapsed);
+            document.getElementById('collapse-text').textContent = panelCollapsed ? 'Mostrar busca' : 'Ocultar busca';
+        }
+        function togglePanel() {
+            panelCollapsed = !panelCollapsed;
+            applyPanelState();
+        }
+        function collapsePanel() {
+            if(!panelCollapsed) { panelCollapsed = true; applyPanelState(); }
+        }
+
+        function isLandscape() {
+            return window.matchMedia('(orientation: landscape)').matches;
+        }
+        // Em retrato a legenda vive na faixa abaixo do vídeo: limpa qualquer arraste anterior
+        function resetSubtitlePosition() {
+            ['top','left','bottom','transform','position'].forEach(p => subContainer.style.removeProperty(p));
         }
 
         // ===================== SINCRONIA =====================
@@ -901,6 +980,8 @@
             unlockBtn.style.display = 'block'; unlockBtn.innerText = "⚙️ YouTube"; ytControlsLocked = true;
             currentPlayingYT = { id: vid, title: title || "Vídeo", thumb: thumb || "" };
             btnFavCurrent.style.display = 'flex';
+            resetSubtitlePosition();
+            collapsePanel(); // abre já no modo foco: vídeo + legenda
             localStorage.setItem('ejoy_ytUrl', `https://www.youtube.com/watch?v=${vid}`);
             localStorage.setItem('ejoy_mode', 'youtube');
 
@@ -978,6 +1059,8 @@
             currentLocalFileName = f.name;
             localStorage.setItem('ejoy_vidName', f.name); localStorage.setItem('ejoy_mode', 'local');
             currentPlayingYT = null;
+            resetSubtitlePosition();
+            collapsePanel(); // abre já no modo foco: vídeo + legenda
             autoFetchToken++;
             loadOffsetForCurrent();
 
@@ -1085,7 +1168,11 @@
             currentCueIndex = idx;
             if(sub) {
                 if(sub.text !== lastRenderedText) { renderSubtitle(sub.text); lastRenderedText = sub.text; }
-            } else { subContent.innerHTML = ""; lastRenderedText = ""; }
+                subStrip.classList.remove('empty');
+            } else {
+                subContent.innerHTML = ""; lastRenderedText = "";
+                subStrip.classList.add('empty');
+            }
         }
         function renderSubtitle(text) {
             subContent.innerHTML = "";
@@ -1163,6 +1250,7 @@
         setupGestures(document.getElementById('player-zone'), 'local');
 
         dragHandle.addEventListener('touchstart', e => {
+            if(!isLandscape()) return; // em retrato a legenda tem lugar fixo abaixo do vídeo
             isDragging = true;
             dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY;
             const r = subContainer.getBoundingClientRect();
@@ -1483,11 +1571,24 @@
         textColorInput.addEventListener('input', e => subContent.style.color = e.target.value);
         bgColorInput.addEventListener('input', e => subBox.style.backgroundColor = `${e.target.value}bf`);
 
+        // Trocar de orientação: limpa o arraste ao voltar para retrato, onde a
+        // legenda tem lugar fixo na faixa abaixo do vídeo
+        const mqLandscape = window.matchMedia('(orientation: landscape)');
+        const onOrientationChange = () => { if(!mqLandscape.matches) resetSubtitlePosition(); };
+        if(mqLandscape.addEventListener) mqLandscape.addEventListener('change', onOrientationChange);
+        else if(mqLandscape.addListener) mqLandscape.addListener(onOrientationChange);
+        window.addEventListener('orientationchange', onOrientationChange);
+
         window.addEventListener('resize', () => {
-            // Se a legenda arrastada ficou fora da tela, recoloca no lugar padrão
+            if(!isLandscape()) {
+                // Voltou para retrato: a legenda retorna à faixa abaixo do vídeo
+                resetSubtitlePosition();
+                return;
+            }
+            // Em paisagem, se a legenda arrastada ficou fora da tela, recoloca no lugar padrão
             const r = subContainer.getBoundingClientRect();
             if(r.top > window.innerHeight - 40 || r.top < 0) {
-                subContainer.style.top = 'auto'; subContainer.style.bottom = '8%';
+                subContainer.style.top = 'auto'; subContainer.style.bottom = '7%';
                 subContainer.style.left = '50%'; subContainer.style.transform = 'translateX(-50%)';
             }
         });
@@ -1497,6 +1598,7 @@
             subBox.style.fontSize = currentFontSize + 'rem';
             applyCardFontSize();
             applySubOffsetLabel();
+            applyPanelState();
             renderFavorites();
             updateVocabCount();
             document.getElementById('api-key-input').value = YOUTUBE_API_KEY;

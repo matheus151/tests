@@ -292,6 +292,27 @@
 
         #phrase-orig { font-weight: bold; color: #555; margin-bottom: 6px; line-height: 1.2; }
         #phrase-trans { font-weight: 800; color: #000; line-height: 1.2; margin-bottom: 15px; }
+        #phrase-orig .cue-focus { color: #111; background: #ffeaa7; border-radius: 3px; padding: 0 2px; }
+
+        #merge-note {
+            display: none; font-size: 0.68rem; color: #16a085; font-weight: 700;
+            margin: -8px 0 12px 0; letter-spacing: 0.02em;
+        }
+
+        /* Blocos extras: dicionário e frase completa (contexto) */
+        #dict-block, #context-block {
+            display: none; text-align: left; margin: 0 0 12px 0; padding: 10px;
+            background: #f4f6f8; border: 1px solid #e1e5ea; border-radius: 8px;
+        }
+        .extra-label {
+            font-size: 0.68rem; font-weight: 700; color: #7f8c8d;
+            text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 5px;
+        }
+        #dict-content { font-size: 0.82rem; color: #2c3e50; line-height: 1.5; }
+        #dict-content .pos { font-weight: 700; color: #8e44ad; }
+        #ctx-orig { font-size: 0.8rem; color: #7f8c8d; font-style: italic; line-height: 1.35; margin-bottom: 4px; }
+        #ctx-trans { font-size: 0.88rem; color: #1a5276; font-weight: 700; line-height: 1.35; }
+        #ctx-orig .cue-focus { background: #ffeaa7; color: #111; border-radius: 3px; padding: 0 2px; font-style: normal; }
 
         .trans-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
         .btn-card { padding: 8px 15px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
@@ -437,6 +458,19 @@
             </div>
             <div id="phrase-orig">Original</div>
             <div id="phrase-trans">Tradução...</div>
+            <div id="merge-note"></div>
+
+            <div id="dict-block">
+                <div class="extra-label">📖 Outros significados</div>
+                <div id="dict-content"></div>
+            </div>
+
+            <div id="context-block">
+                <div class="extra-label" id="ctx-label">🔗 Na frase completa</div>
+                <div id="ctx-orig"></div>
+                <div id="ctx-trans"></div>
+            </div>
+
             <div class="trans-actions">
                 <button id="btn-save-vocab" class="btn-card" onclick="saveCurrentVocab()">💾 Salvar</button>
                 <button id="btn-bing-ext" class="btn-card" onclick="openBingTranslator()">Bing</button>
@@ -794,6 +828,7 @@
                 })).filter(s => s.text);
 
                 lastRenderedText = "";
+                buildSentenceIndex();
                 try { localStorage.setItem('ejoy_auto_subs_' + vid, JSON.stringify(subtitles)); } catch(e) {}
 
                 setStatus(`✅ Legenda automática carregada (${data.lang || 'idioma detectado'})`, 'success');
@@ -814,7 +849,7 @@
         function onYouTubeIframeAPIReady(){}
 
         function loadYouTube(vid,title,thumb, savedSubs=null) {
-            subtitles=[]; subContent.innerHTML=""; playerType='youtube'; currentLocalFileName="";
+            subtitles=[]; buildSentenceIndex(); subContent.innerHTML=""; playerType='youtube'; currentLocalFileName="";
             if(currentVideoURL){URL.revokeObjectURL(currentVideoURL);currentVideoURL=null;}
             video.removeAttribute('src'); video.load(); video.style.display='none';
             ytContainer.style.display='flex'; gestureLayer.style.display='block'; unlockBtn.style.display='block'; ytControlsLocked=true;
@@ -827,6 +862,7 @@
 
             if(savedSubs && savedSubs.length>0) {
                 subtitles = savedSubs;
+                buildSentenceIndex();
                 setStatus('✅ Legenda Salva do Favorito Carregada', 'success');
             } else {
                 const cached = localStorage.getItem('ejoy_auto_subs_' + vid);
@@ -834,7 +870,7 @@
                 if(cached) {
                     try {
                         const parsed = JSON.parse(cached);
-                        if(parsed && parsed.length) { subtitles = parsed; setStatus('✅ Legenda automática (cache) carregada', 'success'); usedCache = true; }
+                        if(parsed && parsed.length) { subtitles = parsed; buildSentenceIndex(); setStatus('✅ Legenda automática (cache) carregada', 'success'); usedCache = true; }
                     } catch(e) {}
                 }
                 if(!usedCache) fetchAutoSubtitles(vid, {silent:true});
@@ -883,6 +919,7 @@
 
                 if (window.pendingLocalFav && window.pendingLocalFav.title === f.name) {
                     subtitles = window.pendingLocalFav.savedSubs || [];
+                    buildSentenceIndex();
                     if(subtitles.length > 0) {
                         setStatus('✅ Legenda restaurada do Favorito!', 'success');
                     } else {
@@ -897,6 +934,7 @@
                 } else {
                     window.pendingLocalFav = null;
                     subtitles = []; // Reseta legenda caso seja um vídeo novo
+                    buildSentenceIndex();
                     subContent.innerHTML = "";
                     statusEl.style.display='none';
                 }
@@ -909,6 +947,7 @@
             const f=e.target.files[0]; if(f){
                 const r=new FileReader(); r.onload=res=>{
                     subtitles=parseSubtitlesLocal(res.target.result);
+                    buildSentenceIndex();
                     if(subtitles.length) {
                         localStorage.setItem('ejoy_subs', JSON.stringify(subtitles));
                         setStatus('✅ Arquivo de Legenda OK', 'success');
@@ -923,11 +962,60 @@
         }
         function timeToSecLocal(s){ s=s.replace(',','.'); const p=s.split(':'); return (parseFloat(p[0])*3600)+(parseFloat(p[1])*60)+parseFloat(p[2]); }
 
+        // --- AGRUPAMENTO DE LEGENDAS EM FRASES COMPLETAS ---
+        // Une legendas vizinhas até fechar a frase (pontuação final), para que a tradução
+        // receba a frase inteira em vez de um pedaço cortado no meio.
+        let sentenceGroups = [];  // [{startIdx, endIdx, text, merged}]
+        let cueToSentence = [];   // índice da legenda -> índice do grupo
+
+        function buildSentenceIndex() {
+            sentenceGroups = []; cueToSentence = [];
+            if(!subtitles || !subtitles.length) return;
+            const endsSentence = t => /[.!?…]["'”’)\]]?\s*$/.test(t);
+            let i = 0;
+            while(i < subtitles.length) {
+                const startIdx = i;
+                const parts = [];
+                let chars = 0;
+                while(i < subtitles.length) {
+                    const txt = (subtitles[i].text || '').trim();
+                    parts.push(txt);
+                    chars += txt.length;
+                    // Pausa longa entre falas também encerra a frase
+                    const bigGap = (i + 1 < subtitles.length) && (subtitles[i+1].start - subtitles[i].end > 2.0);
+                    i++;
+                    if(endsSentence(txt) || chars > 240 || (i - startIdx) >= 4 || bigGap) break;
+                }
+                const gi = sentenceGroups.length;
+                sentenceGroups.push({
+                    startIdx, endIdx: i - 1,
+                    text: parts.join(' ').replace(/\s+/g, ' ').trim(),
+                    merged: (i - startIdx),
+                });
+                for(let k = startIdx; k <= i - 1; k++) cueToSentence[k] = gi;
+            }
+        }
+
+        // Acha a frase completa que contém a legenda informada
+        function getSentenceFor(cueText) {
+            if(!sentenceGroups.length) return null;
+            if(currentCueIndex >= 0 && cueToSentence[currentCueIndex] != null) {
+                return sentenceGroups[cueToSentence[currentCueIndex]];
+            }
+            const t = (cueText || '').trim();
+            if(!t) return null;
+            const gi = sentenceGroups.findIndex(g => g.text.includes(t));
+            return gi === -1 ? null : sentenceGroups[gi];
+        }
+
         // Render
         let lastRenderedText="";
+        let currentCueIndex = -1;
         function renderLogic(time) {
             const t = time + subtitleOffset; // aplica ajuste de sincronia
-            const sub = subtitles.find(s => t >= s.start && t <= s.end);
+            const idx = subtitles.findIndex(s => t >= s.start && t <= s.end);
+            const sub = idx === -1 ? null : subtitles[idx];
+            currentCueIndex = idx;
             if(sub){ if(sub.text!==lastRenderedText){ renderSubtitle(sub.text); lastRenderedText=sub.text; } } else{ subContent.innerHTML=""; lastRenderedText=""; }
         }
         function renderSubtitle(text) {
@@ -936,8 +1024,8 @@
                 const s=document.createElement('span'); s.textContent=w+' '; s.className='word'; s.dataset.index=i; s.dataset.raw=w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g,""); subContent.appendChild(s);
             });
             const btn=document.createElement('span'); btn.className='translate-btn'; btn.innerHTML='🌐';
-            btn.addEventListener('touchstart',(e)=>{ e.stopPropagation();e.preventDefault(); pauseAny(); isSelecting=false; document.querySelectorAll('.word.selected').forEach(x=>x.classList.remove('selected')); translateText(text,text); });
-            btn.onclick=(e)=>{e.stopPropagation(); pauseAny(); translateText(text,text);}; subContent.appendChild(btn);
+            btn.addEventListener('touchstart',(e)=>{ e.stopPropagation();e.preventDefault(); pauseAny(); isSelecting=false; document.querySelectorAll('.word.selected').forEach(x=>x.classList.remove('selected')); translateText(text,text,{fullLine:true,cueText:text}); });
+            btn.onclick=(e)=>{e.stopPropagation(); pauseAny(); translateText(text,text,{fullLine:true,cueText:text});}; subContent.appendChild(btn);
         }
 
         // Control & Gestures
@@ -1004,15 +1092,139 @@
         subContent.addEventListener('touchmove',e=>{if(!isSelecting)return;e.preventDefault();const el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY);if(el&&el.classList.contains('word'))updateRange(parseInt(el.dataset.index));},{passive:false});
         subContent.addEventListener('touchend',()=>{if(isSelecting){isSelecting=false;doTransSelection();}});
         function updateRange(idx){document.querySelectorAll('.word.selected').forEach(x=>x.classList.remove('selected'));const s=Math.min(selectionStartIndex,idx);const e=Math.max(selectionStartIndex,idx);const w=subContent.querySelectorAll('.word');for(let i=s;i<=e;i++)if(w[i])w[i].classList.add('selected');}
-        function doTransSelection(){const sel=document.querySelectorAll('.word.selected');if(!sel.length)return;const w=Array.from(sel);const txt=w.map(x=>x.dataset.raw).join(' ');const dsp=w.map(x=>x.textContent).join('');translateText(txt,dsp);setTimeout(()=>{sel.forEach(x=>x.classList.remove('selected'))},1000);}
+        function doTransSelection(){const sel=document.querySelectorAll('.word.selected');if(!sel.length)return;const w=Array.from(sel);const txt=w.map(x=>x.dataset.raw).join(' ');const dsp=w.map(x=>x.textContent).join('');translateText(txt,dsp,{cueText:lastRenderedText});setTimeout(()=>{sel.forEach(x=>x.classList.remove('selected'))},1000);}
 
-        async function translateText(src, dsp) {
-            currentTranslateSource = src; transCard.style.display='block'; transOrig.textContent=dsp; transRes.className='loading'; transRes.textContent='...';
-            document.getElementById('btn-save-vocab').innerText = "💾 Salvar";
+        // ================== MOTOR DE TRADUÇÃO COM CONTEXTO ==================
+        // Legendas vêm quebradas no meio das frases, e traduzir um pedaço solto gera
+        // resultados errados ("pull it off" -> "retire-o"). Aqui as legendas vizinhas são
+        // unidas na frase completa antes de traduzir, o que corrige o sentido.
+
+        let transCache = {};
+        try { transCache = JSON.parse(localStorage.getItem('ejoy_trans_cache') || '{}'); } catch(e) { transCache = {}; }
+
+        function cacheSet(key, val) {
+            transCache[key] = val;
             try {
-                const u = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(src)}&langpair=en|pt-BR`;
-                const r = await fetch(u); const d = await r.json(); if(d.responseData) { transRes.className = ''; transRes.textContent = d.responseData.translatedText; }
-            } catch(e) { transRes.textContent = "Erro na rede."; }
+                const keys = Object.keys(transCache);
+                if(keys.length > 600) { for(let i=0;i<200;i++) delete transCache[keys[i]]; } // poda o cache antigo
+                localStorage.setItem('ejoy_trans_cache', JSON.stringify(transCache));
+            } catch(e) { /* memória cheia: segue só com o cache em RAM */ }
+        }
+
+        // Traduz um texto. Retorna { text, dict } — dict = outros significados (só p/ termos curtos).
+        async function translateEngine(text, wantDict) {
+            const clean = (text || '').trim();
+            if(!clean) return { text: '', dict: null };
+            const key = (wantDict ? 'd:' : 't:') + clean.toLowerCase();
+            if(transCache[key]) return transCache[key];
+
+            // 1) Google Translate — melhor qualidade, entende expressões e contexto
+            try {
+                let u = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt-BR&dt=t`;
+                if(wantDict) u += '&dt=bd';
+                u += `&q=${encodeURIComponent(clean)}`;
+                const r = await fetch(u);
+                if(r.ok) {
+                    const d = await r.json();
+                    if(d && d[0]) {
+                        const out = d[0].map(x => x && x[0]).filter(Boolean).join('');
+                        if(out) {
+                            let dict = null;
+                            if(wantDict && d[1]) {
+                                dict = d[1].map(e => ({ pos: e[0], terms: (e[1] || []).slice(0, 6) }))
+                                           .filter(e => e.terms.length);
+                                if(!dict.length) dict = null;
+                            }
+                            const res = { text: out, dict };
+                            cacheSet(key, res);
+                            return res;
+                        }
+                    }
+                }
+            } catch(e) { /* cai para o próximo provedor */ }
+
+            // 2) MyMemory — reserva, caso o Google falhe
+            try {
+                const u = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=en|pt-BR`;
+                const r = await fetch(u); const d = await r.json();
+                if(d && d.responseData && d.responseData.translatedText) {
+                    const res = { text: d.responseData.translatedText, dict: null };
+                    cacheSet(key, res);
+                    return res;
+                }
+            } catch(e) { /* falhou de vez */ }
+
+            return null;
+        }
+
+        // Monta o HTML da frase completa destacando a legenda que está na tela
+        function highlightCueInSentence(sentence, cueText) {
+            const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const cue = (cueText || '').trim();
+            const idx = cue ? sentence.indexOf(cue) : -1;
+            if(idx === -1) return esc(sentence);
+            return esc(sentence.slice(0, idx))
+                 + '<span class="cue-focus">' + esc(cue) + '</span>'
+                 + esc(sentence.slice(idx + cue.length));
+        }
+
+        // src = texto a traduzir | dsp = como mostrar | opts.cueText = legenda atual (p/ achar a frase)
+        async function translateText(src, dsp, opts) {
+            opts = opts || {};
+            currentTranslateSource = src;
+            transCard.style.display = 'block';
+            transRes.className = 'loading'; transRes.textContent = '...';
+            document.getElementById('btn-save-vocab').innerText = "💾 Salvar";
+
+            const dictBlock = document.getElementById('dict-block');
+            const ctxBlock = document.getElementById('context-block');
+            const ctxLabel = document.getElementById('ctx-label');
+            const ctxOrig = document.getElementById('ctx-orig');
+            const ctxTrans = document.getElementById('ctx-trans');
+            const mergeNote = document.getElementById('merge-note');
+            dictBlock.style.display = 'none'; ctxBlock.style.display = 'none'; mergeNote.style.display = 'none';
+            ctxOrig.innerHTML = ''; ctxTrans.textContent = '';
+
+            // Descobre a frase completa (legendas vizinhas unidas) que contém esta fala
+            const sentence = getSentenceFor(opts.cueText != null ? opts.cueText : src);
+            const isFullLine = !!opts.fullLine;
+            const mergedMoreThanOne = sentence && sentence.merged > 1;
+
+            // Numa fala inteira, o certo é traduzir a FRASE COMPLETA, não o pedaço cortado
+            if(isFullLine && mergedMoreThanOne) {
+                transOrig.innerHTML = highlightCueInSentence(sentence.text, opts.cueText || src);
+                currentTranslateSource = sentence.text;
+                mergeNote.textContent = `🔗 ${sentence.merged} legendas unidas — traduzido como frase completa`;
+                mergeNote.style.display = 'block';
+            } else {
+                transOrig.textContent = dsp;
+            }
+
+            const target = currentTranslateSource;
+            const wantDict = !isFullLine && target.split(/\s+/).length <= 3; // dicionário só p/ termos curtos
+
+            const main = await translateEngine(target, wantDict);
+            if(!main) { transRes.className = ''; transRes.textContent = "Erro na rede."; return; }
+            transRes.className = ''; transRes.textContent = main.text;
+
+            // Outros significados (palavra/termo curto)
+            if(main.dict && main.dict.length) {
+                document.getElementById('dict-content').innerHTML = main.dict
+                    .map(e => `<div><span class="pos">${e.pos}:</span> ${e.terms.join(', ')}</div>`).join('');
+                dictBlock.style.display = 'block';
+            }
+
+            // Ao selecionar um trecho, mostra também a frase completa traduzida —
+            // é aí que expressões soltas ganham o sentido real
+            if(!isFullLine && sentence && sentence.text && sentence.text.toLowerCase() !== target.toLowerCase()) {
+                ctxLabel.textContent = mergedMoreThanOne
+                    ? `🔗 Na frase completa (${sentence.merged} legendas unidas)`
+                    : '🔗 Na frase completa';
+                ctxOrig.innerHTML = highlightCueInSentence(sentence.text, opts.cueText || '');
+                ctxBlock.style.display = 'block';
+                const ctx = await translateEngine(sentence.text, false);
+                if(ctx) ctxTrans.textContent = ctx.text;
+            }
         }
 
         // BING TRADUTOR

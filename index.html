@@ -303,7 +303,7 @@
         #phrase-orig { font-weight: 700; color: var(--card-dim); margin-bottom: 6px; line-height: 1.25; }
         #phrase-trans { font-weight: 800; color: var(--card-text); line-height: 1.3; margin-bottom: 12px; }
 
-        #ia-note, #dict-block, #context-block {
+        #ia-note, #dict-block, #syn-block, #context-block {
             display: none; text-align: left; margin: 0 0 12px 0; padding: 10px 11px;
             background: var(--card-sub); border: 1px solid var(--card-border); border-radius: 9px;
         }
@@ -315,9 +315,20 @@
         #ia-note-text { font-size: 0.82rem; color: #6b4a00; line-height: 1.45; }
         #dict-content { font-size: 0.82rem; color: var(--card-text); line-height: 1.5; }
         #dict-content .pos { font-weight: 800; color: #8e44ad; }
-        #ctx-orig { font-size: 0.79rem; color: var(--card-dim); font-style: italic; line-height: 1.4; margin-bottom: 4px; }
-        #ctx-trans { font-size: 0.86rem; color: #1a5276; font-weight: 700; line-height: 1.4; }
-        #ctx-orig .cue-focus { background: #ffeaa7; color: #111; border-radius: 3px; padding: 0 2px; font-style: normal; }
+        #ctx-orig { font-size: 0.79rem; color: var(--card-dim); font-style: italic; line-height: 1.5; margin-bottom: 5px; }
+        #ctx-trans { font-size: 0.86rem; color: #1a5276; font-weight: 700; line-height: 1.5; }
+        /* Destaque do trecho correspondente nos dois idiomas, para bater o olho */
+        #ctx-orig .cue-focus, #ctx-trans .cue-focus {
+            background: #ffe08a; color: #111; border-radius: 3px;
+            padding: 1px 3px; font-style: normal; box-decoration-break: clone;
+            -webkit-box-decoration-break: clone;
+        }
+        #syn-content { display: flex; flex-wrap: wrap; gap: 6px; }
+        #syn-content .syn {
+            font-size: 0.8rem; font-weight: 600; color: #1a5276;
+            background: #e3f0fa; border: 1px solid #b8d8ee;
+            padding: 3px 9px; border-radius: 20px;
+        }
         #literal-line { display: none; font-size: 0.76rem; color: var(--card-dim); margin: -6px 0 12px 0; }
 
         .trans-actions { display: flex; gap: 8px; }
@@ -488,15 +499,27 @@
                 <div class="hint" id="vocab-count"></div>
             </div>
 
-            <div class="section-title">Tradução</div>
+            <div class="section-title">Tradução por IA (recomendado)</div>
             <div class="card">
-                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave da IA (Google Gemini) — tradução muito mais precisa</label>
-                <input type="text" id="gemini-key-input" class="modern-input" style="width:100%; margin-top:6px" placeholder="Cole sua chave do Gemini aqui">
-                <button class="btn btn-primary btn-wide" style="margin-top:8px" onclick="saveGeminiKey()">Salvar chave da IA</button>
+                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave da API do Claude — tradução mais precisa</label>
+                <input type="text" id="claude-key-input" class="modern-input" style="width:100%; margin-top:6px" placeholder="sk-ant-...">
+                <button class="btn btn-primary btn-wide" style="margin-top:8px" onclick="saveClaudeKey()">Salvar chave do Claude</button>
                 <div class="hint">
-                    Sem chave, a tradução usa o Google Tradutor (falha em expressões idiomáticas).
-                    Com a chave, um modelo de IA traduz entendendo o contexto da fala — bem mais preciso.
-                    Chave gratuita em <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>.
+                    ⚠️ <b>A assinatura Claude Pro não inclui a API</b> — são cobranças separadas.
+                    Crie uma chave e adicione créditos em <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.
+                    Cada tradução custa uma fração de centavo.
+                </div>
+            </div>
+
+            <div class="section-title">Tradução por IA (alternativa)</div>
+            <div class="card">
+                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave do Google Gemini — camada gratuita</label>
+                <input type="text" id="gemini-key-input" class="modern-input" style="width:100%; margin-top:6px" placeholder="Cole sua chave do Gemini aqui">
+                <button class="btn btn-soft btn-wide" style="margin-top:8px" onclick="saveGeminiKey()">Salvar chave do Gemini</button>
+                <div class="hint">
+                    Usada só se não houver chave do Claude. Gratuita em
+                    <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>.
+                    Sem nenhuma das duas, a tradução cai no Google Tradutor (erra expressões idiomáticas).
                 </div>
             </div>
 
@@ -553,6 +576,11 @@
             <div id="dict-content"></div>
         </div>
 
+        <div id="syn-block">
+            <div class="extra-label">🔁 Em inglês, também pode ser</div>
+            <div id="syn-content"></div>
+        </div>
+
         <div id="context-block">
             <div class="extra-label" id="ctx-label">🔗 Na frase completa</div>
             <div id="ctx-orig"></div>
@@ -581,6 +609,7 @@
         let YOUTUBE_API_KEY   = localStorage.getItem('ejoy_api_key') || "";
         let SUPADATA_API_KEY  = (localStorage.getItem('ejoy_supadata_key') || "").trim();
         let GEMINI_API_KEY    = (localStorage.getItem('ejoy_gemini_key') || "").trim();
+        let CLAUDE_API_KEY    = (localStorage.getItem('ejoy_claude_key') || "").trim();
 
         let currentVideoURL = null;
         let currentFontSize = parseFloat(localStorage.getItem('ejoy_sub_font')) || 1.2;
@@ -749,9 +778,22 @@
             const k = document.getElementById('gemini-key-input').value.trim();
             if(k){
                 GEMINI_API_KEY = k; localStorage.setItem('ejoy_gemini_key', k);
-                transCache = {}; try { localStorage.removeItem('ejoy_trans_cache'); } catch(e) {}
-                alert("Chave da IA salva! As traduções agora usam IA com contexto.");
+                clearTransCache();
+                alert("Chave do Gemini salva!");
             }
+        }
+        function saveClaudeKey() {
+            const k = document.getElementById('claude-key-input').value.trim();
+            if(k){
+                CLAUDE_API_KEY = k; localStorage.setItem('ejoy_claude_key', k);
+                clearTransCache();
+                alert("Chave do Claude salva! As traduções agora usam IA com contexto.");
+            }
+        }
+        // Troca de motor invalida o cache: as traduções antigas vieram de outro motor
+        function clearTransCache() {
+            transCache = {};
+            try { localStorage.removeItem('ejoy_trans_cache'); } catch(e) {}
         }
 
         // ===================== VOCABULÁRIO =====================
@@ -1323,22 +1365,115 @@
         const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-flash-latest'];
         let geminiModel = localStorage.getItem('ejoy_gemini_model') || GEMINI_MODELS[0];
 
+        // Contrato JSON que os dois modelos de IA devem devolver
+        const IA_SCHEMA = {
+            type: 'object',
+            properties: {
+                traducao:            { type: 'string' },
+                literal:             { type: 'string' },
+                nota:                { type: 'string' },
+                frase_traduzida:     { type: 'string' },
+                trecho_na_frase:     { type: 'string' },
+                equivalentes_ingles: { type: 'array', items: { type: 'string' } }
+            },
+            required: ['traducao','literal','nota','frase_traduzida','trecho_na_frase','equivalentes_ingles'],
+            additionalProperties: false
+        };
+
         function buildPrompt(fragment, sentence) {
-            return 'Você é tradutor de legendas de vídeos em inglês para um estudante brasileiro.\n\n'
+            return 'Você traduz legendas de vídeos em inglês para um estudante brasileiro.\n\n'
                 + 'FRASE COMPLETA FALADA (contexto): "' + sentence + '"\n'
-                + 'TRECHO A TRADUZIR: "' + fragment + '"\n\n'
-                + 'Traduza SOMENTE o trecho indicado, usando a frase completa apenas para entender o sentido real.\n'
-                + 'Regras:\n'
+                + 'TRECHO PEDIDO: "' + fragment + '"\n\n'
+                + 'Regras de tradução:\n'
                 + '- Português do Brasil natural e fluente, como um brasileiro realmente diria.\n'
                 + '- Priorize o SENTIDO real da fala, nunca a tradução literal palavra por palavra.\n'
                 + '- Expressões idiomáticas e phrasal verbs: use o equivalente natural em português.\n'
-                + '  Ex: "he has not made that case" = "ele não apresentou esse argumento" (NÃO "não defendeu esse caso").\n'
-                + '- Mantenha o tom (formal/informal) e o tempo verbal do original.\n'
-                + '- Não acrescente explicações no campo "traducao", nem aspas em volta.\n\n'
-                + 'Responda SOMENTE com JSON válido, sem markdown:\n'
-                + '{"traducao":"tradução natural do trecho",'
-                + '"literal":"tradução literal SOMENTE se for bem diferente da natural, senão null",'
-                + '"nota":"explicação curta (máx 15 palavras) se for expressão idiomática/phrasal verb, senão null"}';
+                + '  Ex: "he has not made that case" = "ele não apresentou esse argumento"\n'
+                + '  (e NÃO "ele não defendeu esse caso", que erra o sentido).\n'
+                + '- Mantenha o tom (formal/informal) e o tempo verbal do original.\n\n'
+                + 'Campos:\n'
+                + '- traducao: tradução natural SOMENTE do trecho pedido, sem aspas nem explicação.\n'
+                + '- literal: tradução literal do trecho, apenas se for bem diferente da natural; senão "".\n'
+                + '- nota: explicação curta (máx 15 palavras) se for expressão idiomática ou phrasal verb; senão "".\n'
+                + '- frase_traduzida: a FRASE COMPLETA traduzida de forma natural.\n'
+                + '- trecho_na_frase: o pedaço EXATO de frase_traduzida que corresponde ao trecho pedido.\n'
+                + '  Precisa ser uma substring literal de frase_traduzida (mesmos caracteres), para eu destacá-la.\n'
+                + '- equivalentes_ingles: 3 a 6 outras formas de dizer o trecho EM INGLÊS que caberiam nesta frase,\n'
+                + '  mantendo o mesmo sentido. Palavras ou expressões em inglês, não traduções.';
+        }
+
+        // Claude: a mais precisa. Requer chave da API (a assinatura Pro não dá acesso à API).
+        async function callClaude(fragment, sentence) {
+            try {
+                const r = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json',
+                        'x-api-key': CLAUDE_API_KEY,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-opus-5',
+                        max_tokens: 3000,
+                        output_config: { effort: 'low', format: { type: 'json_schema', schema: IA_SCHEMA } },
+                        system: 'Você é um tradutor de legendas inglês → português brasileiro para estudo de idiomas. Responda sempre no formato JSON pedido.',
+                        messages: [{ role: 'user', content: buildPrompt(fragment, sentence) }]
+                    })
+                });
+
+                if(!r.ok) {
+                    let msg = '';
+                    try { const err = await r.json(); msg = (err.error && err.error.message) || ''; } catch(e) {}
+                    if(r.status === 401 || /invalid x-api-key/i.test(msg)) {
+                        setStatus('⚠️ Chave do Claude inválida — traduzindo com o motor alternativo. Confira em Ajustes.', 'warn');
+                    } else if(r.status === 400 && /credit|balance/i.test(msg)) {
+                        setStatus('⚠️ Sem créditos na API do Claude — usando o motor alternativo. Adicione créditos no console.', 'warn');
+                    } else if(r.status === 429) {
+                        setStatus('⚠️ Limite de requisições do Claude atingido — usando o motor alternativo.', 'warn');
+                    } else {
+                        setStatus('⚠️ Claude indisponível (' + r.status + ') — usando o motor alternativo.', 'warn');
+                    }
+                    return null;
+                }
+
+                const d = await r.json();
+                // Recusa de segurança chega como 200: precisa checar antes de ler o conteúdo
+                if(d.stop_reason === 'refusal') {
+                    setStatus('⚠️ O Claude recusou traduzir este trecho — usando o motor alternativo.', 'warn');
+                    return null;
+                }
+                // Pode haver blocos de raciocínio antes: pegar o bloco de texto, não o primeiro
+                const blocks = d.content || [];
+                const textBlock = blocks.find(b => b.type === 'text');
+                if(!textBlock || !textBlock.text) return null;
+
+                const j = JSON.parse(textBlock.text);
+                if(!j || !j.traducao) return null;
+                return normalizeIaResult(j, 'claude');
+            } catch(e) {
+                setStatus('⚠️ Erro de rede ao chamar o Claude — usando o motor alternativo.', 'warn');
+                return null;
+            }
+        }
+
+        // Converte a resposta da IA no formato interno usado pelo card
+        function normalizeIaResult(j, engine) {
+            const s = v => (v == null ? '' : String(v).trim());
+            const sentence = s(j.frase_traduzida);
+            let part = s(j.trecho_na_frase);
+            // O destaque só funciona se for substring literal da frase traduzida
+            if(part && sentence && sentence.indexOf(part) === -1) part = '';
+            return {
+                text: s(j.traducao),
+                literal: s(j.literal) || null,
+                nota: s(j.nota) || null,
+                sentence: sentence || null,
+                sentencePart: part || null,
+                synonyms: Array.isArray(j.equivalentes_ingles)
+                    ? j.equivalentes_ingles.map(s).filter(Boolean).slice(0, 6) : null,
+                dict: null, contextual: true, engine: engine
+            };
         }
 
         async function callGemini(fragment, sentence) {
@@ -1375,12 +1510,7 @@
                     const j = JSON.parse(txt);
                     if(!j || !j.traducao) return null;
                     if(model !== geminiModel) { geminiModel = model; localStorage.setItem('ejoy_gemini_model', model); }
-                    return {
-                        text: String(j.traducao).trim(),
-                        literal: j.literal ? String(j.literal).trim() : null,
-                        nota: j.nota ? String(j.nota).trim() : null,
-                        dict: null, contextual: true, engine: 'ia'
-                    };
+                    return normalizeIaResult(j, 'ia');
                 } catch(e) { /* tenta o próximo modelo */ }
             }
             return null;
@@ -1426,6 +1556,33 @@
             return null;
         }
 
+        // Sinônimos em inglês pelo Google (usado quando não há chave de IA)
+        async function googleSynonyms(text) {
+            const clean = (text || '').trim();
+            if(!clean || clean.split(/\s+/).length > 3) return null;
+            const key = 's:' + clean.toLowerCase();
+            if(transCache[key]) return transCache[key];
+            try {
+                const u = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt-BR&dt=t&dt=ss&q=${encodeURIComponent(clean)}`;
+                const r = await fetch(u);
+                if(!r.ok) return null;
+                const d = await r.json();
+                if(!d || !d[11]) return null;
+                const out = [];
+                d[11].forEach(entry => {
+                    (entry[1] || []).forEach(group => {
+                        (group[0] || []).forEach(w => {
+                            if(w && w.toLowerCase() !== clean.toLowerCase() && out.indexOf(w) === -1) out.push(w);
+                        });
+                    });
+                });
+                const res = out.slice(0, 6);
+                if(!res.length) return null;
+                cacheSet(key, res);
+                return res;
+            } catch(e) { return null; }
+        }
+
         // Marcadores [[ ]]: manda a frase toda ao tradutor e recupera só o trecho pedido
         const MARK_RE = /\[\[([\s\S]*?)\]\]/;
         function buildMarkedSentence(group, cueIdx, fragment) {
@@ -1442,21 +1599,25 @@
         }
 
         // ---------- ORQUESTRADOR ----------
+        // Ordem: Claude → Gemini → Google com marcadores → tradução direta
         async function translateInContext(fragment, group, cueIdx) {
             const frag = (fragment || '').trim();
             if(!frag) return null;
             const sentenceText = (group && group.text) ? group.text : frag;
             const hasRealContext = !!(group && group.merged > 1 && group.text.toLowerCase() !== frag.toLowerCase());
 
-            // 1) IA — melhor precisão, entende o contexto de verdade
-            if(GEMINI_API_KEY) {
-                const ck = 'ia:' + frag.toLowerCase() + '||' + sentenceText.toLowerCase();
+            // 1) IA — entende o contexto de verdade
+            if(CLAUDE_API_KEY || GEMINI_API_KEY) {
+                const engineTag = CLAUDE_API_KEY ? 'cl:' : 'ia:';
+                const ck = engineTag + frag.toLowerCase() + '||' + sentenceText.toLowerCase();
                 if(transCache[ck]) return transCache[ck];
-                const ia = await callGemini(frag, sentenceText);
+                const ia = CLAUDE_API_KEY
+                    ? await callClaude(frag, sentenceText)
+                    : await callGemini(frag, sentenceText);
                 if(ia) { cacheSet(ck, ia); return ia; }
             }
 
-            // 2) Google com marcadores, quando há frase maior que a legenda
+            // 2) Google com marcadores: recupera o trecho e a frase com o destaque no lugar
             if(hasRealContext) {
                 const marked = buildMarkedSentence(group, cueIdx, frag);
                 if(marked) {
@@ -1464,15 +1625,41 @@
                     if(res && res.text) {
                         const m = res.text.match(MARK_RE);
                         if(m) {
-                            const out = m[1].trim().replace(/^[,;:]\s+/, '');
-                            if(out.length >= 2) return { text: out, dict: null, contextual: true, engine: 'google' };
+                            const part = m[1].trim().replace(/^[,;:]\s+/, '');
+                            if(part.length >= 2) {
+                                // Remove os marcadores para obter a frase traduzida limpa
+                                const sentenceOut = res.text.replace(/\[\[|\]\]/g, '').trim();
+                                return {
+                                    text: part, literal: null, nota: null,
+                                    sentence: sentenceOut,
+                                    sentencePart: sentenceOut.indexOf(part) !== -1 ? part : null,
+                                    synonyms: null, dict: null, contextual: true, engine: 'google'
+                                };
+                            }
                         }
                     }
                 }
             }
 
             // 3) Tradução direta
-            return await translateEngine(frag, false);
+            const direct = await translateEngine(frag, false);
+            if(!direct) return null;
+            return {
+                text: direct.text, literal: null, nota: null,
+                sentence: null, sentencePart: null,
+                synonyms: null, dict: direct.dict || null,
+                contextual: false, engine: 'google'
+            };
+        }
+
+        // Destaca uma substring dentro de um texto, escapando o resto
+        function highlightPart(full, part) {
+            if(!part) return escapeHtml(full);
+            const idx = full.indexOf(part);
+            if(idx === -1) return escapeHtml(full);
+            return escapeHtml(full.slice(0, idx))
+                 + '<span class="cue-focus">' + escapeHtml(part) + '</span>'
+                 + escapeHtml(full.slice(idx + part.length));
         }
 
         function escapeHtml(s) {
@@ -1508,10 +1695,12 @@
             const ctxLabel = document.getElementById('ctx-label');
             const ctxOrig = document.getElementById('ctx-orig');
             const ctxTrans = document.getElementById('ctx-trans');
+            const synBlock = document.getElementById('syn-block');
             const literalLine = document.getElementById('literal-line');
             iaNote.style.display = 'none'; dictBlock.style.display = 'none';
-            ctxBlock.style.display = 'none'; literalLine.style.display = 'none';
-            ctxOrig.innerHTML = ''; ctxTrans.textContent = '';
+            ctxBlock.style.display = 'none'; synBlock.style.display = 'none';
+            literalLine.style.display = 'none';
+            ctxOrig.innerHTML = ''; ctxTrans.innerHTML = '';
             engineBadge.textContent = 'Traduzindo...'; engineBadge.classList.remove('ia');
 
             // Mostra apenas o que foi pedido: a legenda atual ou o trecho selecionado
@@ -1519,7 +1708,8 @@
 
             const sentence = getSentenceFor(opts.cueText != null ? opts.cueText : src);
             const isFullLine = !!opts.fullLine;
-            const hasContext = !!(sentence && sentence.merged > 1);
+            const hasContext = !!(sentence && sentence.merged > 1
+                                  && sentence.text.toLowerCase() !== src.trim().toLowerCase());
 
             const main = await translateInContext(src, sentence, currentCueIndex);
             if(!main) {
@@ -1529,9 +1719,10 @@
             }
             transRes.textContent = main.text;
 
-            if(main.engine === 'ia') { engineBadge.textContent = '✨ IA + contexto'; engineBadge.classList.add('ia'); }
-            else if(main.contextual)  { engineBadge.textContent = '🔗 Com contexto'; }
-            else                      { engineBadge.textContent = 'Google Tradutor'; }
+            if(main.engine === 'claude')   { engineBadge.textContent = '✨ Claude + contexto'; engineBadge.classList.add('ia'); }
+            else if(main.engine === 'ia')  { engineBadge.textContent = '✨ IA + contexto'; engineBadge.classList.add('ia'); }
+            else if(main.contextual)       { engineBadge.textContent = '🔗 Com contexto'; }
+            else                           { engineBadge.textContent = 'Google Tradutor'; }
 
             if(main.literal && main.literal.toLowerCase() !== main.text.toLowerCase()) {
                 literalLine.textContent = 'Literal: ' + main.literal;
@@ -1542,23 +1733,41 @@
                 iaNote.style.display = 'block';
             }
 
-            // Outros significados: só para termos curtos selecionados
-            if(!isFullLine && src.trim().split(/\s+/).length <= 3) {
-                const d = await translateEngine(src, true);
-                if(d && d.dict && d.dict.length) {
-                    document.getElementById('dict-content').innerHTML = d.dict
-                        .map(e => `<div><span class="pos">${escapeHtml(e.pos)}:</span> ${escapeHtml(e.terms.join(', '))}</div>`).join('');
-                    dictBlock.style.display = 'block';
-                }
-            }
+            if(isFullLine) {
+                // FALA INTEIRA (🌐): mostra a frase completa nos dois idiomas,
+                // com o trecho da legenda atual destacado em ambos
+                if(hasContext) {
+                    ctxLabel.textContent = '🔗 Na frase completa';
+                    ctxOrig.innerHTML = highlightCueInSentence(sentence.text, opts.cueText || src);
+                    ctxBlock.style.display = 'block';
 
-            // Frase completa traduzida: útil ao selecionar um trecho
-            if(!isFullLine && hasContext && sentence.text.toLowerCase() !== src.trim().toLowerCase()) {
-                ctxLabel.textContent = '🔗 Na frase completa';
-                ctxOrig.innerHTML = highlightCueInSentence(sentence.text, opts.cueText || '');
-                ctxBlock.style.display = 'block';
-                const ctx = await translateInContext(sentence.text, sentence, currentCueIndex);
-                if(ctx) ctxTrans.textContent = ctx.text;
+                    if(main.sentence) {
+                        ctxTrans.innerHTML = highlightPart(main.sentence, main.sentencePart);
+                    } else {
+                        // Motor sem frase pronta: traduz a frase e destaca o trecho já obtido
+                        const ctx = await translateInContext(sentence.text, sentence, currentCueIndex);
+                        if(ctx) ctxTrans.innerHTML = highlightPart(ctx.text, main.text);
+                    }
+                }
+            } else {
+                // TRECHO SELECIONADO: significado do termo + outros significados
+                // + formas equivalentes em inglês (sem repetir a frase completa)
+                if(src.trim().split(/\s+/).length <= 3) {
+                    const d = await translateEngine(src, true);
+                    if(d && d.dict && d.dict.length) {
+                        document.getElementById('dict-content').innerHTML = d.dict
+                            .map(e => `<div><span class="pos">${escapeHtml(e.pos)}:</span> ${escapeHtml(e.terms.join(', '))}</div>`).join('');
+                        dictBlock.style.display = 'block';
+                    }
+                }
+                // Equivalentes em inglês: da IA quando disponível, senão do Google
+                let syns = main.synonyms;
+                if(!syns || !syns.length) syns = await googleSynonyms(src);
+                if(syns && syns.length) {
+                    document.getElementById('syn-content').innerHTML = syns
+                        .map(w => `<span class="syn">${escapeHtml(w)}</span>`).join('');
+                    synBlock.style.display = 'block';
+                }
             }
         }
 
@@ -1604,6 +1813,7 @@
             document.getElementById('api-key-input').value = YOUTUBE_API_KEY;
             document.getElementById('supadata-key-input').value = SUPADATA_API_KEY;
             document.getElementById('gemini-key-input').value = GEMINI_API_KEY;
+            document.getElementById('claude-key-input').value = CLAUDE_API_KEY;
         };
 
         function resetApp() {

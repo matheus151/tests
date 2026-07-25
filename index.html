@@ -989,6 +989,7 @@
                 const gi = sentenceGroups.length;
                 sentenceGroups.push({
                     startIdx, endIdx: i - 1,
+                    parts: parts.slice(),                  // textos das legendas, p/ localizar offsets
                     text: parts.join(' ').replace(/\s+/g, ' ').trim(),
                     merged: (i - startIdx),
                 });
@@ -1157,6 +1158,52 @@
             return null;
         }
 
+        // --- TRADUÇÃO CONTEXTUAL POR MARCADORES ---
+        // Envia a frase COMPLETA ao tradutor (para ele entender o sentido), mas com o trecho
+        // desejado entre [[ ]]. Os marcadores sobrevivem à tradução, então extraímos de volta
+        // apenas o trecho pedido — já traduzido corretamente pelo contexto.
+        // Ex: "I had to [[pull it off]]" -> "tinha que [[conseguir]]"  (sozinho daria "retire-o")
+        const MARK_RE = /\[\[([\s\S]*?)\]\]/;
+
+        function buildMarkedSentence(group, cueIdx, fragment) {
+            const frag = (fragment || '').trim();
+            if(!group || !group.parts || !frag) return null;
+            // Onde a legenda atual começa dentro da frase (evita marcar a ocorrência errada)
+            let offset = 0;
+            for(let i = group.startIdx; i < cueIdx && i <= group.endIdx; i++) {
+                offset += group.parts[i - group.startIdx].length + 1;
+            }
+            let at = group.text.indexOf(frag, Math.max(0, offset - 2));
+            if(at === -1) at = group.text.indexOf(frag);
+            if(at === -1) return null;
+            return group.text.slice(0, at) + '[[' + frag + ']]' + group.text.slice(at + frag.length);
+        }
+
+        // Traduz `fragment` usando a frase inteira como contexto, devolvendo só o fragmento
+        async function translateInContext(fragment, group, cueIdx) {
+            const frag = (fragment || '').trim();
+            if(!frag) return null;
+
+            // Sem frase maior que a própria legenda: tradução direta
+            if(!group || group.merged <= 1 || group.text.toLowerCase() === frag.toLowerCase()) {
+                return await translateEngine(frag, false);
+            }
+
+            const marked = buildMarkedSentence(group, cueIdx, frag);
+            if(marked) {
+                const res = await translateEngine(marked, false);
+                if(res && res.text) {
+                    const m = res.text.match(MARK_RE);
+                    if(m) {
+                        const out = m[1].trim().replace(/^[,;:]\s+/, '');
+                        if(out.length >= 2) return { text: out, dict: null, contextual: true };
+                    }
+                }
+            }
+            // Plano B: se os marcadores não sobreviverem, traduz o fragmento sozinho
+            return await translateEngine(frag, false);
+        }
+
         // Monta o HTML da frase completa destacando a legenda que está na tela
         function highlightCueInSentence(sentence, cueText) {
             const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1185,41 +1232,37 @@
             dictBlock.style.display = 'none'; ctxBlock.style.display = 'none'; mergeNote.style.display = 'none';
             ctxOrig.innerHTML = ''; ctxTrans.textContent = '';
 
-            // Descobre a frase completa (legendas vizinhas unidas) que contém esta fala
+            // Frase completa (legendas vizinhas unidas) — usada só para ENTENDER o contexto
             const sentence = getSentenceFor(opts.cueText != null ? opts.cueText : src);
             const isFullLine = !!opts.fullLine;
-            const mergedMoreThanOne = sentence && sentence.merged > 1;
+            const hasContext = sentence && sentence.merged > 1;
 
-            // Numa fala inteira, o certo é traduzir a FRASE COMPLETA, não o pedaço cortado
-            if(isFullLine && mergedMoreThanOne) {
-                transOrig.innerHTML = highlightCueInSentence(sentence.text, opts.cueText || src);
-                currentTranslateSource = sentence.text;
-                mergeNote.textContent = `🔗 ${sentence.merged} legendas unidas — traduzido como frase completa`;
-                mergeNote.style.display = 'block';
-            } else {
-                transOrig.textContent = dsp;
-            }
+            // Mostra sempre apenas o que foi pedido: a legenda atual ou o trecho selecionado
+            transOrig.textContent = dsp;
 
-            const target = currentTranslateSource;
-            const wantDict = !isFullLine && target.split(/\s+/).length <= 3; // dicionário só p/ termos curtos
-
-            const main = await translateEngine(target, wantDict);
+            // Traduz entendendo a frase inteira, mas devolvendo só este trecho
+            const main = await translateInContext(src, sentence, currentCueIndex);
             if(!main) { transRes.className = ''; transRes.textContent = "Erro na rede."; return; }
             transRes.className = ''; transRes.textContent = main.text;
 
-            // Outros significados (palavra/termo curto)
-            if(main.dict && main.dict.length) {
-                document.getElementById('dict-content').innerHTML = main.dict
-                    .map(e => `<div><span class="pos">${e.pos}:</span> ${e.terms.join(', ')}</div>`).join('');
-                dictBlock.style.display = 'block';
+            if(main.contextual) {
+                mergeNote.textContent = '🔗 traduzido com o contexto da frase completa';
+                mergeNote.style.display = 'block';
             }
 
-            // Ao selecionar um trecho, mostra também a frase completa traduzida —
-            // é aí que expressões soltas ganham o sentido real
-            if(!isFullLine && sentence && sentence.text && sentence.text.toLowerCase() !== target.toLowerCase()) {
-                ctxLabel.textContent = mergedMoreThanOne
-                    ? `🔗 Na frase completa (${sentence.merged} legendas unidas)`
-                    : '🔗 Na frase completa';
+            // Outros significados — só para termos curtos selecionados
+            if(!isFullLine && src.trim().split(/\s+/).length <= 3) {
+                const d = await translateEngine(src, true);
+                if(d && d.dict && d.dict.length) {
+                    document.getElementById('dict-content').innerHTML = d.dict
+                        .map(e => `<div><span class="pos">${e.pos}:</span> ${e.terms.join(', ')}</div>`).join('');
+                    dictBlock.style.display = 'block';
+                }
+            }
+
+            // Frase completa traduzida: útil ao selecionar um trecho, mas não na fala inteira
+            if(!isFullLine && hasContext && sentence.text.toLowerCase() !== src.trim().toLowerCase()) {
+                ctxLabel.textContent = '🔗 Na frase completa';
                 ctxOrig.innerHTML = highlightCueInSentence(sentence.text, opts.cueText || '');
                 ctxBlock.style.display = 'block';
                 const ctx = await translateEngine(sentence.text, false);

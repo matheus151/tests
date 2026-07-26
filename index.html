@@ -173,6 +173,7 @@
             display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
         }
         .video-channel { font-size: 0.75rem; color: var(--text-dim); }
+        .video-dot { opacity: 0.55; margin: 0 1px; }
         .btn-del-fav {
             background: var(--danger); color: #fff; border: none; padding: 6px 10px;
             border-radius: 6px; font-size: 0.8rem; cursor: pointer; flex-shrink: 0; align-self: center;
@@ -920,26 +921,51 @@
                 d.items.forEach(i => {
                     const vid = i.id.videoId, t = i.snippet.title, th = i.snippet.thumbnails.medium.url;
                     const duration = videosData[vid] || "";
+                    const idade = timeAgoPtBr(i.snippet.publishedAt); // ex.: "há 5 meses"
                     const el = document.createElement('div'); el.className = 'video-item';
-                    el.innerHTML = `<div class="video-thumb-wrapper"><img src="${th}" class="video-thumb">`
-                        + `${duration ? `<span class="video-duration">${duration}</span>` : ''}</div>`
-                        + `<div class="video-info"><div class="video-title">${t}</div>`
-                        + `<div class="video-channel">${i.snippet.channelTitle}</div></div>`;
+                    el.innerHTML = `<div class="video-thumb-wrapper"><img src="${escapeHtml(th)}" class="video-thumb">`
+                        + `${duration ? `<span class="video-duration">${escapeHtml(duration)}</span>` : ''}</div>`
+                        + `<div class="video-info"><div class="video-title">${escapeHtml(t)}</div>`
+                        + `<div class="video-channel">${escapeHtml(i.snippet.channelTitle)}`
+                        + `${idade ? ` <span class="video-dot">•</span> ${escapeHtml(idade)}` : ''}</div></div>`;
                     el.onclick = () => loadYouTube(vid, t, th);
                     resultsList.appendChild(el);
                 });
             } catch(e) { loader.innerText = "Erro na busca."; }
             finally { isFetching = false; }
         }
+        // Data de publicação em tempo relativo, no formato que o YouTube em pt-BR usa
+        function timeAgoPtBr(iso) {
+            if(!iso) return "";
+            const then = new Date(iso).getTime();
+            if(!then || isNaN(then)) return "";
+            let secs = (Date.now() - then) / 1000;
+            if(secs < 60) return "agora mesmo";
+            const units = [
+                ['ano', 'anos', 31536000],
+                ['mês', 'meses', 2592000],
+                ['semana', 'semanas', 604800],
+                ['dia', 'dias', 86400],
+                ['hora', 'horas', 3600],
+                ['minuto', 'minutos', 60],
+            ];
+            for(const [sing, plur, size] of units) {
+                const n = Math.floor(secs / size);
+                if(n >= 1) return `há ${n} ${n > 1 ? plur : sing}`;
+            }
+            return "agora mesmo";
+        }
+
+        // Converte a duração ISO-8601 do YouTube (ex.: PT1H2M5S) em "1:02:05"
         function parseDuration(pt) {
-            const match = pt.match(/PT(\d+H)?(\d+M)?(\d+S)?/); if(!match) return "";
-            const h = (match[1]||'').replace('H',''), m = (match[2]||'').replace('M',''), s = (match[3]||'').replace('S','');
-            let str = ""; if(h) str += h + ":";
-            str += (h && m.length < 2 ? "0"+m : m || "0") + ":";
-            str += (s.length < 2 ? "0"+s : s || "00");
-            if(!h && !m) str = "0:" + str.replace(":", "");
-            if(str.endsWith(':')) str += "00";
-            return str;
+            const match = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(pt || "");
+            if(!match) return "";
+            const h = parseInt(match[1] || 0, 10);
+            const m = parseInt(match[2] || 0, 10);
+            const s = parseInt(match[3] || 0, 10);
+            if(!h && !m && !s) return "";
+            const pad = n => (n < 10 ? "0" + n : String(n));
+            return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
         }
         // Rolagem infinita no painel
         document.getElementById('panel').addEventListener('scroll', function() {
@@ -1203,9 +1229,18 @@
         // ===================== RENDER DA LEGENDA =====================
         let lastRenderedText = "";
         let currentCueIndex = -1;
+        // Após um salto, segura a legenda alvo na tela durante a margem de
+        // antecedência, senão ela pisca (o tempo ainda não alcançou o start)
+        let stickyCueIdx = -1, stickyCueUntil = 0;
+
         function renderLogic(time) {
             const t = time + subtitleOffset;
-            const idx = subtitles.findIndex(s => t >= s.start && t <= s.end);
+            let idx = subtitles.findIndex(s => t >= s.start && t <= s.end);
+            if(idx !== -1) {
+                stickyCueIdx = -1; // chegou na legenda: dispensa o "segura"
+            } else if(stickyCueIdx >= 0 && Date.now() < stickyCueUntil && stickyCueIdx < subtitles.length) {
+                idx = stickyCueIdx;
+            }
             const sub = idx === -1 ? null : subtitles[idx];
             currentCueIndex = idx;
             if(sub) {
@@ -1246,6 +1281,10 @@
         function seek(t){ if(playerType === 'local') video.currentTime = t; else if(ytPlayer && ytPlayer.seekTo) ytPlayer.seekTo(t, true); }
         function getTime(){ return playerType === 'local' ? video.currentTime : (ytPlayer && ytPlayer.getCurrentTime ? ytPlayer.getCurrentTime() : 0); }
 
+        // Margem de antecedência ao pular de legenda, em segundos.
+        // Garante que a fala seja ouvida desde o começo (aumente se ainda cortar).
+        const JUMP_LEAD_IN = 0.25;
+
         function jumpSubtitle(dir) {
             if(!subtitles.length) { seek(getTime() + (dir*10)); return; }
             const eff = getTime() + subtitleOffset;
@@ -1265,11 +1304,21 @@
             if(targetIdx < 0) targetIdx = 0;
             if(targetIdx >= subtitles.length) targetIdx = subtitles.length - 1;
 
-            let safeTime = subtitles[targetIdx].start - subtitleOffset + 0.02;
-            if(safeTime < 0) safeTime = 0;
-            seek(safeTime);
+            const target = subtitles[targetIdx];
+            // Tempo real de reprodução em que a fala desta legenda começa
+            const cueTime = target.start - subtitleOffset;
+            // Cai um pouco ANTES: legendas automáticas marcam o tempo quando a palavra
+            // é reconhecida, e o YouTube encaixa o seek em keyframes — sem essa margem
+            // a primeira sílaba é cortada.
+            let seekTime = cueTime - JUMP_LEAD_IN;
+            if(seekTime < 0) seekTime = 0;
+            seek(seekTime);
+
+            // Mantém a legenda alvo visível durante a margem, sem piscar
+            stickyCueIdx = targetIdx;
+            stickyCueUntil = Date.now() + (JUMP_LEAD_IN * 1000) + 400;
             lastRenderedText = "";
-            renderLogic(safeTime);
+            renderLogic(cueTime + 0.01);
         }
 
         function setupGestures(el, mode) {

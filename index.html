@@ -683,7 +683,46 @@
         }
         // Em retrato a legenda vive na faixa abaixo do vídeo: limpa qualquer arraste anterior
         function resetSubtitlePosition() {
-            ['top','left','bottom','transform','position'].forEach(p => subContainer.style.removeProperty(p));
+            ['top','left','bottom','transform','position','z-index','width'].forEach(p => subContainer.style.removeProperty(p));
+            subtitleDragged = false;
+        }
+
+        function isFullscreenActive() {
+            return !!(document.fullscreenElement || document.webkitFullscreenElement
+                   || document.webkitCurrentFullScreenElement);
+        }
+        // Modos em que a legenda flutua sobre o vídeo (em vez da faixa abaixo dele)
+        function isOverlayMode() { return isLandscape() || isFullscreenActive(); }
+
+        // Encosta a legenda na borda INFERIOR do vídeo. O vídeo é 16:9 e fica
+        // centralizado, então em tela cheia sobra tarja preta em cima e embaixo —
+        // é nessa tarja que a legenda deve ficar, e não flutuando sobre a imagem.
+        let subtitleDragged = false;
+        function placeSubtitleUnderVideo() {
+            if(!isOverlayMode()) { resetSubtitlePosition(); return; }
+            if(subtitleDragged) return; // o usuário escolheu outro lugar: respeita
+
+            const vw = window.innerWidth, vh = window.innerHeight;
+            let ratio = 16 / 9;
+            if(playerType === 'local' && video.videoWidth && video.videoHeight) {
+                ratio = video.videoWidth / video.videoHeight;
+            }
+            const alturaVideo = Math.min(vh, vw / ratio);   // altura realmente desenhada
+            const bordaInferior = (vh + alturaVideo) / 2;   // onde a imagem termina
+
+            subContainer.style.position = 'fixed';
+            subContainer.style.bottom = 'auto';
+            subContainer.style.left = '50%';
+            subContainer.style.transform = 'translateX(-50%)';
+            subContainer.style.zIndex = '2147483647';
+            subContainer.style.top = Math.round(bordaInferior + 4) + 'px';
+
+            // Sem tarja (vídeo ocupa toda a altura): encosta no rodapé da tela
+            const alturaLegenda = subContainer.getBoundingClientRect().height;
+            const topoMaximo = vh - alturaLegenda - 4;
+            if(parseFloat(subContainer.style.top) > topoMaximo) {
+                subContainer.style.top = Math.max(0, Math.round(topoMaximo)) + 'px';
+            }
         }
 
         // ===================== SINCRONIA =====================
@@ -1270,6 +1309,10 @@
             btn.addEventListener('touchstart', (e) => { e.preventDefault(); fire(e); });
             btn.onclick = fire;
             subContent.appendChild(btn);
+
+            // Legendas de 1 ou 2 linhas mudam de altura: mantém a caixa
+            // encostada na borda do vídeo enquanto o usuário não a arrastar
+            if(isOverlayMode() && !subtitleDragged) placeSubtitleUnderVideo();
         }
 
         // ===================== CONTROLES & GESTOS =====================
@@ -1341,8 +1384,8 @@
         setupGestures(document.getElementById('player-zone'), 'local');
 
         dragHandle.addEventListener('touchstart', e => {
-            if(!isLandscape()) return; // em retrato a legenda tem lugar fixo abaixo do vídeo
-            isDragging = true;
+            if(!isOverlayMode()) return; // em retrato a legenda tem lugar fixo abaixo do vídeo
+            isDragging = true; subtitleDragged = true;
             dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY;
             const r = subContainer.getBoundingClientRect();
             initialTop = r.top; initialLeft = r.left;
@@ -1728,12 +1771,32 @@
             sheetBackdrop.style.display = 'none';
         }
 
+        // Coloca o card logo abaixo do vídeo, para não obrigar a olhar lá embaixo.
+        // Se não couber ali (modo foco / paisagem), volta a subir do rodapé.
+        function positionTransCard() {
+            const anchor = subStrip.getBoundingClientRect().bottom;
+            const vh = window.innerHeight;
+            const espacoAbaixo = vh - anchor;
+            if(!isLandscape() && espacoAbaixo >= 300) {
+                transCard.style.top = Math.round(anchor + 6) + 'px';
+                transCard.style.bottom = 'auto';
+                transCard.style.maxHeight = Math.round(espacoAbaixo - 16) + 'px';
+                transCard.style.borderRadius = '16px';
+            } else {
+                transCard.style.top = 'auto';
+                transCard.style.bottom = '0';
+                transCard.style.maxHeight = '72vh';
+                transCard.style.borderRadius = '18px 18px 0 0';
+            }
+        }
+
         async function translateText(src, dsp, opts) {
             opts = opts || {};
             currentTranslateSource = src;
 
             transCard.style.display = 'block';
             sheetBackdrop.style.display = 'block';
+            positionTransCard();
             transCard.scrollTop = 0;
             transRes.textContent = '...';
             document.getElementById('btn-save-vocab').innerText = "💾 Salvar";
@@ -1832,22 +1895,35 @@
         // Trocar de orientação: limpa o arraste ao voltar para retrato, onde a
         // legenda tem lugar fixo na faixa abaixo do vídeo
         const mqLandscape = window.matchMedia('(orientation: landscape)');
-        const onOrientationChange = () => { if(!mqLandscape.matches) resetSubtitlePosition(); };
+        const onOrientationChange = () => {
+            if(isOverlayMode()) { subtitleDragged = false; placeSubtitleUnderVideo(); }
+            else resetSubtitlePosition();
+        };
         if(mqLandscape.addEventListener) mqLandscape.addEventListener('change', onOrientationChange);
         else if(mqLandscape.addListener) mqLandscape.addListener(onOrientationChange);
         window.addEventListener('orientationchange', onOrientationChange);
 
+        // Entrar/sair da tela cheia do YouTube: reposiciona a legenda sob o vídeo
+        ['fullscreenchange','webkitfullscreenchange'].forEach(ev =>
+            document.addEventListener(ev, () => {
+                subtitleDragged = false;
+                setTimeout(onOrientationChange, 60); // espera a tela assentar
+            })
+        );
+
         window.addEventListener('resize', () => {
-            if(!isLandscape()) {
+            if(transCard.style.display === 'block') positionTransCard();
+            if(!isOverlayMode()) {
                 // Voltou para retrato: a legenda retorna à faixa abaixo do vídeo
                 resetSubtitlePosition();
                 return;
             }
-            // Em paisagem, se a legenda arrastada ficou fora da tela, recoloca no lugar padrão
+            if(!subtitleDragged) { placeSubtitleUnderVideo(); return; }
+            // Se a legenda arrastada ficou fora da tela, recoloca no lugar padrão
             const r = subContainer.getBoundingClientRect();
             if(r.top > window.innerHeight - 40 || r.top < 0) {
-                subContainer.style.top = 'auto'; subContainer.style.bottom = '7%';
-                subContainer.style.left = '50%'; subContainer.style.transform = 'translateX(-50%)';
+                subtitleDragged = false;
+                placeSubtitleUnderVideo();
             }
         });
 

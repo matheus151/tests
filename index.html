@@ -206,19 +206,26 @@
         body.results-hidden #results-title { display: none; }
         body.results-hidden #results-hidden-note { display: block; }
 
-        /* Botão flutuante de tradução (desativado por padrão) */
-        #float-translate {
+        /* Bloco de botões flutuantes (desativado por padrão).
+           Os dois andam juntos: aparecem, somem e são arrastados como um só. */
+        #float-tools {
             display: none; position: fixed; z-index: 190;
+            gap: 10px; align-items: center;
+            touch-action: none; user-select: none; -webkit-user-select: none;
+            cursor: grab;
+        }
+        body.float-btn-on #float-tools { display: flex; }
+        #float-tools.dragging { opacity: 0.75; cursor: grabbing; }
+        #float-tools button {
             width: 52px; height: 52px; border-radius: 50%;
             background: var(--primary); color: #fff; border: none;
-            font-size: 1.4rem; line-height: 1; cursor: grab;
+            font-size: 1.4rem; line-height: 1; padding: 0;
             box-shadow: 0 4px 14px rgba(0,0,0,0.45);
-            touch-action: none; user-select: none; -webkit-user-select: none;
-            align-items: center; justify-content: center;
+            display: flex; align-items: center; justify-content: center;
         }
-        body.float-btn-on #float-translate { display: flex; }
-        #float-translate:active { filter: brightness(0.9); }
-        #float-translate.dragging { opacity: 0.75; cursor: grabbing; }
+        #float-tools button:active { filter: brightness(0.85); }
+        /* cor distinta para não confundir os dois na hora do toque */
+        #float-tools #float-playpause { background: #2c2c2e; border: 1px solid #4a4a4d; }
 
         /* Sincronia */
         .sync-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -604,11 +611,12 @@
 
             <div class="section-title">Tradução rápida</div>
             <div class="card">
-                <button id="btn-float-toggle" class="btn btn-soft btn-wide" onclick="toggleFloatBtn()">🌐 Botão flutuante de tradução</button>
+                <button id="btn-float-toggle" class="btn btn-soft btn-wide" onclick="toggleFloatBtn()">🌐 Botões flutuantes</button>
                 <div class="hint">
-                    Quando ligado, aparece um botão 🌐 flutuando sobre a tela: <b>toque</b> nele para
-                    traduzir a legenda atual e <b>arraste</b> para deixá-lo onde preferir.
-                    Evita ter que acertar o globo pequeno dentro da legenda. A posição fica salva.
+                    Quando ligado, aparecem dois botões flutuando sobre a tela:
+                    <b>🌐</b> traduz a legenda atual e <b>▶️/⏸️</b> pausa ou continua o vídeo.
+                    <b>Arraste</b> o bloco para deixá-lo onde preferir — os dois andam juntos
+                    e a posição fica salva.
                 </div>
             </div>
 
@@ -635,8 +643,11 @@
         </section>
     </div>
 
-    <!-- Botão flutuante de tradução: arraste para posicionar, toque para traduzir -->
-    <button id="float-translate" title="Traduzir a legenda atual">🌐</button>
+    <!-- Botões flutuantes: arraste o bloco para posicionar, toque em cada um para agir -->
+    <div id="float-tools">
+        <button id="float-translate" title="Traduzir a legenda atual">🌐</button>
+        <button id="float-playpause" title="Pausar / continuar">▶️</button>
+    </div>
 
     <!-- ============ CARD DE TRADUÇÃO ============ -->
     <div id="sheet-backdrop" onclick="closeTransCard()"></div>
@@ -883,9 +894,22 @@
             document.body.classList.toggle('float-btn-on', FLOAT_BTN);
             const b = document.getElementById('btn-float-toggle');
             if(b) b.textContent = FLOAT_BTN
-                ? '🌐 Botão flutuante de tradução: LIGADO'
-                : '🌐 Botão flutuante de tradução: DESLIGADO';
-            if(FLOAT_BTN) restoreFloatPos();
+                ? '🌐 Botões flutuantes: LIGADOS'
+                : '🌐 Botões flutuantes: DESLIGADOS';
+            if(FLOAT_BTN) { restoreFloatPos(); updatePlayPauseIcon(); }
+        }
+
+        // Ícone do botão de pausa/reproduzir conforme o estado real do player
+        function isPlayingNow() {
+            if(playerType === 'local') return !video.paused && !video.ended;
+            if(ytPlayer && ytPlayer.getPlayerState) return ytPlayer.getPlayerState() === 1;
+            return false;
+        }
+        function updatePlayPauseIcon() {
+            const b = document.getElementById('float-playpause');
+            if(!b) return;
+            const icone = isPlayingNow() ? '⏸️' : '▶️';
+            if(b.textContent !== icone) b.textContent = icone;   // só mexe no DOM se mudou
         }
         function toggleFloatBtn() {
             FLOAT_BTN = !FLOAT_BTN;
@@ -894,58 +918,73 @@
         }
 
         function restoreFloatPos() {
-            const btn = document.getElementById('float-translate');
+            const bloco = document.getElementById('float-tools');
             let pos = null;
             try { pos = JSON.parse(localStorage.getItem('ejoy_float_pos') || 'null'); } catch(e) {}
-            const L = 52, margem = 8;
+            const L = bloco.offsetWidth || 114, A = bloco.offsetHeight || 52, margem = 8;
             let left = pos ? pos.left : (window.innerWidth - L - 16);
             let top  = pos ? pos.top  : (window.innerHeight * 0.55);
-            // Nunca deixa o botão fora da tela (ex.: girou o aparelho)
+            // Nunca deixa o bloco fora da tela (ex.: girou o aparelho)
             left = Math.min(Math.max(margem, left), window.innerWidth  - L - margem);
-            top  = Math.min(Math.max(margem, top),  window.innerHeight - L - margem);
-            btn.style.left = Math.round(left) + 'px';
-            btn.style.top  = Math.round(top)  + 'px';
+            top  = Math.min(Math.max(margem, top),  window.innerHeight - A - margem);
+            bloco.style.left = Math.round(left) + 'px';
+            bloco.style.top  = Math.round(top)  + 'px';
         }
 
         function setupFloatBtn() {
-            const btn = document.getElementById('float-translate');
+            const bloco = document.getElementById('float-tools');
             let x0 = 0, y0 = 0, bx = 0, by = 0, arrastou = false;
 
-            btn.addEventListener('touchstart', e => {
+            // Qual botão recebeu o toque (os eventos sobem dos botões para o bloco)
+            const acao = (alvo) => {
+                if(!alvo || !alvo.closest) return null;
+                if(alvo.closest('#float-playpause')) return 'playpause';
+                if(alvo.closest('#float-translate')) return 'traduzir';
+                return null;
+            };
+            const executar = (qual) => {
+                if(qual === 'playpause') { togglePlay(); setTimeout(updatePlayPauseIcon, 60); }
+                else if(qual === 'traduzir') floatTranslate();
+            };
+
+            bloco.addEventListener('touchstart', e => {
                 e.stopPropagation();
                 const t = e.changedTouches[0];
                 x0 = t.clientX; y0 = t.clientY;
-                const r = btn.getBoundingClientRect();
+                const r = bloco.getBoundingClientRect();
                 bx = r.left; by = r.top;
                 arrastou = false;
             }, {passive:true});
 
-            btn.addEventListener('touchmove', e => {
+            bloco.addEventListener('touchmove', e => {
                 e.stopPropagation(); e.preventDefault();
                 const t = e.changedTouches[0];
                 const dx = t.clientX - x0, dy = t.clientY - y0;
-                if(Math.abs(dx) > 6 || Math.abs(dy) > 6) { arrastou = true; btn.classList.add('dragging'); }
+                if(Math.abs(dx) > 6 || Math.abs(dy) > 6) { arrastou = true; bloco.classList.add('dragging'); }
                 if(!arrastou) return;
-                const L = btn.offsetWidth, A = btn.offsetHeight, m = 8;
+                const L = bloco.offsetWidth, A = bloco.offsetHeight, m = 8;
                 const left = Math.min(Math.max(m, bx + dx), window.innerWidth  - L - m);
                 const top  = Math.min(Math.max(m, by + dy), window.innerHeight - A - m);
-                btn.style.left = Math.round(left) + 'px';
-                btn.style.top  = Math.round(top)  + 'px';
+                bloco.style.left = Math.round(left) + 'px';
+                bloco.style.top  = Math.round(top)  + 'px';
             }, {passive:false});
 
-            btn.addEventListener('touchend', e => {
+            bloco.addEventListener('touchend', e => {
                 e.stopPropagation();
-                btn.classList.remove('dragging');
+                bloco.classList.remove('dragging');
                 if(arrastou) {
-                    const r = btn.getBoundingClientRect();
+                    const r = bloco.getBoundingClientRect();
                     try { localStorage.setItem('ejoy_float_pos', JSON.stringify({left: r.left, top: r.top})); } catch(err) {}
                 } else {
-                    floatTranslate();
+                    executar(acao(e.target));
                 }
             }, {passive:true});
 
             // Também funciona com mouse (útil para testar no computador)
-            btn.addEventListener('click', e => { e.stopPropagation(); if(!arrastou) floatTranslate(); });
+            bloco.addEventListener('click', e => {
+                e.stopPropagation();
+                if(!arrastou) executar(acao(e.target));
+            });
         }
 
         function floatTranslate() {
@@ -1046,8 +1085,8 @@
             if(!favorites.length){ favoritesList.innerHTML = "<div class='empty-msg'>Nenhum favorito ainda.</div>"; return; }
             favorites.forEach((fav, i) => {
                 const d = document.createElement('div'); d.className = 'video-item';
-                d.innerHTML = `<div class="video-thumb-wrapper"><img src="${fav.thumb}" class="video-thumb"></div>`
-                    + `<div class="video-info"><div class="video-title">${fav.title}</div>`
+                d.innerHTML = `<div class="video-thumb-wrapper"><img src="${escapeHtml(fav.thumb)}" class="video-thumb"></div>`
+                    + `<div class="video-info"><div class="video-title">${escapeHtml(decodeHtmlEntities(fav.title))}</div>`
                     + `<div class="video-channel">${fav.isLocal ? "Arquivo local salvo" : "YouTube"}</div></div>`
                     + `<button class="btn-del-fav" onclick="removeFavorite(event,${i})">🗑️</button>`;
                 d.onclick = (e) => {
@@ -1104,8 +1143,8 @@
 
         // ===================== BUSCA YOUTUBE =====================
         // Vídeos abaixo disso são descartados na busca (Shorts e clipes curtos).
-        // Para mudar o corte, altere só este número.
-        const MIN_DURACAO_SEGUNDOS = 120;
+        // 90s = 1:30. Para mudar o corte, altere só este número.
+        const MIN_DURACAO_SEGUNDOS = 90;
 
         let nextPageToken = ""; let isFetching = false; let autoPaginas = 0;
         async function initSearch() {
@@ -1141,7 +1180,9 @@
 
                 let mostrados = 0;
                 d.items.forEach(i => {
-                    const vid = i.id.videoId, t = i.snippet.title, th = i.snippet.thumbnails.medium.url;
+                    const vid = i.id.videoId, th = i.snippet.thumbnails.medium.url;
+                    const t = decodeHtmlEntities(i.snippet.title);
+                    const canal = decodeHtmlEntities(i.snippet.channelTitle);
                     const duration = videosData[vid] || "";
                     // Fora os Shorts / vídeos curtos
                     const segs = videosSegundos[vid];
@@ -1152,7 +1193,7 @@
                     el.innerHTML = `<div class="video-thumb-wrapper"><img src="${escapeHtml(th)}" class="video-thumb">`
                         + `${duration ? `<span class="video-duration">${escapeHtml(duration)}</span>` : ''}</div>`
                         + `<div class="video-info"><div class="video-title">${escapeHtml(t)}</div>`
-                        + `<div class="video-channel">${escapeHtml(i.snippet.channelTitle)}`
+                        + `<div class="video-channel">${escapeHtml(canal)}`
                         + `${idade ? ` <span class="video-dot">•</span> ${escapeHtml(idade)}` : ''}</div></div>`;
                     el.onclick = () => loadYouTube(vid, t, th);
                     resultsList.appendChild(el);
@@ -1386,6 +1427,7 @@
                         localStorage.setItem('ejoy_vid_history', JSON.stringify(videoHistory));
                     }
                     renderLogic(t);
+                    if(FLOAT_BTN) updatePlayPauseIcon();
                 }
             }, 100);
         }
@@ -1436,6 +1478,10 @@
                 subContent.innerHTML = ""; statusEl.style.display = 'none';
             }
         };
+
+        ['play','pause','ended'].forEach(ev =>
+            video.addEventListener(ev, () => { if(FLOAT_BTN) updatePlayPauseIcon(); })
+        );
 
         video.addEventListener('timeupdate', () => {
             if(playerType === 'local') {
@@ -1618,7 +1664,7 @@
             const ignorar = (alvo) => !!(alvo && alvo.closest && (
                 alvo.closest('#subtitle-container') ||   // seleção de palavras
                 alvo.closest('#translation-card') ||     // card de tradução
-                alvo.closest('#float-translate') ||      // botão flutuante (arrasto)
+                alvo.closest('#float-tools') ||          // botões flutuantes (arrasto)
                 alvo.closest('input, textarea, select')  // campos de texto
             ));
 
@@ -2023,6 +2069,15 @@
 
         function escapeHtml(s) {
             return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        // A API do YouTube devolve os títulos JÁ com entidades HTML ("Don&#39;t").
+        // Sem decodificar antes de escapar, o "&" virava literal e aparecia "#39" na tela.
+        const _decoder = document.createElement('textarea');
+        function decodeHtmlEntities(s) {
+            if(s == null) return '';
+            _decoder.innerHTML = String(s);   // textarea: conteúdo é texto puro, não executa nada
+            return _decoder.value;
         }
         function highlightCueInSentence(sentence, cueText) {
             const cue = (cueText || '').trim();

@@ -281,10 +281,16 @@
         #sheet-backdrop {
             display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 190;
         }
+        /* left/right seguem a área segura: em paisagem a ilha dinâmica do iPhone
+           avança sobre a lateral e cortava o texto do card */
         #translation-card {
-            display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 200;
+            display: none; position: fixed; z-index: 200;
+            left: env(safe-area-inset-left, 0px);
+            right: env(safe-area-inset-right, 0px);
+            bottom: 0;
             background: var(--card-bg); color: var(--card-text);
-            border-radius: 18px 18px 0 0; padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px)) 16px;
+            border-radius: 18px 18px 0 0;
+            padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px)) 16px;
             box-shadow: 0 -6px 28px rgba(0,0,0,0.4);
             max-height: 72vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
         }
@@ -336,6 +342,16 @@
         .trans-actions .btn { flex: 1 1 auto; padding: 11px 8px; font-size: 0.8rem; }
         .btn-card-soft { background: var(--card-sub); color: var(--card-text); border: 1px solid var(--card-border); }
 
+        /* Tela cheia do YouTube: a legenda vira flutuante e arrastável,
+           igual ao modo paisagem, mesmo com o celular em pé */
+        body.fs-active #subtitle-strip {
+            position: static; height: 0; min-height: 0; overflow: visible;
+            padding: 0; background: transparent; border: none;
+        }
+        body.fs-active #subtitle-placeholder { display: none !important; }
+        body.fs-active #drag-handle { display: block; }
+        body.fs-active .subtitle-box { backdrop-filter: blur(3px); box-shadow: 0 4px 14px rgba(0,0,0,0.45); }
+
         /* ===================== MODO PAISAGEM = CINEMA ===================== */
         /* Vídeo em tela cheia e legenda sobreposta (aqui não há espaço abaixo) */
         @media (orientation: landscape) {
@@ -347,8 +363,10 @@
             }
             #subtitle-placeholder { display: none !important; }
             #subtitle-container {
-                position: fixed; bottom: 7%; left: 50%; transform: translateX(-50%);
-                width: auto; min-width: 84%; max-width: 96%; z-index: 9999;
+                position: fixed; bottom: 9%; left: 50%; transform: translateX(-50%);
+                width: auto; min-width: 80%; z-index: 9999;
+                /* fica longe da ilha dinâmica nas laterais */
+                max-width: calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
             }
             .subtitle-box { backdrop-filter: blur(3px); box-shadow: 0 4px 14px rgba(0,0,0,0.45); }
             #drag-handle { display: block; }
@@ -540,6 +558,18 @@
                 <div class="hint">Sem ela você ainda pode colar links do YouTube direto na busca.</div>
             </div>
 
+            <div class="section-title">Player do YouTube</div>
+            <div class="card">
+                <button id="btn-yt-controls" class="btn btn-soft btn-wide" onclick="toggleYtControlsSetting()">🎛️ Controles do YouTube</button>
+                <div class="hint">
+                    <b>Ligados:</b> mantém a barra inferior do YouTube, incluindo o botão de tela cheia —
+                    mas ela pisca por alguns segundos ao pular de legenda.<br>
+                    <b>Desligados:</b> a barra de progresso deixa de existir e nada aparece ao pular de legenda —
+                    em troca some o botão de tela cheia (restam os gestos do app e o modo paisagem girando o iPhone).<br>
+                    Ao trocar, o vídeo é recarregado a partir do ponto atual.
+                </div>
+            </div>
+
             <div class="section-title">Aparência do app</div>
             <div class="card">
                 <button class="btn btn-soft btn-wide" onclick="toggleTheme()">🌗 Alternar tema claro / escuro</button>
@@ -611,6 +641,9 @@
         let SUPADATA_API_KEY  = (localStorage.getItem('ejoy_supadata_key') || "").trim();
         let GEMINI_API_KEY    = (localStorage.getItem('ejoy_gemini_key') || "").trim();
         let CLAUDE_API_KEY    = (localStorage.getItem('ejoy_claude_key') || "").trim();
+        // Controles do YouTube ligados por padrão (mantém o botão de tela cheia).
+        // Desligados, o player não tem barra de progresso para piscar ao pular legenda.
+        let YT_CONTROLS = localStorage.getItem('ejoy_yt_controls') !== '0';
 
         let currentVideoURL = null;
         let currentFontSize = parseFloat(localStorage.getItem('ejoy_sub_font')) || 1.2;
@@ -694,35 +727,18 @@
         // Modos em que a legenda flutua sobre o vídeo (em vez da faixa abaixo dele)
         function isOverlayMode() { return isLandscape() || isFullscreenActive(); }
 
-        // Encosta a legenda na borda INFERIOR do vídeo. O vídeo é 16:9 e fica
-        // centralizado, então em tela cheia sobra tarja preta em cima e embaixo —
-        // é nessa tarja que a legenda deve ficar, e não flutuando sobre a imagem.
+        // Em paisagem / tela cheia a legenda FLUTUA sobre o vídeo e pode ser
+        // arrastada pela alça. Aqui só definimos a posição inicial.
         let subtitleDragged = false;
-        function placeSubtitleUnderVideo() {
+        function applyOverlaySubtitleDefault() {
             if(!isOverlayMode()) { resetSubtitlePosition(); return; }
             if(subtitleDragged) return; // o usuário escolheu outro lugar: respeita
-
-            const vw = window.innerWidth, vh = window.innerHeight;
-            let ratio = 16 / 9;
-            if(playerType === 'local' && video.videoWidth && video.videoHeight) {
-                ratio = video.videoWidth / video.videoHeight;
-            }
-            const alturaVideo = Math.min(vh, vw / ratio);   // altura realmente desenhada
-            const bordaInferior = (vh + alturaVideo) / 2;   // onde a imagem termina
-
             subContainer.style.position = 'fixed';
-            subContainer.style.bottom = 'auto';
+            subContainer.style.top = 'auto';
+            subContainer.style.bottom = '9%';
             subContainer.style.left = '50%';
             subContainer.style.transform = 'translateX(-50%)';
             subContainer.style.zIndex = '2147483647';
-            subContainer.style.top = Math.round(bordaInferior + 4) + 'px';
-
-            // Sem tarja (vídeo ocupa toda a altura): encosta no rodapé da tela
-            const alturaLegenda = subContainer.getBoundingClientRect().height;
-            const topoMaximo = vh - alturaLegenda - 4;
-            if(parseFloat(subContainer.style.top) > topoMaximo) {
-                subContainer.style.top = Math.max(0, Math.round(topoMaximo)) + 'px';
-            }
         }
 
         // ===================== SINCRONIA =====================
@@ -799,6 +815,22 @@
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
             localStorage.setItem('ejoy_theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        }
+
+        function applyYtControlsLabel() {
+            const btn = document.getElementById('btn-yt-controls');
+            if(btn) btn.textContent = YT_CONTROLS
+                ? '🎛️ Controles do YouTube: LIGADOS'
+                : '🎛️ Controles do YouTube: DESLIGADOS';
+        }
+        function toggleYtControlsSetting() {
+            YT_CONTROLS = !YT_CONTROLS;
+            localStorage.setItem('ejoy_yt_controls', YT_CONTROLS ? '1' : '0');
+            applyYtControlsLabel();
+            // Só vale na criação do player: recria mantendo o ponto atual do vídeo
+            if(playerType === 'youtube' && currentPlayingYT && ytPlayer && ytPlayer.getCurrentTime) {
+                recreateYtPlayer(currentPlayingYT.id, ytPlayer.getCurrentTime());
+            }
         }
 
         // ===================== CHAVES =====================
@@ -1119,12 +1151,37 @@
             if(ytPlayer && ytPlayer.loadVideoById) {
                 ytPlayer.loadVideoById({ videoId: vid, startSeconds: savedTime });
             } else {
-                ytPlayer = new YT.Player('yt-player', {
-                    height: '100%', width: '100%', videoId: vid,
-                    playerVars: { 'playsinline':1, 'controls':1, 'rel':0, 'start': Math.floor(savedTime) }
-                });
+                createYtPlayer(vid, savedTime);
+                return; // createYtPlayer já inicia a sincronia
             }
             startYTSync();
+        }
+
+        // 'controls' só pode ser definido na CRIAÇÃO do player — por isso trocar
+        // essa opção exige recriar o player a partir do ponto atual.
+        function createYtPlayer(vid, startSeconds) {
+            ytPlayer = new YT.Player('yt-player', {
+                height: '100%', width: '100%', videoId: vid,
+                playerVars: {
+                    'playsinline': 1,
+                    'controls': YT_CONTROLS ? 1 : 0,
+                    'rel': 0,
+                    'start': Math.floor(startSeconds || 0)
+                }
+            });
+            startYTSync();
+        }
+
+        function recreateYtPlayer(vid, startSeconds) {
+            if(ytTimer) { clearInterval(ytTimer); ytTimer = null; }
+            try { if(ytPlayer && ytPlayer.destroy) ytPlayer.destroy(); } catch(e) {}
+            ytPlayer = null;
+            // destroy() remove o elemento: recria o alvo antes de instanciar
+            ytContainer.innerHTML = '<div id="yt-player"></div>';
+            createYtPlayer(vid, startSeconds);
+            ytControlsLocked = true;
+            gestureLayer.style.display = 'block';
+            unlockBtn.innerText = "⚙️ YouTube";
         }
         function startYTSync() {
             if(ytTimer) clearInterval(ytTimer);
@@ -1309,10 +1366,6 @@
             btn.addEventListener('touchstart', (e) => { e.preventDefault(); fire(e); });
             btn.onclick = fire;
             subContent.appendChild(btn);
-
-            // Legendas de 1 ou 2 linhas mudam de altura: mantém a caixa
-            // encostada na borda do vídeo enquanto o usuário não a arrastar
-            if(isOverlayMode() && !subtitleDragged) placeSubtitleUnderVideo();
         }
 
         // ===================== CONTROLES & GESTOS =====================
@@ -1364,24 +1417,45 @@
             renderLogic(cueTime + 0.01);
         }
 
-        function setupGestures(el, mode) {
-            let ts = 0, te = 0, tt = 0;
-            el.addEventListener('touchstart', e => {
-                if(e.target.closest('#subtitle-container')) return;
-                ts = e.changedTouches[0].screenX; tt = Date.now();
+        // Gestos válidos em QUALQUER canto da tela, não só sobre o vídeo.
+        // O deslize precisa ser mais horizontal que vertical, para não atrapalhar
+        // a rolagem das listas nem a seleção de palavras na legenda.
+        function setupGlobalGestures() {
+            let x0 = 0, y0 = 0, t0 = 0, ativo = false;
+
+            const ignorar = (alvo) => !!(alvo && alvo.closest && (
+                alvo.closest('#subtitle-container') ||   // seleção de palavras
+                alvo.closest('#translation-card') ||     // card de tradução
+                alvo.closest('input, textarea, select')  // campos de texto
+            ));
+
+            document.addEventListener('touchstart', e => {
+                if(ignorar(e.target)) { ativo = false; return; }
+                ativo = true;
+                x0 = e.changedTouches[0].screenX;
+                y0 = e.changedTouches[0].screenY;
+                t0 = Date.now();
             }, {passive:true});
-            el.addEventListener('touchend', e => {
-                if(e.target.closest('#subtitle-container')) return;
-                te = e.changedTouches[0].screenX;
-                if((Date.now() - tt) < 200 && Math.abs(te - ts) < 10) {
-                    if(mode === 'yt') togglePlay();
-                } else if(Math.abs(te - ts) > 30) {
-                    if(te - ts < 0) jumpSubtitle(-1); else jumpSubtitle(1);
+
+            document.addEventListener('touchend', e => {
+                if(!ativo) return;
+                ativo = false;
+                const dx = e.changedTouches[0].screenX - x0;
+                const dy = e.changedTouches[0].screenY - y0;
+                const dur = Date.now() - t0;
+
+                // Toque curto sobre o vídeo: play/pause (como antes)
+                if(dur < 200 && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+                    if(e.target.closest && e.target.closest('#player-zone')) togglePlay();
+                    return;
+                }
+                // Deslize horizontal em qualquer lugar: legenda anterior / próxima
+                if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                    if(dx < 0) jumpSubtitle(-1); else jumpSubtitle(1);
                 }
             }, {passive:true});
         }
-        setupGestures(gestureLayer, 'yt');
-        setupGestures(document.getElementById('player-zone'), 'local');
+        setupGlobalGestures();
 
         dragHandle.addEventListener('touchstart', e => {
             if(!isOverlayMode()) return; // em retrato a legenda tem lugar fixo abaixo do vídeo
@@ -1896,14 +1970,15 @@
         // legenda tem lugar fixo na faixa abaixo do vídeo
         const mqLandscape = window.matchMedia('(orientation: landscape)');
         const onOrientationChange = () => {
-            if(isOverlayMode()) { subtitleDragged = false; placeSubtitleUnderVideo(); }
+            document.body.classList.toggle('fs-active', isFullscreenActive());
+            if(isOverlayMode()) applyOverlaySubtitleDefault();
             else resetSubtitlePosition();
         };
         if(mqLandscape.addEventListener) mqLandscape.addEventListener('change', onOrientationChange);
         else if(mqLandscape.addListener) mqLandscape.addListener(onOrientationChange);
         window.addEventListener('orientationchange', onOrientationChange);
 
-        // Entrar/sair da tela cheia do YouTube: reposiciona a legenda sob o vídeo
+        // Entrar/sair da tela cheia do YouTube: a legenda passa a flutuar sobre o vídeo
         ['fullscreenchange','webkitfullscreenchange'].forEach(ev =>
             document.addEventListener(ev, () => {
                 subtitleDragged = false;
@@ -1918,12 +1993,12 @@
                 resetSubtitlePosition();
                 return;
             }
-            if(!subtitleDragged) { placeSubtitleUnderVideo(); return; }
-            // Se a legenda arrastada ficou fora da tela, recoloca no lugar padrão
+            if(!subtitleDragged) { applyOverlaySubtitleDefault(); return; }
+            // Se a legenda arrastada ficou fora da tela, devolve ao lugar padrão
             const r = subContainer.getBoundingClientRect();
-            if(r.top > window.innerHeight - 40 || r.top < 0) {
+            if(r.top > window.innerHeight - 40 || r.bottom < 40 || r.top < 0) {
                 subtitleDragged = false;
-                placeSubtitleUnderVideo();
+                applyOverlaySubtitleDefault();
             }
         });
 
@@ -1933,6 +2008,7 @@
             applyCardFontSize();
             applySubOffsetLabel();
             applyPanelState();
+            applyYtControlsLabel();
             renderFavorites();
             updateVocabCount();
             document.getElementById('api-key-input').value = YOUTUBE_API_KEY;

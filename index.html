@@ -351,6 +351,10 @@
         body.fs-active #subtitle-placeholder { display: none !important; }
         body.fs-active #drag-handle { display: block; }
         body.fs-active .subtitle-box { backdrop-filter: blur(3px); box-shadow: 0 4px 14px rgba(0,0,0,0.45); }
+        body.fs-active #yt-container {
+            left:  max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+            right: max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+        }
 
         /* ===================== MODO PAISAGEM = CINEMA ===================== */
         /* Vídeo em tela cheia e legenda sobreposta (aqui não há espaço abaixo) */
@@ -371,6 +375,19 @@
             .subtitle-box { backdrop-filter: blur(3px); box-shadow: 0 4px 14px rgba(0,0,0,0.45); }
             #drag-handle { display: block; }
             .subtitle-box > #subtitle-content:first-child { padding-top: 0; }
+
+            /* Vídeo com o mesmo enquadramento da tela cheia do YouTube: imagem
+               inteira, ocupando toda a altura e centralizada. A margem lateral usa
+               o MAIOR dos dois lados seguros, para ficar simétrica (centralizada)
+               e ainda assim nunca passar por baixo da ilha dinâmica. */
+            #player-zone {
+                padding-left:  max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+                padding-right: max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+            }
+            #yt-container {
+                left:  max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+                right: max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+            }
         }
     </style>
 </head>

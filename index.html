@@ -196,6 +196,20 @@
         }
         #btn-hide-results:active { filter: brightness(0.9); }
 
+        /* Cabeçalho de seção com botões à direita (usado no Histórico) */
+        .section-head {
+            display: flex; align-items: center; justify-content: space-between;
+            margin: 4px 0 8px 2px; gap: 8px;
+        }
+        .section-head-actions { display: flex; gap: 6px; }
+        .mini-btn {
+            background: var(--input-bg); color: var(--text-main);
+            border: 1px solid var(--border-color); border-radius: 7px;
+            padding: 4px 9px; font-size: 0.85rem; line-height: 1; cursor: pointer;
+        }
+        .mini-btn:active { filter: brightness(0.9); }
+        body.history-hidden #history-card { display: none; }
+
         /* Lista de vídeos oculta: sobra espaço livre para os gestos de legenda */
         #results-hidden-note {
             display: none; text-align: center; color: var(--text-dim);
@@ -500,6 +514,17 @@
                 </div>
             </div>
             <div id="results-hidden-note">Lista oculta — área livre para os gestos de legenda.</div>
+
+            <div class="section-head">
+                <span class="section-title" style="margin:0">Histórico</span>
+                <div class="section-head-actions">
+                    <button class="mini-btn" id="btn-clear-history" onclick="clearHistory()" title="Limpar histórico">🗑️</button>
+                    <button class="mini-btn" id="btn-toggle-history" onclick="toggleHistory()" title="Ocultar histórico">🙈</button>
+                </div>
+            </div>
+            <div class="card" id="history-card" style="padding:6px 10px">
+                <div id="history-list" class="scroll-list"></div>
+            </div>
         </section>
 
         <!-- ---------- ABA FAVORITOS ---------- -->
@@ -1079,6 +1104,90 @@
             }
         }
 
+        // ===================== HISTÓRICO =====================
+        // Lista dos últimos vídeos abertos. Separada de 'ejoy_vid_history', que
+        // guarda só a posição de reprodução e continua sendo usada para retomar.
+        let watchHistory = [];
+        try { watchHistory = JSON.parse(localStorage.getItem('ejoy_watch_history')) || []; } catch(e) { watchHistory = []; }
+        let HISTORY_HIDDEN = localStorage.getItem('ejoy_history_hidden') === '1';
+        const HISTORY_MAX = 40;
+
+        function addToHistory(entry) {
+            if(!entry || !entry.id) return;
+            watchHistory = watchHistory.filter(v => v.id !== entry.id);   // sem repetidos
+            watchHistory.unshift({ ...entry, at: Date.now() });
+            if(watchHistory.length > HISTORY_MAX) watchHistory.length = HISTORY_MAX;
+            try { localStorage.setItem('ejoy_watch_history', JSON.stringify(watchHistory)); }
+            catch(e) { /* memória cheia: segue só em RAM */ }
+            renderHistory();
+        }
+
+        function secondsToClock(s) {
+            s = Math.max(0, Math.floor(s || 0));
+            const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), seg = s%60;
+            const pad = n => (n < 10 ? '0'+n : String(n));
+            return h ? `${h}:${pad(m)}:${pad(seg)}` : `${m}:${pad(seg)}`;
+        }
+
+        function renderHistory() {
+            const lista = document.getElementById('history-list');
+            if(!lista) return;
+            lista.innerHTML = "";
+            if(!watchHistory.length) {
+                lista.innerHTML = "<div class='empty-msg'>Nenhum vídeo assistido ainda.</div>";
+                return;
+            }
+            watchHistory.forEach((v, i) => {
+                const quando = timeAgoPtBr(new Date(v.at).toISOString());
+                const pos = v.isLocal ? (v.time || 0) : (videoHistory[v.id] || 0);
+                const parou = pos > 5 ? ` <span class="video-dot">•</span> parou em ${secondsToClock(pos)}` : '';
+                const el = document.createElement('div'); el.className = 'video-item';
+                el.innerHTML =
+                    `<div class="video-thumb-wrapper"><img src="${escapeHtml(v.thumb || '')}" class="video-thumb"></div>`
+                  + `<div class="video-info"><div class="video-title">${escapeHtml(decodeHtmlEntities(v.title || ''))}</div>`
+                  + `<div class="video-channel">${v.isLocal ? 'Arquivo local' : 'YouTube'}`
+                  + `${quando ? ` <span class="video-dot">•</span> ${escapeHtml(quando)}` : ''}${parou}</div></div>`
+                  + `<button class="btn-del-fav" onclick="removeFromHistory(event,${i})">🗑️</button>`;
+                el.onclick = (e) => {
+                    if(e.target.classList.contains('btn-del-fav')) return;
+                    if(v.isLocal) loadLocalFavorite(v);
+                    else loadYouTube(v.id, v.title, v.thumb);
+                };
+                lista.appendChild(el);
+            });
+        }
+
+        function removeFromHistory(e, i) {
+            e.stopPropagation();
+            watchHistory.splice(i, 1);
+            try { localStorage.setItem('ejoy_watch_history', JSON.stringify(watchHistory)); } catch(err) {}
+            renderHistory();
+        }
+
+        function clearHistory() {
+            if(!watchHistory.length) { alert('O histórico já está vazio.'); return; }
+            if(!confirm('Apagar todo o histórico de vídeos?')) return;
+            watchHistory = [];
+            try { localStorage.removeItem('ejoy_watch_history'); } catch(e) {}
+            renderHistory();
+        }
+
+        function applyHistoryVisibility() {
+            document.body.classList.toggle('history-hidden', HISTORY_HIDDEN);
+            const b = document.getElementById('btn-toggle-history');
+            if(b) {
+                b.textContent = HISTORY_HIDDEN ? '👁️' : '🙈';
+                b.title = HISTORY_HIDDEN ? 'Mostrar histórico' : 'Ocultar histórico';
+            }
+            const c = document.getElementById('btn-clear-history');
+            if(c) c.style.display = HISTORY_HIDDEN ? 'none' : '';
+        }
+        function toggleHistory() {
+            HISTORY_HIDDEN = !HISTORY_HIDDEN;
+            localStorage.setItem('ejoy_history_hidden', HISTORY_HIDDEN ? '1' : '0');
+            applyHistoryVisibility();
+        }
+
         // ===================== FAVORITOS =====================
         function renderFavorites() {
             favoritesList.innerHTML = "";
@@ -1352,6 +1461,8 @@
             unlockBtn.style.display = 'block'; unlockBtn.innerText = "⚙️ YouTube"; ytControlsLocked = true;
             currentPlayingYT = { id: vid, title: title || "Vídeo", thumb: thumb || "" };
             btnFavCurrent.style.display = 'flex';
+            addToHistory({ id: vid, title: title || "Vídeo",
+                           thumb: thumb || `https://i.ytimg.com/vi/${vid}/mqdefault.jpg` });
             resetSubtitlePosition();
             collapsePanel(); // abre já no modo foco: vídeo + legenda
             localStorage.setItem('ejoy_ytUrl', `https://www.youtube.com/watch?v=${vid}`);
@@ -1457,6 +1568,8 @@
             currentLocalFileName = f.name;
             localStorage.setItem('ejoy_vidName', f.name); localStorage.setItem('ejoy_mode', 'local');
             currentPlayingYT = null;
+            addToHistory({ id: 'local_' + f.name, title: f.name, isLocal: true,
+                           thumb: 'https://img.icons8.com/color/160/000000/video-file.png' });
             resetSubtitlePosition();
             collapsePanel(); // abre já no modo foco: vídeo + legenda
             autoFetchToken++;
@@ -2260,6 +2373,8 @@
             applyYtControlsLabel();
             setupFloatBtn();
             applyFloatBtn();
+            applyHistoryVisibility();
+            renderHistory();
             renderFavorites();
             updateVocabCount();
             document.getElementById('api-key-input').value = YOUTUBE_API_KEY;

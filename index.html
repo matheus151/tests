@@ -2035,43 +2035,85 @@
         }
 
         // ---------- 2) GOOGLE TRADUTOR (reserva, sem chave) ----------
+        // Compara ignorando maiúsculas, acentos de pontuação e espaços. Serve para
+        // detectar quando o "tradutor" simplesmente devolveu o texto de entrada.
+        function mesmoTexto(a, b) {
+            const n = s => String(s || '').toLowerCase().replace(/[^a-z0-9À-ſ]+/gi, '');
+            const na = n(a);
+            return na.length > 0 && na === n(b);
+        }
+
+        async function provedorGoogleGtx(clean, wantDict) {
+            let u = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt-BR&dt=t`;
+            if(wantDict) u += '&dt=bd';
+            u += `&q=${encodeURIComponent(clean)}`;
+            const r = await fetch(u);
+            if(!r.ok) return null;
+            const d = await r.json();
+            if(!d || !d[0]) return null;
+            const out = d[0].map(x => x && x[0]).filter(Boolean).join('');
+            if(!out) return null;
+            let dict = null;
+            if(wantDict && d[1]) {
+                dict = d[1].map(e => ({ pos: e[0], terms: (e[1]||[]).slice(0,6) })).filter(e => e.terms.length);
+                if(!dict.length) dict = null;
+            }
+            return { text: out, dict };
+        }
+
+        // Segundo endpoint do Google: pega quando o primeiro falha ou devolve o inglês
+        async function provedorGoogleAlt(clean) {
+            const u = `https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=en&tl=pt-BR&q=${encodeURIComponent(clean)}`;
+            const r = await fetch(u);
+            if(!r.ok) return null;
+            const d = await r.json();
+            // Formatos possíveis: ["texto"] ou [["texto"]]
+            let out = '';
+            if(Array.isArray(d)) out = Array.isArray(d[0]) ? String(d[0][0] || '') : String(d[0] || '');
+            else if(typeof d === 'string') out = d;
+            return out ? { text: out, dict: null } : null;
+        }
+
+        async function provedorMyMemory(clean) {
+            const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=en|pt-BR`);
+            const d = await r.json();
+            const txt = d && d.responseData && d.responseData.translatedText;
+            if(!txt) return null;
+            // Sem cota, a API devolve o aviso DENTRO do campo de tradução
+            if(d.responseStatus && Number(d.responseStatus) !== 200) return null;
+            if(/MYMEMORY WARNING|QUERY LENGTH LIMIT|USED ALL AVAILABLE/i.test(txt)) return null;
+            return { text: txt, dict: null };
+        }
+
         async function translateEngine(text, wantDict) {
             const clean = (text || '').trim();
             if(!clean) return { text:'', dict:null };
-            const key = (wantDict ? 'd:' : 't:') + clean.toLowerCase();
+            // Prefixo novo de cache: ignora resultados ruins gravados antes desta correção
+            const key = (wantDict ? 'd2:' : 't2:') + clean.toLowerCase();
             if(transCache[key]) return transCache[key];
-            try {
-                let u = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt-BR&dt=t`;
-                if(wantDict) u += '&dt=bd';
-                u += `&q=${encodeURIComponent(clean)}`;
-                const r = await fetch(u);
-                if(r.ok) {
-                    const d = await r.json();
-                    if(d && d[0]) {
-                        const out = d[0].map(x => x && x[0]).filter(Boolean).join('');
-                        if(out) {
-                            let dict = null;
-                            if(wantDict && d[1]) {
-                                dict = d[1].map(e => ({ pos: e[0], terms: (e[1]||[]).slice(0,6) })).filter(e => e.terms.length);
-                                if(!dict.length) dict = null;
-                            }
-                            const res = { text: out, dict, engine: 'google' };
-                            cacheSet(key, res);
-                            return res;
-                        }
-                    }
+
+            const provedores = [
+                () => provedorGoogleGtx(clean, wantDict),
+                () => provedorGoogleAlt(clean),
+                () => provedorMyMemory(clean),
+            ];
+
+            let reserva = null;  // veio resposta, mas idêntica à entrada
+            for(const provedor of provedores) {
+                let res = null;
+                try { res = await provedor(); } catch(e) { /* tenta o próximo */ }
+                if(!res || !res.text) continue;
+                if(!mesmoTexto(res.text, clean)) {
+                    const ok = { text: res.text, dict: res.dict || null, engine: 'google' };
+                    cacheSet(key, ok);   // só grava tradução de verdade
+                    return ok;
                 }
-            } catch(e) {}
-            try {
-                const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=en|pt-BR`);
-                const d = await r.json();
-                if(d && d.responseData && d.responseData.translatedText) {
-                    const res = { text: d.responseData.translatedText, dict: null, engine: 'google' };
-                    cacheSet(key, res);
-                    return res;
-                }
-            } catch(e) {}
-            return null;
+                if(!reserva) reserva = { text: res.text, dict: res.dict || null, engine: 'google', naoTraduzido: true };
+            }
+            // Nenhum provedor mudou o texto. Devolve sem gravar em cache: pode ser
+            // palavra igual nos dois idiomas, ou falha passageira que deve poder
+            // ser tentada de novo (era isso que fazia o inglês "grudar").
+            return reserva;
         }
 
         // Sinônimos em inglês pelo Google (usado quando não há chave de IA)
@@ -2132,7 +2174,9 @@
                 const ia = CLAUDE_API_KEY
                     ? await callClaude(frag, sentenceText)
                     : await callGemini(frag, sentenceText);
-                if(ia) { cacheSet(ck, ia); return ia; }
+                // Se a IA devolveu o próprio inglês, não aceita nem grava:
+                // segue para o Google logo abaixo.
+                if(ia && ia.text && !mesmoTexto(ia.text, frag)) { cacheSet(ck, ia); return ia; }
             }
 
             // 2) Google com marcadores: recupera o trecho e a frase com o destaque no lugar
@@ -2144,7 +2188,9 @@
                         const m = res.text.match(MARK_RE);
                         if(m) {
                             const part = m[1].trim().replace(/^[,;:]\s+/, '');
-                            if(part.length >= 2) {
+                            // Se o trecho marcado voltou em inglês, não serve:
+                            // cai para a tradução direta logo abaixo.
+                            if(part.length >= 2 && !mesmoTexto(part, frag)) {
                                 // Remove os marcadores para obter a frase traduzida limpa
                                 const sentenceOut = res.text.replace(/\[\[|\]\]/g, '').trim();
                                 return {
@@ -2166,7 +2212,10 @@
                 text: direct.text, literal: null, nota: null,
                 sentence: null, sentencePart: null,
                 synonyms: null, dict: direct.dict || null,
-                contextual: false, engine: 'google'
+                contextual: false, engine: 'google',
+                // Repassa o aviso de "voltou igual à entrada" — sem isso o card
+                // mostraria o inglês achando que era tradução
+                naoTraduzido: !!direct.naoTraduzido
             };
         }
 
@@ -2204,6 +2253,20 @@
         function closeTransCard() {
             transCard.style.display = 'none';
             sheetBackdrop.style.display = 'none';
+        }
+
+        // Mostra falha de forma explícita, em vez de exibir o inglês como se
+        // fosse tradução. Toque no aviso tenta de novo.
+        function mostrarFalhaDeTraducao(src, dsp, opts) {
+            engineBadge.textContent = 'Falhou';
+            engineBadge.classList.remove('ia');
+            transRes.textContent = '⚠️ Não consegui traduzir agora — toque aqui para tentar de novo.';
+            transRes.style.cursor = 'pointer';
+            transRes.onclick = () => {
+                transRes.onclick = null;
+                transRes.style.cursor = '';
+                translateText(src, dsp, opts);   // sem cache do erro, refaz a chamada
+            };
         }
 
         // Coloca o card logo abaixo do vídeo, para não obrigar a olhar lá embaixo.
@@ -2260,11 +2323,18 @@
 
             const main = await translateInContext(src, sentence, currentCueIndex);
             if(!main) {
-                transRes.textContent = "Erro na rede.";
-                engineBadge.textContent = 'Falhou';
+                mostrarFalhaDeTraducao(src, dsp, opts);
+                return;
+            }
+            // Nenhum tradutor mudou o texto: era isso que aparecia como "tradução"
+            // em inglês. Numa frase de várias palavras isso é falha, não coincidência.
+            if(main.naoTraduzido && src.trim().split(/\s+/).length > 1) {
+                mostrarFalhaDeTraducao(src, dsp, opts);
                 return;
             }
             transRes.textContent = main.text;
+            transRes.onclick = null;
+            transRes.style.cursor = '';
 
             if(main.engine === 'claude')   { engineBadge.textContent = '✨ Claude + contexto'; engineBadge.classList.add('ia'); }
             else if(main.engine === 'ia')  { engineBadge.textContent = '✨ IA + contexto'; engineBadge.classList.add('ia'); }

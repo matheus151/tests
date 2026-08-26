@@ -363,7 +363,11 @@
         #phrase-orig { font-weight: 700; color: var(--card-dim); margin-bottom: 6px; line-height: 1.25; }
         #phrase-trans { font-weight: 800; color: var(--card-text); line-height: 1.3; margin-bottom: 12px; }
 
-        #ia-note, #dict-block, #syn-block, #context-block {
+        #idiom-content { font-size: 0.84rem; color: var(--card-text); line-height: 1.55; }
+        #idiom-content .exp { font-weight: 800; color: #8a5a00; }
+        #idiom-block { background: #fff8e1 !important; border-color: #f0d98a !important; }
+
+        #ia-note, #dict-block, #idiom-block, #syn-block, #context-block {
             display: none; text-align: left; margin: 0 0 12px 0; padding: 10px 11px;
             background: var(--card-sub); border: 1px solid var(--card-border); border-radius: 9px;
         }
@@ -693,6 +697,11 @@
         <div id="ia-note">
             <div class="extra-label">💡 Sobre a expressão</div>
             <div id="ia-note-text"></div>
+        </div>
+
+        <div id="idiom-block">
+            <div class="extra-label">🗣️ Gíria / expressão nesta fala</div>
+            <div id="idiom-content"></div>
         </div>
 
         <div id="dict-block">
@@ -1276,14 +1285,14 @@
             try {
                 let u = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`;
                 if(nextPageToken) u += `&pageToken=${nextPageToken}`;
-                const res = await fetch(u); const d = await res.json(); loader.remove();
+                const res = await fetchComTempo(u, null, 12000); const d = await res.json(); loader.remove();
                 if(d.error) { alert(d.error.message); return; }
                 nextPageToken = d.nextPageToken || "";
                 const videoIds = d.items.map(item => item.id.videoId).join(',');
                 let videosData = {}, videosSegundos = {};
                 if(videoIds) {
                     const du = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${YOUTUBE_API_KEY}`;
-                    const rd = await fetch(du); const dd = await rd.json();
+                    const rd = await fetchComTempo(du, null, 12000); const dd = await rd.json();
                     if(!dd.error) dd.items.forEach(v => {
                         videosData[v.id] = parseDuration(v.contentDetails.duration);
                         videosSegundos[v.id] = durationToSeconds(v.contentDetails.duration);
@@ -1413,7 +1422,7 @@
             setStatus('⏳ Buscando legenda automática...', 'info');
             try {
                 const url = `https://api.supadata.ai/v1/transcript?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + vid)}&lang=en`;
-                const res = await fetch(url, { headers: { 'x-api-key': SUPADATA_API_KEY } });
+                const res = await fetchComTempo(url, { headers: { 'x-api-key': SUPADATA_API_KEY } }, 20000);
                 const data = await res.json();
                 if(myToken !== autoFetchToken) return;
 
@@ -1926,7 +1935,7 @@
         // Claude: a mais precisa. Requer chave da API (a assinatura Pro não dá acesso à API).
         async function callClaude(fragment, sentence) {
             try {
-                const r = await fetch('https://api.anthropic.com/v1/messages', {
+                const r = await fetchComTempo('https://api.anthropic.com/v1/messages', {
                     method: 'POST',
                     headers: {
                         'content-type': 'application/json',
@@ -2006,7 +2015,7 @@
             const order = [geminiModel, ...GEMINI_MODELS.filter(m => m !== geminiModel)];
             for(const model of order) {
                 try {
-                    const r = await fetch(
+                    const r = await fetchComTempo(
                         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
                         { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }
                     );
@@ -2037,6 +2046,256 @@
             return null;
         }
 
+        // ===================== GÍRIAS E EXPRESSÕES (offline) =====================
+        // Tradutor automático erra expressão idiomática por natureza: ele converte
+        // palavras sem entender a intenção. Esta lista roda no próprio aparelho,
+        // sem chave e sem internet, e cobre o que mais aparece em fala do dia a dia.
+        // O "*" representa o objeto no meio do phrasal verb (ex.: "pull it off").
+        const EXPRESSOES = {
+            "hit me": "me dei conta, caiu a ficha",
+            "it hits me": "me dou conta",
+            "pull * off": "conseguir, dar conta (de algo difícil)",
+            "make * case": "apresentar o argumento, defender a ideia com razões",
+            "figure * out": "descobrir, sacar como funciona",
+            "work * out": "dar certo; resolver",
+            "come up with": "bolar, inventar, ter a ideia de",
+            "come across": "topar com, encontrar por acaso; passar a impressão de",
+            "get away with": "escapar impune de",
+            "get over": "superar, virar a página",
+            "get rid of": "se livrar de",
+            "get the hang of": "pegar o jeito de",
+            "look into": "investigar, dar uma olhada a fundo",
+            "look forward to": "estar ansioso por, mal poder esperar",
+            "run out of": "ficar sem",
+            "wrap * up": "encerrar, finalizar",
+            "bring * up": "trazer à tona, mencionar",
+            "point out": "apontar, chamar atenção para",
+            "turn * down": "recusar, rejeitar",
+            "turn out": "acabar sendo, revelar-se",
+            "set * off": "irritar, tirar do sério; desencadear",
+            "make * stick": "fazer pegar, fazer durar",
+            "in the first place": "para começo de conversa, antes de mais nada",
+            "no matter what": "custe o que custar, aconteça o que acontecer",
+            "give up": "desistir",
+            "show up": "aparecer, dar as caras",
+            "end up": "acabar (fazendo/sendo)",
+            "hang out": "sair, passar um tempo junto",
+            "hold on": "espera aí; aguenta firme",
+            "check * out": "dar uma conferida, dar uma olhada",
+            "keep up with": "acompanhar o ritmo de",
+            "catch up": "colocar o papo em dia; recuperar o atraso",
+            "back * up": "apoiar; fazer cópia de segurança",
+            "break down": "quebrar; desabar; detalhar",
+            "call * off": "cancelar",
+            "carry on": "seguir em frente, continuar",
+            "cheer up": "animar-se",
+            "count on": "contar com",
+            "deal with": "lidar com",
+            "drop by": "dar uma passada",
+            "fall apart": "desmoronar, cair aos pedaços",
+            "fill * in": "preencher; colocar a par",
+            "find out": "descobrir, ficar sabendo",
+            "go through": "passar por (uma experiência)",
+            "grow up": "crescer, amadurecer",
+            "hang in there": "aguenta firme",
+            "keep an eye on": "ficar de olho em",
+            "let * down": "decepcionar",
+            "look after": "cuidar de",
+            "look up to": "admirar, ter como exemplo",
+            "make up for": "compensar",
+            "make sense": "fazer sentido",
+            "mess up": "estragar, fazer besteira",
+            "move on": "seguir em frente",
+            "pick up": "pegar; aprender por osmose; melhorar",
+            "put up with": "aturar, suportar",
+            "reach out": "entrar em contato, procurar alguém",
+            "rule out": "descartar",
+            "sort * out": "resolver, organizar",
+            "stand out": "se destacar",
+            "stick to": "seguir à risca, não abandonar",
+            "take care of": "cuidar de, dar conta de",
+            "take off": "decolar; deslanchar; tirar (roupa)",
+            "take over": "assumir o controle",
+            "throw * away": "jogar fora",
+            "watch out": "cuidado, presta atenção",
+            "work on": "trabalhar em, se dedicar a",
+            "a big deal": "grande coisa, algo importante",
+            "no big deal": "não é nada demais",
+            "a piece of cake": "moleza, muito fácil",
+            "out of the blue": "do nada, sem mais nem menos",
+            "on the same page": "alinhados, pensando igual",
+            "the bottom line": "o que importa no fim das contas",
+            "at the end of the day": "no fim das contas",
+            "keep in mind": "ter em mente",
+            "make up your mind": "se decidir",
+            "change your mind": "mudar de ideia",
+            "on purpose": "de propósito",
+            "by the way": "a propósito, aliás",
+            "as far as I know": "que eu saiba",
+            "to be honest": "para ser sincero",
+            "kind of": "meio que, mais ou menos",
+            "sort of": "meio que, mais ou menos",
+            "a bunch of": "um monte de",
+            "a couple of": "uns dois, alguns",
+            "hang on a second": "espera um segundo",
+            "you know what I mean": "entende o que eu quero dizer",
+            "long story short": "resumindo",
+            "for the most part": "na maior parte, em geral",
+            "more or less": "mais ou menos",
+            "right off the bat": "de cara, logo de início",
+            "up to you": "você que sabe, é sua escolha",
+            "up to date": "atualizado, em dia",
+            "big time": "pra valer, muito",
+            "no way": "de jeito nenhum",
+            "for real": "sério mesmo",
+            "hands down": "disparado, sem discussão",
+            "over the top": "exagerado",
+            "way too": "exageradamente, muito além do necessário",
+            "pretty much": "praticamente",
+            "no wonder": "não é à toa",
+            "makes my day": "alegra o meu dia",
+            "get it": "entender, sacar",
+            "got it": "entendi, saquei",
+            "hit the road": "cair na estrada, ir embora",
+            "hit the books": "estudar com afinco",
+            "call it a day": "encerrar por hoje",
+            "cut to the chase": "ir direto ao ponto",
+            "get to the point": "ir direto ao ponto",
+            "beat around the bush": "enrolar, fazer rodeios",
+            "a heads up": "um aviso prévio",
+            "keep it up": "continue assim",
+            "hang tight": "aguarde firme",
+            "take it easy": "vai com calma",
+            "take your time": "sem pressa",
+            "on the fly": "na hora, improvisando",
+            "off the top of my head": "de cabeça, sem consultar",
+            "in a nutshell": "em poucas palavras",
+            "the whole point": "a razão de ser, o objetivo todo",
+            "no strings attached": "sem compromisso, sem letras miúdas",
+            "under the weather": "adoentado, meio mal",
+            "on the fence": "em cima do muro, indeciso",
+            "second guess": "ficar duvidando da própria decisão",
+            "worth it": "valer a pena",
+            "not worth it": "não vale a pena",
+            "a rip off": "roubo (caro demais)",
+            "dirt cheap": "baratíssimo",
+            "break the bank": "pesar no bolso, custar caro demais",
+            "save up": "juntar dinheiro",
+            "run late": "estar atrasado",
+            "keep track of": "acompanhar, manter o controle de",
+            "lose track of": "perder a conta, perder de vista",
+            "come in handy": "vir a calhar, ser útil",
+            "back and forth": "de um lado para o outro, indo e voltando",
+            "up and running": "no ar, funcionando",
+            "from scratch": "do zero",
+            "on hold": "em espera, parado",
+            "sooner or later": "mais cedo ou mais tarde",
+            "once in a while": "de vez em quando",
+            "every now and then": "de vez em quando",
+            "all of a sudden": "de repente",
+            "at some point": "em algum momento",
+            "in the long run": "a longo prazo",
+            "the other way around": "ao contrário, o inverso",
+            "either way": "de qualquer forma",
+            "let alone": "muito menos, quanto mais",
+            "on top of that": "além disso, ainda por cima",
+            "as a matter of fact": "na verdade, aliás",
+            "come to think of it": "pensando bem",
+            "have a point": "ter razão nisso",
+            "miss the point": "não entender a essência",
+            "make it": "conseguir chegar; dar conta",
+            "blow up": "explodir; estourar (viralizar)",
+            "freak out": "surtar, pirar",
+            "chill out": "relaxar",
+            "screw up": "vacilar, estragar tudo",
+            "hang up": "desligar (telefone)",
+            "shut up": "calar a boca",
+            "stick around": "ficar por perto",
+            "settle down": "se acalmar; se estabelecer",
+            "speak up": "falar mais alto; se manifestar",
+            "stand up for": "defender, tomar partido de",
+            "run into": "esbarrar com, topar com",
+            "look out": "cuidado",
+            "go ahead": "pode ir, manda ver",
+            "go for it": "vai fundo",
+            "hold off": "segurar, adiar",
+            "put off": "adiar",
+            "set up": "montar, configurar",
+            "show off": "se exibir",
+            "sign up": "se inscrever",
+            "try out": "experimentar, testar",
+            "warm up": "aquecer, se preparar",
+            "wear out": "desgastar, cansar",
+            "work around": "contornar (um problema)",
+
+            // Formas no passado dos verbos acima — a fala real quase sempre usa
+            // "made that case", "ran out of", "came up with" e não o infinitivo
+            "made * case": "apresentou o argumento, defendeu a ideia com razões",
+            "pulled * off": "conseguiu, deu conta (de algo difícil)",
+            "figured * out": "descobriu, sacou como funciona",
+            "worked * out": "deu certo; resolveu",
+            "came up with": "bolou, inventou, teve a ideia de",
+            "came across": "topou com, encontrou por acaso",
+            "got away with": "escapou impune de",
+            "got over": "superou, virou a página",
+            "got rid of": "se livrou de",
+            "looked into": "investigou, olhou a fundo",
+            "ran out of": "ficou sem",
+            "wrapped * up": "encerrou, finalizou",
+            "brought * up": "trouxe à tona, mencionou",
+            "pointed out": "apontou, chamou atenção para",
+            "turned * down": "recusou, rejeitou",
+            "turned out": "acabou sendo, revelou-se",
+            "gave up": "desistiu",
+            "showed up": "apareceu, deu as caras",
+            "ended up": "acabou (fazendo/sendo)",
+            "went through": "passou por (uma experiência)",
+            "took over": "assumiu o controle",
+            "took off": "decolou; deslanchou",
+            "blew up": "explodiu; estourou (viralizou)",
+            "freaked out": "surtou, pirou",
+            "messed up": "estragou, fez besteira",
+            "screwed up": "vacilou, estragou tudo",
+            "found out": "descobriu, ficou sabendo",
+            "made sense": "fez sentido",
+            "made it": "conseguiu chegar; deu conta",
+            "held off": "segurou, adiou",
+            "put off": "adiou",
+            "ran into": "esbarrou com, topou com",
+            "stood out": "se destacou",
+            "set up": "montou, configurou"
+        };
+
+        let _expCompiladas = null;
+        function acharExpressoes(texto) {
+            const t = String(texto || '');
+            if(!t.trim()) return [];
+            if(!_expCompiladas) {
+                const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+                _expCompiladas = Object.keys(EXPRESSOES).map(chave => ({
+                    chave,
+                    // "*" vira um espaço para 1 ou 2 palavras (o objeto do phrasal verb)
+                    re: new RegExp('\\b' + chave.split('*').map(p => esc(p.trim()))
+                            .join('\\s+\\S+(?:\\s+\\S+)?\\s+') + '\\b', 'i')
+                }));
+            }
+            const achadas = [];
+            for(const e of _expCompiladas) {
+                if(e.re.test(t)) achadas.push({ exp: e.chave.replace(/\s*\*\s*/g, ' … '), sig: EXPRESSOES[e.chave] });
+                if(achadas.length >= 4) break;
+            }
+            return achadas;
+        }
+
+        // Requisição com tempo limite. Sem isso, uma conexão travada deixava o card
+        // preso em "Traduzindo..." para sempre, sem tentar o próximo tradutor.
+        function fetchComTempo(url, opts, ms) {
+            const ctrl = new AbortController();
+            const id = setTimeout(() => ctrl.abort(), ms || 9000);
+            return fetch(url, Object.assign({}, opts || {}, { signal: ctrl.signal }))
+                .finally(() => clearTimeout(id));
+        }
+
         // ---------- 2) GOOGLE TRADUTOR (reserva, sem chave) ----------
         // Compara ignorando maiúsculas, acentos de pontuação e espaços. Serve para
         // detectar quando o "tradutor" simplesmente devolveu o texto de entrada.
@@ -2050,7 +2309,7 @@
             let u = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt-BR&dt=t`;
             if(wantDict) u += '&dt=bd';
             u += `&q=${encodeURIComponent(clean)}`;
-            const r = await fetch(u);
+            const r = await fetchComTempo(u);
             if(!r.ok) return null;
             const d = await r.json();
             if(!d || !d[0]) return null;
@@ -2067,7 +2326,7 @@
         // Segundo endpoint do Google: pega quando o primeiro falha ou devolve o inglês
         async function provedorGoogleAlt(clean) {
             const u = `https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=en&tl=pt-BR&q=${encodeURIComponent(clean)}`;
-            const r = await fetch(u);
+            const r = await fetchComTempo(u);
             if(!r.ok) return null;
             const d = await r.json();
             // Formatos possíveis: ["texto"] ou [["texto"]]
@@ -2078,7 +2337,7 @@
         }
 
         async function provedorMyMemory(clean) {
-            const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=en|pt-BR`);
+            const r = await fetchComTempo(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=en|pt-BR`);
             const d = await r.json();
             const txt = d && d.responseData && d.responseData.translatedText;
             if(!txt) return null;
@@ -2127,7 +2386,7 @@
             if(transCache[key]) return transCache[key];
             try {
                 const u = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt-BR&dt=t&dt=ss&q=${encodeURIComponent(clean)}`;
-                const r = await fetch(u);
+                const r = await fetchComTempo(u);
                 if(!r.ok) return null;
                 const d = await r.json();
                 if(!d || !d[11]) return null;
@@ -2310,9 +2569,11 @@
             const ctxOrig = document.getElementById('ctx-orig');
             const ctxTrans = document.getElementById('ctx-trans');
             const synBlock = document.getElementById('syn-block');
+            const idiomBlock = document.getElementById('idiom-block');
             const literalLine = document.getElementById('literal-line');
             iaNote.style.display = 'none'; dictBlock.style.display = 'none';
             ctxBlock.style.display = 'none'; synBlock.style.display = 'none';
+            idiomBlock.style.display = 'none';
             literalLine.style.display = 'none';
             ctxOrig.innerHTML = ''; ctxTrans.innerHTML = '';
             engineBadge.textContent = 'Traduzindo...'; engineBadge.classList.remove('ia');
@@ -2325,7 +2586,11 @@
             const hasContext = !!(sentence && sentence.merged > 1
                                   && sentence.text.toLowerCase() !== src.trim().toLowerCase());
 
-            const main = await translateInContext(src, sentence, currentCueIndex);
+            // Qualquer erro inesperado vira falha visível — nunca deixa o card
+            // preso em "Traduzindo..."
+            let main = null;
+            try { main = await translateInContext(src, sentence, currentCueIndex); }
+            catch(e) { main = null; }
             if(!main) {
                 mostrarFalhaDeTraducao(src, dsp, opts);
                 return;
@@ -2339,6 +2604,18 @@
             transRes.textContent = main.text;
             transRes.onclick = null;
             transRes.style.cursor = '';
+
+            // Gírias e expressões: roda offline, sem chave, e pega justamente o
+            // que o tradutor automático converte ao pé da letra
+            const expressoes = acharExpressoes(
+                (sentence && sentence.text) ? sentence.text : (opts.cueText || src)
+            );
+            if(expressoes.length) {
+                document.getElementById('idiom-content').innerHTML = expressoes
+                    .map(e => `<div><span class="exp">${escapeHtml(e.exp)}</span> — ${escapeHtml(e.sig)}</div>`)
+                    .join('');
+                idiomBlock.style.display = 'block';
+            }
 
             if(main.engine === 'claude')   { engineBadge.textContent = '✨ Claude + contexto'; engineBadge.classList.add('ia'); }
             else if(main.engine === 'ia')  { engineBadge.textContent = '✨ IA + contexto'; engineBadge.classList.add('ia'); }

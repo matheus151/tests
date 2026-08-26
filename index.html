@@ -1051,21 +1051,24 @@
                 if(playerType === 'youtube' && currentPlayingYT) fetchAutoSubtitles(currentPlayingYT.id, {silent:true});
             }
         }
+        // Campo vazio + Salvar = remove a chave (era impossível desfazer antes)
         function saveGeminiKey() {
             const k = document.getElementById('gemini-key-input').value.trim();
-            if(k){
-                GEMINI_API_KEY = k; localStorage.setItem('ejoy_gemini_key', k);
-                clearTransCache();
-                alert("Chave do Gemini salva!");
-            }
+            GEMINI_API_KEY = k;
+            if(k) localStorage.setItem('ejoy_gemini_key', k);
+            else   localStorage.removeItem('ejoy_gemini_key');
+            clearTransCache();
+            alert(k ? "Chave do Gemini salva! As traduções agora usam IA com contexto."
+                    : "Chave do Gemini removida.");
         }
         function saveClaudeKey() {
             const k = document.getElementById('claude-key-input').value.trim();
-            if(k){
-                CLAUDE_API_KEY = k; localStorage.setItem('ejoy_claude_key', k);
-                clearTransCache();
-                alert("Chave do Claude salva! As traduções agora usam IA com contexto.");
-            }
+            CLAUDE_API_KEY = k;
+            if(k) localStorage.setItem('ejoy_claude_key', k);
+            else   localStorage.removeItem('ejoy_claude_key');
+            clearTransCache();
+            alert(k ? "Chave do Claude salva! As traduções agora usam IA com contexto."
+                    : "Chave do Claude removida." + (GEMINI_API_KEY ? " O Gemini assume como tradutor." : ""));
         }
         // Troca de motor invalida o cache: as traduções antigas vieram de outro motor
         function clearTransCache() {
@@ -2168,15 +2171,16 @@
 
             // 1) IA — entende o contexto de verdade
             if(CLAUDE_API_KEY || GEMINI_API_KEY) {
-                const engineTag = CLAUDE_API_KEY ? 'cl:' : 'ia:';
-                const ck = engineTag + frag.toLowerCase() + '||' + sentenceText.toLowerCase();
+                const ck = 'ia2:' + frag.toLowerCase() + '||' + sentenceText.toLowerCase();
                 if(transCache[ck]) return transCache[ck];
-                const ia = CLAUDE_API_KEY
-                    ? await callClaude(frag, sentenceText)
-                    : await callGemini(frag, sentenceText);
-                // Se a IA devolveu o próprio inglês, não aceita nem grava:
-                // segue para o Google logo abaixo.
-                if(ia && ia.text && !mesmoTexto(ia.text, frag)) { cacheSet(ck, ia); return ia; }
+                const serve = r => !!(r && r.text && !mesmoTexto(r.text, frag));
+
+                // Claude primeiro quando há chave; se ele falhar (sem crédito,
+                // chave inválida, rede), tenta o Gemini antes de cair no Google.
+                let ia = null;
+                if(CLAUDE_API_KEY) ia = await callClaude(frag, sentenceText);
+                if(!serve(ia) && GEMINI_API_KEY) ia = await callGemini(frag, sentenceText);
+                if(serve(ia)) { cacheSet(ck, ia); return ia; }
             }
 
             // 2) Google com marcadores: recupera o trecho e a frase com o destaque no lugar

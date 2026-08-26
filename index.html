@@ -363,11 +363,7 @@
         #phrase-orig { font-weight: 700; color: var(--card-dim); margin-bottom: 6px; line-height: 1.25; }
         #phrase-trans { font-weight: 800; color: var(--card-text); line-height: 1.3; margin-bottom: 12px; }
 
-        #idiom-content { font-size: 0.84rem; color: var(--card-text); line-height: 1.55; }
-        #idiom-content .exp { font-weight: 800; color: #8a5a00; }
-        #idiom-block { background: #fff8e1 !important; border-color: #f0d98a !important; }
-
-        #ia-note, #dict-block, #idiom-block, #syn-block, #context-block {
+        #ia-note, #dict-block, #syn-block, #context-block {
             display: none; text-align: left; margin: 0 0 12px 0; padding: 10px 11px;
             background: var(--card-sub); border: 1px solid var(--card-border); border-radius: 9px;
         }
@@ -598,27 +594,26 @@
                 <div class="hint" id="vocab-count"></div>
             </div>
 
-            <div class="section-title">Tradução por IA (recomendado)</div>
+            <div class="section-title">Mecanismo de tradução</div>
             <div class="card">
-                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave da API do Claude — tradução mais precisa</label>
+                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Tradutor padrão</label>
+                <select id="motor-select" class="modern-input" style="width:100%; margin-top:6px" onchange="saveMotor()">
+                    <option value="google">Google Tradutor</option>
+                    <option value="google2">Google — servidor alternativo</option>
+                    <option value="mymemory">MyMemory</option>
+                    <option value="ia">Claude (IA) — entende contexto e gíria</option>
+                </select>
+                <div class="hint" id="motor-hint"></div>
+            </div>
+
+            <div class="card" id="card-chave-ia">
+                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave da API do Claude (só para a opção IA)</label>
                 <input type="text" id="claude-key-input" class="modern-input" style="width:100%; margin-top:6px" placeholder="sk-ant-...">
                 <button class="btn btn-primary btn-wide" style="margin-top:8px" onclick="saveClaudeKey()">Salvar chave do Claude</button>
                 <div class="hint">
                     ⚠️ <b>A assinatura Claude Pro não inclui a API</b> — são cobranças separadas.
-                    Crie uma chave e adicione créditos em <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.
-                    Cada tradução custa uma fração de centavo.
-                </div>
-            </div>
-
-            <div class="section-title">Tradução por IA (alternativa)</div>
-            <div class="card">
-                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave do Google Gemini — camada gratuita</label>
-                <input type="text" id="gemini-key-input" class="modern-input" style="width:100%; margin-top:6px" placeholder="Cole sua chave do Gemini aqui">
-                <button class="btn btn-soft btn-wide" style="margin-top:8px" onclick="saveGeminiKey()">Salvar chave do Gemini</button>
-                <div class="hint">
-                    Usada só se não houver chave do Claude. Gratuita em
-                    <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>.
-                    Sem nenhuma das duas, a tradução cai no Google Tradutor (erra expressões idiomáticas).
+                    Crie a chave e adicione créditos em <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.
+                    Cada tradução custa uma fração de centavo. Deixe o campo vazio e salve para remover.
                 </div>
             </div>
 
@@ -699,11 +694,6 @@
             <div id="ia-note-text"></div>
         </div>
 
-        <div id="idiom-block">
-            <div class="extra-label">🗣️ Gíria / expressão nesta fala</div>
-            <div id="idiom-content"></div>
-        </div>
-
         <div id="dict-block">
             <div class="extra-label">📖 Outros significados</div>
             <div id="dict-content"></div>
@@ -741,8 +731,12 @@
 
         let YOUTUBE_API_KEY   = localStorage.getItem('ejoy_api_key') || "";
         let SUPADATA_API_KEY  = (localStorage.getItem('ejoy_supadata_key') || "").trim();
-        let GEMINI_API_KEY    = (localStorage.getItem('ejoy_gemini_key') || "").trim();
         let CLAUDE_API_KEY    = (localStorage.getItem('ejoy_claude_key') || "").trim();
+        // Mecanismo de tradução padrão. Só entram aqui os que funcionam de dentro
+        // do navegador — Bing e DeepL bloqueiam requisições do browser (CORS).
+        const MOTORES = ['google', 'google2', 'mymemory', 'ia'];
+        let MOTOR_PADRAO = localStorage.getItem('ejoy_motor') || 'google';
+        if(MOTORES.indexOf(MOTOR_PADRAO) < 0) MOTOR_PADRAO = 'google';
         // Controles do YouTube ligados por padrão (mantém o botão de tela cheia).
         // Desligados, o player não tem barra de progresso para piscar ao pular legenda.
         let YT_CONTROLS = localStorage.getItem('ejoy_yt_controls') !== '0';
@@ -1061,23 +1055,45 @@
             }
         }
         // Campo vazio + Salvar = remove a chave (era impossível desfazer antes)
-        function saveGeminiKey() {
-            const k = document.getElementById('gemini-key-input').value.trim();
-            GEMINI_API_KEY = k;
-            if(k) localStorage.setItem('ejoy_gemini_key', k);
-            else   localStorage.removeItem('ejoy_gemini_key');
-            clearTransCache();
-            alert(k ? "Chave do Gemini salva! As traduções agora usam IA com contexto."
-                    : "Chave do Gemini removida.");
-        }
         function saveClaudeKey() {
             const k = document.getElementById('claude-key-input').value.trim();
             CLAUDE_API_KEY = k;
             if(k) localStorage.setItem('ejoy_claude_key', k);
             else   localStorage.removeItem('ejoy_claude_key');
             clearTransCache();
-            alert(k ? "Chave do Claude salva! As traduções agora usam IA com contexto."
-                    : "Chave do Claude removida." + (GEMINI_API_KEY ? " O Gemini assume como tradutor." : ""));
+            atualizarDicaMotor();
+            alert(k ? "Chave do Claude salva!" + (MOTOR_PADRAO === 'ia' ? " As traduções agora usam IA com contexto." : " Selecione 'Claude (IA)' acima para usá-la.")
+                    : "Chave do Claude removida." + (MOTOR_PADRAO === 'ia' ? " Sem ela, a tradução cai no Google." : ""));
+        }
+        const MOTOR_NOME = {
+            google:   'Google Tradutor',
+            google2:  'Google (alternativo)',
+            mymemory: 'MyMemory',
+            ia:       'Claude (IA)'
+        };
+        function saveMotor() {
+            const sel = document.getElementById('motor-select');
+            if(!sel) return;
+            MOTOR_PADRAO = MOTORES.indexOf(sel.value) >= 0 ? sel.value : 'google';
+            localStorage.setItem('ejoy_motor', MOTOR_PADRAO);
+            clearTransCache();   // traduções antigas vieram de outro motor
+            atualizarDicaMotor();
+        }
+        // A dica muda conforme o motor: só a IA entende gíria, e ela precisa de chave.
+        function atualizarDicaMotor() {
+            const hint = document.getElementById('motor-hint');
+            const card = document.getElementById('card-chave-ia');
+            if(card) card.style.display = MOTOR_PADRAO === 'ia' ? '' : 'none';
+            if(!hint) return;
+            if(MOTOR_PADRAO === 'ia') {
+                hint.innerHTML = CLAUDE_API_KEY
+                    ? "Traduz pelo sentido: entende gíria, expressões e o contexto da frase inteira. Se a IA falhar, o Google entra como reserva."
+                    : "⚠️ Falta a chave do Claude logo abaixo. Sem ela, a tradução cai no Google.";
+            } else {
+                hint.innerHTML = "Tradução literal, grátis e sem chave. O app envia a <b>frase inteira</b> ao tradutor e destaca só o trecho pedido, "
+                    + "então o contexto ajuda — mas nenhum tradutor automático acerta gíria de verdade. Para isso, escolha <b>Claude (IA)</b>. "
+                    + "Se este motor falhar, o app tenta os outros sozinho.";
+            }
         }
         // Troca de motor invalida o cache: as traduções antigas vieram de outro motor
         function clearTransCache() {
@@ -1892,8 +1908,6 @@
         }
 
         // ---------- 1) TRADUÇÃO POR IA (mais precisa) ----------
-        const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-flash-latest'];
-        let geminiModel = localStorage.getItem('ejoy_gemini_model') || GEMINI_MODELS[0];
 
         // Contrato JSON que os dois modelos de IA devem devolver
         const IA_SCHEMA = {
@@ -2006,286 +2020,6 @@
             };
         }
 
-        async function callGemini(fragment, sentence) {
-            const body = {
-                contents: [{ parts: [{ text: buildPrompt(fragment, sentence) }] }],
-                generationConfig: { temperature: 0.2, responseMimeType: 'application/json', maxOutputTokens: 400 }
-            };
-            // Tenta os modelos em ordem: se um não existir na conta, cai para o próximo
-            const order = [geminiModel, ...GEMINI_MODELS.filter(m => m !== geminiModel)];
-            for(const model of order) {
-                try {
-                    const r = await fetchComTempo(
-                        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
-                        { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) }
-                    );
-                    if(!r.ok) {
-                        // Chave inválida e cota estourada valem para qualquer modelo: avisa e para de tentar
-                        let reason = '';
-                        try { const err = await r.json(); reason = (err.error && (err.error.status + ' ' + err.error.message)) || ''; } catch(e) {}
-                        if(/API_KEY_INVALID|API key not valid/i.test(reason)) {
-                            setStatus('⚠️ Chave da IA inválida — traduzindo com o Google. Confira a chave em Ajustes.', 'warn');
-                            return null;
-                        }
-                        if(r.status === 429 || /RESOURCE_EXHAUSTED|quota/i.test(reason)) {
-                            setStatus('⚠️ Cota da IA esgotada — traduzindo com o Google por enquanto.', 'warn');
-                            return null;
-                        }
-                        continue; // modelo indisponível nesta conta: tenta o próximo
-                    }
-                    const d = await r.json();
-                    const txt = d && d.candidates && d.candidates[0] && d.candidates[0].content
-                              && d.candidates[0].content.parts && d.candidates[0].content.parts[0].text;
-                    if(!txt) return null;
-                    const j = JSON.parse(txt);
-                    if(!j || !j.traducao) return null;
-                    if(model !== geminiModel) { geminiModel = model; localStorage.setItem('ejoy_gemini_model', model); }
-                    return normalizeIaResult(j, 'ia');
-                } catch(e) { /* tenta o próximo modelo */ }
-            }
-            return null;
-        }
-
-        // ===================== GÍRIAS E EXPRESSÕES (offline) =====================
-        // Tradutor automático erra expressão idiomática por natureza: ele converte
-        // palavras sem entender a intenção. Esta lista roda no próprio aparelho,
-        // sem chave e sem internet, e cobre o que mais aparece em fala do dia a dia.
-        // O "*" representa o objeto no meio do phrasal verb (ex.: "pull it off").
-        const EXPRESSOES = {
-            "hit me": "me dei conta, caiu a ficha",
-            "it hits me": "me dou conta",
-            "pull * off": "conseguir, dar conta (de algo difícil)",
-            "make * case": "apresentar o argumento, defender a ideia com razões",
-            "figure * out": "descobrir, sacar como funciona",
-            "work * out": "dar certo; resolver",
-            "come up with": "bolar, inventar, ter a ideia de",
-            "come across": "topar com, encontrar por acaso; passar a impressão de",
-            "get away with": "escapar impune de",
-            "get over": "superar, virar a página",
-            "get rid of": "se livrar de",
-            "get the hang of": "pegar o jeito de",
-            "look into": "investigar, dar uma olhada a fundo",
-            "look forward to": "estar ansioso por, mal poder esperar",
-            "run out of": "ficar sem",
-            "wrap * up": "encerrar, finalizar",
-            "bring * up": "trazer à tona, mencionar",
-            "point out": "apontar, chamar atenção para",
-            "turn * down": "recusar, rejeitar",
-            "turn out": "acabar sendo, revelar-se",
-            "set * off": "irritar, tirar do sério; desencadear",
-            "make * stick": "fazer pegar, fazer durar",
-            "in the first place": "para começo de conversa, antes de mais nada",
-            "no matter what": "custe o que custar, aconteça o que acontecer",
-            "give up": "desistir",
-            "show up": "aparecer, dar as caras",
-            "end up": "acabar (fazendo/sendo)",
-            "hang out": "sair, passar um tempo junto",
-            "hold on": "espera aí; aguenta firme",
-            "check * out": "dar uma conferida, dar uma olhada",
-            "keep up with": "acompanhar o ritmo de",
-            "catch up": "colocar o papo em dia; recuperar o atraso",
-            "back * up": "apoiar; fazer cópia de segurança",
-            "break down": "quebrar; desabar; detalhar",
-            "call * off": "cancelar",
-            "carry on": "seguir em frente, continuar",
-            "cheer up": "animar-se",
-            "count on": "contar com",
-            "deal with": "lidar com",
-            "drop by": "dar uma passada",
-            "fall apart": "desmoronar, cair aos pedaços",
-            "fill * in": "preencher; colocar a par",
-            "find out": "descobrir, ficar sabendo",
-            "go through": "passar por (uma experiência)",
-            "grow up": "crescer, amadurecer",
-            "hang in there": "aguenta firme",
-            "keep an eye on": "ficar de olho em",
-            "let * down": "decepcionar",
-            "look after": "cuidar de",
-            "look up to": "admirar, ter como exemplo",
-            "make up for": "compensar",
-            "make sense": "fazer sentido",
-            "mess up": "estragar, fazer besteira",
-            "move on": "seguir em frente",
-            "pick up": "pegar; aprender por osmose; melhorar",
-            "put up with": "aturar, suportar",
-            "reach out": "entrar em contato, procurar alguém",
-            "rule out": "descartar",
-            "sort * out": "resolver, organizar",
-            "stand out": "se destacar",
-            "stick to": "seguir à risca, não abandonar",
-            "take care of": "cuidar de, dar conta de",
-            "take off": "decolar; deslanchar; tirar (roupa)",
-            "take over": "assumir o controle",
-            "throw * away": "jogar fora",
-            "watch out": "cuidado, presta atenção",
-            "work on": "trabalhar em, se dedicar a",
-            "a big deal": "grande coisa, algo importante",
-            "no big deal": "não é nada demais",
-            "a piece of cake": "moleza, muito fácil",
-            "out of the blue": "do nada, sem mais nem menos",
-            "on the same page": "alinhados, pensando igual",
-            "the bottom line": "o que importa no fim das contas",
-            "at the end of the day": "no fim das contas",
-            "keep in mind": "ter em mente",
-            "make up your mind": "se decidir",
-            "change your mind": "mudar de ideia",
-            "on purpose": "de propósito",
-            "by the way": "a propósito, aliás",
-            "as far as I know": "que eu saiba",
-            "to be honest": "para ser sincero",
-            "kind of": "meio que, mais ou menos",
-            "sort of": "meio que, mais ou menos",
-            "a bunch of": "um monte de",
-            "a couple of": "uns dois, alguns",
-            "hang on a second": "espera um segundo",
-            "you know what I mean": "entende o que eu quero dizer",
-            "long story short": "resumindo",
-            "for the most part": "na maior parte, em geral",
-            "more or less": "mais ou menos",
-            "right off the bat": "de cara, logo de início",
-            "up to you": "você que sabe, é sua escolha",
-            "up to date": "atualizado, em dia",
-            "big time": "pra valer, muito",
-            "no way": "de jeito nenhum",
-            "for real": "sério mesmo",
-            "hands down": "disparado, sem discussão",
-            "over the top": "exagerado",
-            "way too": "exageradamente, muito além do necessário",
-            "pretty much": "praticamente",
-            "no wonder": "não é à toa",
-            "makes my day": "alegra o meu dia",
-            "get it": "entender, sacar",
-            "got it": "entendi, saquei",
-            "hit the road": "cair na estrada, ir embora",
-            "hit the books": "estudar com afinco",
-            "call it a day": "encerrar por hoje",
-            "cut to the chase": "ir direto ao ponto",
-            "get to the point": "ir direto ao ponto",
-            "beat around the bush": "enrolar, fazer rodeios",
-            "a heads up": "um aviso prévio",
-            "keep it up": "continue assim",
-            "hang tight": "aguarde firme",
-            "take it easy": "vai com calma",
-            "take your time": "sem pressa",
-            "on the fly": "na hora, improvisando",
-            "off the top of my head": "de cabeça, sem consultar",
-            "in a nutshell": "em poucas palavras",
-            "the whole point": "a razão de ser, o objetivo todo",
-            "no strings attached": "sem compromisso, sem letras miúdas",
-            "under the weather": "adoentado, meio mal",
-            "on the fence": "em cima do muro, indeciso",
-            "second guess": "ficar duvidando da própria decisão",
-            "worth it": "valer a pena",
-            "not worth it": "não vale a pena",
-            "a rip off": "roubo (caro demais)",
-            "dirt cheap": "baratíssimo",
-            "break the bank": "pesar no bolso, custar caro demais",
-            "save up": "juntar dinheiro",
-            "run late": "estar atrasado",
-            "keep track of": "acompanhar, manter o controle de",
-            "lose track of": "perder a conta, perder de vista",
-            "come in handy": "vir a calhar, ser útil",
-            "back and forth": "de um lado para o outro, indo e voltando",
-            "up and running": "no ar, funcionando",
-            "from scratch": "do zero",
-            "on hold": "em espera, parado",
-            "sooner or later": "mais cedo ou mais tarde",
-            "once in a while": "de vez em quando",
-            "every now and then": "de vez em quando",
-            "all of a sudden": "de repente",
-            "at some point": "em algum momento",
-            "in the long run": "a longo prazo",
-            "the other way around": "ao contrário, o inverso",
-            "either way": "de qualquer forma",
-            "let alone": "muito menos, quanto mais",
-            "on top of that": "além disso, ainda por cima",
-            "as a matter of fact": "na verdade, aliás",
-            "come to think of it": "pensando bem",
-            "have a point": "ter razão nisso",
-            "miss the point": "não entender a essência",
-            "make it": "conseguir chegar; dar conta",
-            "blow up": "explodir; estourar (viralizar)",
-            "freak out": "surtar, pirar",
-            "chill out": "relaxar",
-            "screw up": "vacilar, estragar tudo",
-            "hang up": "desligar (telefone)",
-            "shut up": "calar a boca",
-            "stick around": "ficar por perto",
-            "settle down": "se acalmar; se estabelecer",
-            "speak up": "falar mais alto; se manifestar",
-            "stand up for": "defender, tomar partido de",
-            "run into": "esbarrar com, topar com",
-            "look out": "cuidado",
-            "go ahead": "pode ir, manda ver",
-            "go for it": "vai fundo",
-            "hold off": "segurar, adiar",
-            "put off": "adiar",
-            "set up": "montar, configurar",
-            "show off": "se exibir",
-            "sign up": "se inscrever",
-            "try out": "experimentar, testar",
-            "warm up": "aquecer, se preparar",
-            "wear out": "desgastar, cansar",
-            "work around": "contornar (um problema)",
-
-            // Formas no passado dos verbos acima — a fala real quase sempre usa
-            // "made that case", "ran out of", "came up with" e não o infinitivo
-            "made * case": "apresentou o argumento, defendeu a ideia com razões",
-            "pulled * off": "conseguiu, deu conta (de algo difícil)",
-            "figured * out": "descobriu, sacou como funciona",
-            "worked * out": "deu certo; resolveu",
-            "came up with": "bolou, inventou, teve a ideia de",
-            "came across": "topou com, encontrou por acaso",
-            "got away with": "escapou impune de",
-            "got over": "superou, virou a página",
-            "got rid of": "se livrou de",
-            "looked into": "investigou, olhou a fundo",
-            "ran out of": "ficou sem",
-            "wrapped * up": "encerrou, finalizou",
-            "brought * up": "trouxe à tona, mencionou",
-            "pointed out": "apontou, chamou atenção para",
-            "turned * down": "recusou, rejeitou",
-            "turned out": "acabou sendo, revelou-se",
-            "gave up": "desistiu",
-            "showed up": "apareceu, deu as caras",
-            "ended up": "acabou (fazendo/sendo)",
-            "went through": "passou por (uma experiência)",
-            "took over": "assumiu o controle",
-            "took off": "decolou; deslanchou",
-            "blew up": "explodiu; estourou (viralizou)",
-            "freaked out": "surtou, pirou",
-            "messed up": "estragou, fez besteira",
-            "screwed up": "vacilou, estragou tudo",
-            "found out": "descobriu, ficou sabendo",
-            "made sense": "fez sentido",
-            "made it": "conseguiu chegar; deu conta",
-            "held off": "segurou, adiou",
-            "put off": "adiou",
-            "ran into": "esbarrou com, topou com",
-            "stood out": "se destacou",
-            "set up": "montou, configurou"
-        };
-
-        let _expCompiladas = null;
-        function acharExpressoes(texto) {
-            const t = String(texto || '');
-            if(!t.trim()) return [];
-            if(!_expCompiladas) {
-                const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
-                _expCompiladas = Object.keys(EXPRESSOES).map(chave => ({
-                    chave,
-                    // "*" vira um espaço para 1 ou 2 palavras (o objeto do phrasal verb)
-                    re: new RegExp('\\b' + chave.split('*').map(p => esc(p.trim()))
-                            .join('\\s+\\S+(?:\\s+\\S+)?\\s+') + '\\b', 'i')
-                }));
-            }
-            const achadas = [];
-            for(const e of _expCompiladas) {
-                if(e.re.test(t)) achadas.push({ exp: e.chave.replace(/\s*\*\s*/g, ' … '), sig: EXPRESSOES[e.chave] });
-                if(achadas.length >= 4) break;
-            }
-            return achadas;
-        }
 
         // Requisição com tempo limite. Sem isso, uma conexão travada deixava o card
         // preso em "Traduzindo..." para sempre, sem tentar o próximo tradutor.
@@ -2347,30 +2081,39 @@
             return { text: txt, dict: null };
         }
 
-        async function translateEngine(text, wantDict) {
+        // `exigir` é um teste opcional que a resposta precisa passar. A tradução com
+        // marcadores usa isso: se o provedor engoliu os [[ ]], o trecho não pode ser
+        // recortado e vale mais tentar o próximo provedor do que desistir do contexto.
+        async function translateEngine(text, wantDict, exigir) {
             const clean = (text || '').trim();
             if(!clean) return { text:'', dict:null };
             // Prefixo novo de cache: ignora resultados ruins gravados antes desta correção
             const key = (wantDict ? 'd2:' : 't2:') + clean.toLowerCase();
-            if(transCache[key]) return transCache[key];
+            if(transCache[key] && (!exigir || exigir(transCache[key].text))) return transCache[key];
 
-            const provedores = [
-                () => provedorGoogleGtx(clean, wantDict),
-                () => provedorGoogleAlt(clean),
-                () => provedorMyMemory(clean),
-            ];
+            // O motor escolhido em Ajustes vai na frente; os outros ficam como
+            // reserva automática, para uma queda de um serviço não travar a tradução.
+            const catalogo = {
+                google:   { nome:'google',   fn: () => provedorGoogleGtx(clean, wantDict) },
+                google2:  { nome:'google',   fn: () => provedorGoogleAlt(clean) },
+                mymemory: { nome:'mymemory', fn: () => provedorMyMemory(clean) },
+            };
+            const ordem = ['google', 'google2', 'mymemory'];
+            const escolhido = catalogo[MOTOR_PADRAO] ? MOTOR_PADRAO : 'google';
+            const provedores = [escolhido].concat(ordem.filter(m => m !== escolhido)).map(m => catalogo[m]);
 
             let reserva = null;  // veio resposta, mas idêntica à entrada
             for(const provedor of provedores) {
                 let res = null;
-                try { res = await provedor(); } catch(e) { /* tenta o próximo */ }
+                try { res = await provedor.fn(); } catch(e) { /* tenta o próximo */ }
                 if(!res || !res.text) continue;
+                if(exigir && !exigir(res.text)) continue;   // resposta inutilizável para quem pediu
                 if(!mesmoTexto(res.text, clean)) {
-                    const ok = { text: res.text, dict: res.dict || null, engine: 'google' };
+                    const ok = { text: res.text, dict: res.dict || null, engine: provedor.nome };
                     cacheSet(key, ok);   // só grava tradução de verdade
                     return ok;
                 }
-                if(!reserva) reserva = { text: res.text, dict: res.dict || null, engine: 'google', naoTraduzido: true };
+                if(!reserva) reserva = { text: res.text, dict: res.dict || null, engine: provedor.nome, naoTraduzido: true };
             }
             // Nenhum provedor mudou o texto. Devolve sem gravar em cache: pode ser
             // palavra igual nos dois idiomas, ou falha passageira que deve poder
@@ -2421,32 +2164,32 @@
         }
 
         // ---------- ORQUESTRADOR ----------
-        // Ordem: Claude → Gemini → Google com marcadores → tradução direta
+        // Ordem: IA (se escolhida) → tradutor padrão com marcadores → tradução direta.
+        // O truque dos marcadores manda a FRASE INTEIRA ao tradutor e recorta só o
+        // trecho pedido: é o que dá contexto mesmo sem IA.
         async function translateInContext(fragment, group, cueIdx) {
             const frag = (fragment || '').trim();
             if(!frag) return null;
             const sentenceText = (group && group.text) ? group.text : frag;
-            const hasRealContext = !!(group && group.merged > 1 && group.text.toLowerCase() !== frag.toLowerCase());
+            // Basta a frase ser diferente do trecho pedido. Antes só valia quando a
+            // frase vinha de várias legendas juntas — então uma palavra escolhida
+            // dentro de uma legenda única era traduzida solta, ao pé da letra.
+            const hasRealContext = !!(group && group.text && !mesmoTexto(group.text, frag));
 
-            // 1) IA — entende o contexto de verdade
-            if(CLAUDE_API_KEY || GEMINI_API_KEY) {
+            // 1) IA — o único mecanismo que entende contexto e gíria.
+            //    Só entra quando escolhido em Ajustes e com chave configurada.
+            if(MOTOR_PADRAO === 'ia' && CLAUDE_API_KEY) {
                 const ck = 'ia2:' + frag.toLowerCase() + '||' + sentenceText.toLowerCase();
                 if(transCache[ck]) return transCache[ck];
-                const serve = r => !!(r && r.text && !mesmoTexto(r.text, frag));
-
-                // Claude primeiro quando há chave; se ele falhar (sem crédito,
-                // chave inválida, rede), tenta o Gemini antes de cair no Google.
-                let ia = null;
-                if(CLAUDE_API_KEY) ia = await callClaude(frag, sentenceText);
-                if(!serve(ia) && GEMINI_API_KEY) ia = await callGemini(frag, sentenceText);
-                if(serve(ia)) { cacheSet(ck, ia); return ia; }
+                const ia = await callClaude(frag, sentenceText);
+                if(ia && ia.text && !mesmoTexto(ia.text, frag)) { cacheSet(ck, ia); return ia; }
             }
 
             // 2) Google com marcadores: recupera o trecho e a frase com o destaque no lugar
             if(hasRealContext) {
                 const marked = buildMarkedSentence(group, cueIdx, frag);
                 if(marked) {
-                    const res = await translateEngine(marked, false);
+                    const res = await translateEngine(marked, false, t => MARK_RE.test(t));
                     if(res && res.text) {
                         const m = res.text.match(MARK_RE);
                         if(m) {
@@ -2460,7 +2203,7 @@
                                     text: part, literal: null, nota: null,
                                     sentence: sentenceOut,
                                     sentencePart: sentenceOut.indexOf(part) !== -1 ? part : null,
-                                    synonyms: null, dict: null, contextual: true, engine: 'google'
+                                    synonyms: null, dict: null, contextual: true, engine: res.engine || 'google'
                                 };
                             }
                         }
@@ -2475,7 +2218,7 @@
                 text: direct.text, literal: null, nota: null,
                 sentence: null, sentencePart: null,
                 synonyms: null, dict: direct.dict || null,
-                contextual: false, engine: 'google',
+                contextual: false, engine: direct.engine || 'google',
                 // Repassa o aviso de "voltou igual à entrada" — sem isso o card
                 // mostraria o inglês achando que era tradução
                 naoTraduzido: !!direct.naoTraduzido
@@ -2569,11 +2312,9 @@
             const ctxOrig = document.getElementById('ctx-orig');
             const ctxTrans = document.getElementById('ctx-trans');
             const synBlock = document.getElementById('syn-block');
-            const idiomBlock = document.getElementById('idiom-block');
             const literalLine = document.getElementById('literal-line');
             iaNote.style.display = 'none'; dictBlock.style.display = 'none';
             ctxBlock.style.display = 'none'; synBlock.style.display = 'none';
-            idiomBlock.style.display = 'none';
             literalLine.style.display = 'none';
             ctxOrig.innerHTML = ''; ctxTrans.innerHTML = '';
             engineBadge.textContent = 'Traduzindo...'; engineBadge.classList.remove('ia');
@@ -2605,22 +2346,11 @@
             transRes.onclick = null;
             transRes.style.cursor = '';
 
-            // Gírias e expressões: roda offline, sem chave, e pega justamente o
-            // que o tradutor automático converte ao pé da letra
-            const expressoes = acharExpressoes(
-                (sentence && sentence.text) ? sentence.text : (opts.cueText || src)
-            );
-            if(expressoes.length) {
-                document.getElementById('idiom-content').innerHTML = expressoes
-                    .map(e => `<div><span class="exp">${escapeHtml(e.exp)}</span> — ${escapeHtml(e.sig)}</div>`)
-                    .join('');
-                idiomBlock.style.display = 'block';
-            }
-
+            const nomeMotor = main.engine === 'mymemory' ? 'MyMemory' : 'Google Tradutor';
             if(main.engine === 'claude')   { engineBadge.textContent = '✨ Claude + contexto'; engineBadge.classList.add('ia'); }
             else if(main.engine === 'ia')  { engineBadge.textContent = '✨ IA + contexto'; engineBadge.classList.add('ia'); }
-            else if(main.contextual)       { engineBadge.textContent = '🔗 Com contexto'; }
-            else                           { engineBadge.textContent = 'Google Tradutor'; }
+            else if(main.contextual)       { engineBadge.textContent = '🔗 ' + nomeMotor + ' + contexto'; }
+            else                           { engineBadge.textContent = nomeMotor; }
 
             if(main.literal && main.literal.toLowerCase() !== main.text.toLowerCase()) {
                 literalLine.textContent = 'Literal: ' + main.literal;
@@ -2730,8 +2460,9 @@
             updateVocabCount();
             document.getElementById('api-key-input').value = YOUTUBE_API_KEY;
             document.getElementById('supadata-key-input').value = SUPADATA_API_KEY;
-            document.getElementById('gemini-key-input').value = GEMINI_API_KEY;
             document.getElementById('claude-key-input').value = CLAUDE_API_KEY;
+            document.getElementById('motor-select').value = MOTOR_PADRAO;
+            atualizarDicaMotor();
         };
 
         function resetApp() {

@@ -598,16 +598,45 @@
             <div class="card">
                 <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Tradutor padrão</label>
                 <select id="motor-select" class="modern-input" style="width:100%; margin-top:6px" onchange="saveMotor()">
-                    <option value="google">Google Tradutor</option>
-                    <option value="google2">Google — servidor alternativo</option>
-                    <option value="mymemory">MyMemory</option>
-                    <option value="ia">Claude (IA) — entende contexto e gíria</option>
+                    <optgroup label="Entendem contexto e gíria (IA)">
+                        <option value="groq">Groq — grátis, rápido ⭐ recomendado</option>
+                        <option value="openrouter">OpenRouter — grátis</option>
+                        <option value="ia">Claude — o mais preciso (pago)</option>
+                    </optgroup>
+                    <optgroup label="Tradutores literais (sem chave)">
+                        <option value="google">Google Tradutor</option>
+                        <option value="google2">Google — servidor alternativo</option>
+                        <option value="mymemory">MyMemory</option>
+                    </optgroup>
                 </select>
                 <div class="hint" id="motor-hint"></div>
             </div>
 
+            <div class="card" id="card-chave-groq">
+                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave do Groq</label>
+                <input type="text" id="groq-key-input" class="modern-input" style="width:100%; margin-top:6px" placeholder="gsk_...">
+                <button class="btn btn-primary btn-wide" style="margin-top:8px" onclick="saveIaKey('groq')">Salvar chave do Groq</button>
+                <div class="hint">
+                    <b>Grátis e sem cartão de crédito.</b> Entre com o Google em
+                    <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>,
+                    clique em <i>Create API Key</i> e cole aqui. Leva uns 2 minutos.
+                    Campo vazio + Salvar remove a chave.
+                </div>
+            </div>
+
+            <div class="card" id="card-chave-openrouter">
+                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave do OpenRouter</label>
+                <input type="text" id="openrouter-key-input" class="modern-input" style="width:100%; margin-top:6px" placeholder="sk-or-v1-...">
+                <button class="btn btn-primary btn-wide" style="margin-top:8px" onclick="saveIaKey('openrouter')">Salvar chave do OpenRouter</button>
+                <div class="hint">
+                    Grátis nos modelos marcados <code>:free</code>. Crie a chave em
+                    <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>.
+                    Boa reserva para quando o Groq atingir o limite diário.
+                </div>
+            </div>
+
             <div class="card" id="card-chave-ia">
-                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave da API do Claude (só para a opção IA)</label>
+                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave da API do Claude</label>
                 <input type="text" id="claude-key-input" class="modern-input" style="width:100%; margin-top:6px" placeholder="sk-ant-...">
                 <button class="btn btn-primary btn-wide" style="margin-top:8px" onclick="saveClaudeKey()">Salvar chave do Claude</button>
                 <div class="hint">
@@ -732,11 +761,39 @@
         let YOUTUBE_API_KEY   = localStorage.getItem('ejoy_api_key') || "";
         let SUPADATA_API_KEY  = (localStorage.getItem('ejoy_supadata_key') || "").trim();
         let CLAUDE_API_KEY    = (localStorage.getItem('ejoy_claude_key') || "").trim();
-        // Mecanismo de tradução padrão. Só entram aqui os que funcionam de dentro
-        // do navegador — Bing e DeepL bloqueiam requisições do browser (CORS).
-        const MOTORES = ['google', 'google2', 'mymemory', 'ia'];
+
+        // Motores de IA que aceitam chamada direta do navegador. Testado: os dois
+        // respondem ao preflight com "access-control-allow-origin: *". DeepL e
+        // Bing NÃO mandam cabeçalho de CORS nenhum — por isso não estão aqui.
+        // Ambos falam o mesmo dialeto (OpenAI chat/completions), então uma função só serve os dois.
+        const IA_COMPAT = {
+            groq: {
+                nome: 'Groq',
+                url: 'https://api.groq.com/openai/v1/chat/completions',
+                modelos: ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'llama-3.1-8b-instant'],
+                guardar: 'ejoy_groq_key',
+                campo: 'groq-key-input',
+                onde: 'console.groq.com/keys'
+            },
+            openrouter: {
+                nome: 'OpenRouter',
+                url: 'https://openrouter.ai/api/v1/chat/completions',
+                modelos: ['meta-llama/llama-3.3-70b-instruct:free', 'deepseek/deepseek-chat-v3-0324:free', 'google/gemma-2-9b-it:free'],
+                guardar: 'ejoy_openrouter_key',
+                campo: 'openrouter-key-input',
+                onde: 'openrouter.ai/keys'
+            }
+        };
+        const IA_KEYS = {};
+        Object.keys(IA_COMPAT).forEach(m => { IA_KEYS[m] = (localStorage.getItem(IA_COMPAT[m].guardar) || '').trim(); });
+
+        // Mecanismo de tradução padrão.
+        const MOTORES = ['groq', 'openrouter', 'ia', 'google', 'google2', 'mymemory'];
+        const MOTORES_IA = ['groq', 'openrouter', 'ia'];
         let MOTOR_PADRAO = localStorage.getItem('ejoy_motor') || 'google';
         if(MOTORES.indexOf(MOTOR_PADRAO) < 0) MOTOR_PADRAO = 'google';
+        // Chave do motor escolhido (vazia = cai nos tradutores literais)
+        function chaveDoMotor(m) { return m === 'ia' ? CLAUDE_API_KEY : (IA_KEYS[m] || ''); }
         // Controles do YouTube ligados por padrão (mantém o botão de tela cheia).
         // Desligados, o player não tem barra de progresso para piscar ao pular legenda.
         let YT_CONTROLS = localStorage.getItem('ejoy_yt_controls') !== '0';
@@ -1062,15 +1119,32 @@
             else   localStorage.removeItem('ejoy_claude_key');
             clearTransCache();
             atualizarDicaMotor();
-            alert(k ? "Chave do Claude salva!" + (MOTOR_PADRAO === 'ia' ? " As traduções agora usam IA com contexto." : " Selecione 'Claude (IA)' acima para usá-la.")
+            alert(k ? "Chave do Claude salva!" + (MOTOR_PADRAO === 'ia' ? " As traduções agora usam IA com contexto." : " Selecione 'Claude' no seletor acima para usá-la.")
                     : "Chave do Claude removida." + (MOTOR_PADRAO === 'ia' ? " Sem ela, a tradução cai no Google." : ""));
         }
         const MOTOR_NOME = {
             google:   'Google Tradutor',
             google2:  'Google (alternativo)',
             mymemory: 'MyMemory',
-            ia:       'Claude (IA)'
+            groq:     'Groq',
+            openrouter:'OpenRouter',
+            ia:       'Claude'
         };
+        // Salvar chave de Groq/OpenRouter (campo vazio + Salvar = remove)
+        function saveIaKey(motor) {
+            const cfg = IA_COMPAT[motor];
+            if(!cfg) return;
+            const k = document.getElementById(cfg.campo).value.trim();
+            IA_KEYS[motor] = k;
+            if(k) localStorage.setItem(cfg.guardar, k);
+            else   localStorage.removeItem(cfg.guardar);
+            clearTransCache();
+            atualizarDicaMotor();
+            alert(k ? "Chave do " + cfg.nome + " salva!" + (MOTOR_PADRAO === motor
+                        ? " As traduções já usam IA com contexto."
+                        : " Selecione " + cfg.nome + " no seletor acima para usá-la.")
+                    : "Chave do " + cfg.nome + " removida.");
+        }
         function saveMotor() {
             const sel = document.getElementById('motor-select');
             if(!sel) return;
@@ -1082,16 +1156,25 @@
         // A dica muda conforme o motor: só a IA entende gíria, e ela precisa de chave.
         function atualizarDicaMotor() {
             const hint = document.getElementById('motor-hint');
-            const card = document.getElementById('card-chave-ia');
-            if(card) card.style.display = MOTOR_PADRAO === 'ia' ? '' : 'none';
+            // Mostra só o campo de chave do motor selecionado
+            const cards = { groq:'card-chave-groq', openrouter:'card-chave-openrouter', ia:'card-chave-ia' };
+            Object.keys(cards).forEach(m => {
+                const el = document.getElementById(cards[m]);
+                if(el) el.style.display = (MOTOR_PADRAO === m) ? '' : 'none';
+            });
             if(!hint) return;
-            if(MOTOR_PADRAO === 'ia') {
-                hint.innerHTML = CLAUDE_API_KEY
-                    ? "Traduz pelo sentido: entende gíria, expressões e o contexto da frase inteira. Se a IA falhar, o Google entra como reserva."
-                    : "⚠️ Falta a chave do Claude logo abaixo. Sem ela, a tradução cai no Google.";
+
+            const ehIa = MOTORES_IA.indexOf(MOTOR_PADRAO) >= 0;
+            if(ehIa && !chaveDoMotor(MOTOR_PADRAO)) {
+                hint.innerHTML = "⚠️ Falta a chave do <b>" + MOTOR_NOME[MOTOR_PADRAO] + "</b> logo abaixo. "
+                    + "Sem ela, a tradução continua caindo no Google.";
+            } else if(ehIa) {
+                hint.innerHTML = "Traduz pelo <b>sentido</b>: entende gíria, expressão idiomática e o contexto da frase inteira, "
+                    + "e ainda mostra a tradução literal ao lado para comparar. Se falhar, o Google entra como reserva.";
             } else {
-                hint.innerHTML = "Tradução literal, grátis e sem chave. O app envia a <b>frase inteira</b> ao tradutor e destaca só o trecho pedido, "
-                    + "então o contexto ajuda — mas nenhum tradutor automático acerta gíria de verdade. Para isso, escolha <b>Claude (IA)</b>. "
+                hint.innerHTML = "Tradução literal, grátis e sem chave. O app manda a <b>frase inteira</b> ao tradutor e destaca só o trecho pedido, "
+                    + "então o contexto ajuda — mas nenhum tradutor automático acerta gíria de verdade "
+                    + "(<i>kicked the bucket</i> vira <i>chutou o balde</i>). Para isso, escolha um motor de <b>IA</b> lá em cima. "
                     + "Se este motor falhar, o app tenta os outros sozinho.";
             }
         }
@@ -2001,6 +2084,86 @@
             }
         }
 
+        // Groq e OpenRouter: mesmo formato de requisição (OpenAI chat/completions).
+        // Tenta os modelos em ordem — modelo aposentado devolve 404/400 e cai no próximo.
+        async function callIaCompat(motor, fragment, sentence) {
+            const cfg = IA_COMPAT[motor];
+            const chave = IA_KEYS[motor];
+            if(!cfg || !chave) return null;
+
+            const cabecalho = {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + chave
+            };
+            // O OpenRouter usa estes dois para identificar o app; sem eles a chave grátis é barrada
+            if(motor === 'openrouter') {
+                cabecalho['HTTP-Referer'] = location.origin || 'https://player-estudo.local';
+                cabecalho['X-Title'] = 'Player Estudo Pro';
+            }
+
+            let ultimoErro = '';
+            for(const modelo of cfg.modelos) {
+                let r;
+                try {
+                    r = await fetchComTempo(cfg.url, {
+                        method: 'POST',
+                        headers: cabecalho,
+                        body: JSON.stringify({
+                            model: modelo,
+                            temperature: 0.2,
+                            max_tokens: 700,
+                            response_format: { type: 'json_object' },
+                            messages: [
+                                { role: 'system', content: 'Você é um tradutor de legendas inglês → português brasileiro para estudo de idiomas. '
+                                    + 'Responda SOMENTE com um objeto JSON, sem texto antes ou depois, com as chaves: '
+                                    + 'traducao, literal, nota, frase_traduzida, trecho_na_frase, equivalentes_ingles (lista).' },
+                                { role: 'user', content: buildPrompt(fragment, sentence) }
+                            ]
+                        })
+                    }, 15000);
+                } catch(e) {
+                    setStatus('⚠️ Erro de rede ao chamar o ' + cfg.nome + ' — usando o motor alternativo.', 'warn');
+                    return null;
+                }
+
+                if(!r.ok) {
+                    let msg = '';
+                    try { const err = await r.json(); msg = (err.error && (err.error.message || err.error.code)) || ''; } catch(e) {}
+                    // Chave e cota são problemas do serviço: não adianta tentar outro modelo
+                    if(r.status === 401 || r.status === 403) {
+                        setStatus('⚠️ Chave do ' + cfg.nome + ' inválida — confira em Ajustes. Traduzindo com o Google.', 'warn');
+                        return null;
+                    }
+                    if(r.status === 429) {
+                        setStatus('⚠️ Limite do ' + cfg.nome + ' atingido — traduzindo com o Google.', 'warn');
+                        return null;
+                    }
+                    if(r.status === 402) {
+                        setStatus('⚠️ ' + cfg.nome + ' pede créditos para este modelo — traduzindo com o Google.', 'warn');
+                        return null;
+                    }
+                    ultimoErro = r.status + (msg ? ' ' + msg : '');
+                    continue;   // 404/400: modelo aposentado, tenta o próximo
+                }
+
+                let texto = '';
+                try {
+                    const d = await r.json();
+                    texto = (d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) || '';
+                } catch(e) {}
+                if(!texto) { ultimoErro = 'resposta vazia'; continue; }
+
+                // Alguns modelos embrulham o JSON em ``` ou escrevem uma frase antes
+                const bloco = texto.match(/\{[\s\S]*\}/);
+                let j = null;
+                try { j = JSON.parse(bloco ? bloco[0] : texto); } catch(e) {}
+                if(!j || !j.traducao) { ultimoErro = 'JSON inválido'; continue; }
+                return normalizeIaResult(j, 'ia');
+            }
+            setStatus('⚠️ ' + cfg.nome + ' indisponível (' + ultimoErro + ') — traduzindo com o Google.', 'warn');
+            return null;
+        }
+
         // Converte a resposta da IA no formato interno usado pelo card
         function normalizeIaResult(j, engine) {
             const s = v => (v == null ? '' : String(v).trim());
@@ -2176,12 +2339,14 @@
             // dentro de uma legenda única era traduzida solta, ao pé da letra.
             const hasRealContext = !!(group && group.text && !mesmoTexto(group.text, frag));
 
-            // 1) IA — o único mecanismo que entende contexto e gíria.
+            // 1) IA — o único tipo de motor que entende contexto e gíria de verdade.
             //    Só entra quando escolhido em Ajustes e com chave configurada.
-            if(MOTOR_PADRAO === 'ia' && CLAUDE_API_KEY) {
-                const ck = 'ia2:' + frag.toLowerCase() + '||' + sentenceText.toLowerCase();
+            if(MOTORES_IA.indexOf(MOTOR_PADRAO) >= 0 && chaveDoMotor(MOTOR_PADRAO)) {
+                const ck = 'ia3:' + MOTOR_PADRAO + '|' + frag.toLowerCase() + '||' + sentenceText.toLowerCase();
                 if(transCache[ck]) return transCache[ck];
-                const ia = await callClaude(frag, sentenceText);
+                const ia = MOTOR_PADRAO === 'ia'
+                    ? await callClaude(frag, sentenceText)
+                    : await callIaCompat(MOTOR_PADRAO, frag, sentenceText);
                 if(ia && ia.text && !mesmoTexto(ia.text, frag)) { cacheSet(ck, ia); return ia; }
             }
 
@@ -2348,7 +2513,7 @@
 
             const nomeMotor = main.engine === 'mymemory' ? 'MyMemory' : 'Google Tradutor';
             if(main.engine === 'claude')   { engineBadge.textContent = '✨ Claude + contexto'; engineBadge.classList.add('ia'); }
-            else if(main.engine === 'ia')  { engineBadge.textContent = '✨ IA + contexto'; engineBadge.classList.add('ia'); }
+            else if(main.engine === 'ia')  { engineBadge.textContent = '✨ ' + (MOTOR_NOME[MOTOR_PADRAO] || 'IA') + ' + contexto'; engineBadge.classList.add('ia'); }
             else if(main.contextual)       { engineBadge.textContent = '🔗 ' + nomeMotor + ' + contexto'; }
             else                           { engineBadge.textContent = nomeMotor; }
 
@@ -2461,6 +2626,10 @@
             document.getElementById('api-key-input').value = YOUTUBE_API_KEY;
             document.getElementById('supadata-key-input').value = SUPADATA_API_KEY;
             document.getElementById('claude-key-input').value = CLAUDE_API_KEY;
+            Object.keys(IA_COMPAT).forEach(m => {
+                const el = document.getElementById(IA_COMPAT[m].campo);
+                if(el) el.value = IA_KEYS[m] || '';
+            });
             document.getElementById('motor-select').value = MOTOR_PADRAO;
             atualizarDicaMotor();
         };

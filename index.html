@@ -97,7 +97,15 @@
         /* ===================== PAINEL ROLÁVEL ===================== */
         #panel {
             flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;   /* sem "puxar" a página inteira junto */
             padding: 12px; padding-bottom: 40px;
+        }
+        /* Com o vídeo rodando, a rolagem do painel trava: um deslize na horizontal
+           não vira rolagem sem querer, e o gesto de legenda fica exato.
+           Pausou o vídeo, a rolagem volta na hora. */
+        body.video-tocando #panel {
+            overflow-y: hidden;
+            touch-action: pan-x;   /* o navegador para de disputar o deslize lateral */
         }
         .tab-page { display: none; }
         .tab-page.active { display: block; }
@@ -1118,6 +1126,16 @@
             const icone = isPlayingNow() ? '⏸️' : '▶️';
             if(b.textContent !== icone) b.textContent = icone;   // só mexe no DOM se mudou
         }
+
+        // Trava a rolagem do painel enquanto o vídeo roda; libera ao pausar.
+        // Guarda o último estado para não escrever no DOM a cada verificação.
+        let rolagemTravada = null;
+        function atualizarTravaDeRolagem() {
+            const tocando = isPlayingNow();
+            if(tocando === rolagemTravada) return;
+            rolagemTravada = tocando;
+            document.body.classList.toggle('video-tocando', tocando);
+        }
         function toggleFloatBtn() {
             FLOAT_BTN = !FLOAT_BTN;
             localStorage.setItem('ejoy_float_btn', FLOAT_BTN ? '1' : '0');
@@ -1960,6 +1978,9 @@
         function startYTSync() {
             if(ytTimer) clearInterval(ytTimer);
             ytTimer = setInterval(() => {
+                // A API do YouTube não avisa play/pause aqui, então o estado é lido
+                // neste mesmo pulso que já roda a cada 100ms
+                atualizarTravaDeRolagem();
                 if(playerType === 'youtube' && ytPlayer && ytPlayer.getCurrentTime) {
                     const t = ytPlayer.getCurrentTime();
                     localStorage.setItem('ejoy_time', t);
@@ -2154,6 +2175,8 @@
         function togglePlay(){
             if(playerType === 'local') video.paused ? video.play() : video.pause();
             else if(ytPlayer && ytPlayer.getPlayerState) (ytPlayer.getPlayerState() === 1) ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
+            // O YouTube leva um instante para trocar de estado: confere logo depois
+            setTimeout(atualizarTravaDeRolagem, 120);
         }
         function seek(t){ if(playerType === 'local') video.currentTime = t; else if(ytPlayer && ytPlayer.seekTo) ytPlayer.seekTo(t, true); }
         function getTime(){ return playerType === 'local' ? video.currentTime : (ytPlayer && ytPlayer.getCurrentTime ? ytPlayer.getCurrentTime() : 0); }
@@ -2201,8 +2224,15 @@
         // Gestos válidos em QUALQUER canto da tela, não só sobre o vídeo.
         // O deslize precisa ser mais horizontal que vertical, para não atrapalhar
         // a rolagem das listas nem a seleção de palavras na legenda.
+        // Dedo para a ESQUERDA = legenda anterior | para a DIREITA = próxima.
+        const DESLIZE_MIN_PX   = 40;   // menos que isso é toque tremido, não deslize
+        const DESLIZE_MAX_MS   = 700;  // acima disso é arraste lento, não deslize
+        const DESLIZE_RAZAO    = 1.8;  // o horizontal tem de superar o vertical nessa proporção
+        const DESLIZE_CANCELA_Y = 30;  // saiu na vertical primeiro: era rolagem
+        const DESLIZE_RETORNO  = 0.6;  // terminou longe do ponto mais distante = vai-e-volta
+
         function setupGlobalGestures() {
-            let x0 = 0, y0 = 0, t0 = 0, ativo = false;
+            let x0 = 0, y0 = 0, t0 = 0, ativo = false, cancelado = false, maxDx = 0, maxDy = 0;
 
             const ignorar = (alvo) => !!(alvo && alvo.closest && (
                 alvo.closest('#subtitle-container') ||   // seleção de palavras
@@ -2212,12 +2242,27 @@
             ));
 
             document.addEventListener('touchstart', e => {
-                if(ignorar(e.target)) { ativo = false; return; }
-                ativo = true;
+                // Dois dedos = pinça/zoom: nunca é comando de legenda
+                if(e.touches.length > 1 || ignorar(e.target)) { ativo = false; return; }
+                ativo = true; cancelado = false; maxDx = 0; maxDy = 0;
                 x0 = e.changedTouches[0].screenX;
                 y0 = e.changedTouches[0].screenY;
                 t0 = Date.now();
             }, {passive:true});
+
+            // Acompanhar o caminho do dedo (e não só o ponto final) é o que separa
+            // um deslize de verdade de uma rolagem torta ou de um vai-e-volta
+            document.addEventListener('touchmove', e => {
+                if(!ativo || cancelado) return;
+                if(e.touches.length > 1) { cancelado = true; return; }
+                const dx = Math.abs(e.touches[0].screenX - x0);
+                const dy = Math.abs(e.touches[0].screenY - y0);
+                if(dx > maxDx) maxDx = dx;
+                if(dy > maxDy) maxDy = dy;
+                if(maxDy > DESLIZE_CANCELA_Y && maxDy > maxDx) cancelado = true;
+            }, {passive:true});
+
+            document.addEventListener('touchcancel', () => { ativo = false; }, {passive:true});
 
             document.addEventListener('touchend', e => {
                 if(!ativo) return;
@@ -2227,14 +2272,19 @@
                 const dur = Date.now() - t0;
 
                 // Toque curto sobre o vídeo: play/pause (como antes)
-                if(dur < 200 && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+                if(dur < 250 && Math.abs(dx) < 12 && Math.abs(dy) < 12) {
                     if(e.target.closest && e.target.closest('#player-zone')) togglePlay();
                     return;
                 }
-                // Deslize horizontal em qualquer lugar: legenda anterior / próxima
-                if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                    if(dx < 0) jumpSubtitle(-1); else jumpSubtitle(1);
-                }
+                if(cancelado) return;
+                if(dur > DESLIZE_MAX_MS) return;
+                if(Math.abs(dx) < DESLIZE_MIN_PX) return;
+                if(Math.abs(dx) < Math.abs(dy) * DESLIZE_RAZAO) return;
+                // O dedo precisa acabar perto de onde chegou: descarta ir e voltar
+                if(maxDx > 0 && Math.abs(dx) < maxDx * DESLIZE_RETORNO) return;
+
+                if(dx < 0) jumpSubtitle(-1);   // esquerda → legenda anterior
+                else       jumpSubtitle(1);    // direita  → próxima legenda
             }, {passive:true});
         }
         setupGlobalGestures();
@@ -2681,8 +2731,14 @@
                             // Se o trecho marcado voltou em inglês, não serve:
                             // cai para a tradução direta logo abaixo.
                             if(part.length >= 2 && !mesmoTexto(part, frag)) {
-                                // Remove os marcadores para obter a frase traduzida limpa
-                                const sentenceOut = res.text.replace(/\[\[|\]\]/g, '').trim();
+                                // Remove os marcadores. O tradutor às vezes devolve
+                                // "[[ trecho ]]" com espaço por dentro, o que deixava
+                                // espaço dobrado na frase — daí juntar os espaços.
+                                const sentenceOut = res.text
+                                    .replace(/\[\[|\]\]/g, '')
+                                    .replace(/\s{2,}/g, ' ')
+                                    .replace(/\s+([,.;:!?])/g, '$1')
+                                    .trim();
                                 return {
                                     text: part, literal: null, nota: null,
                                     sentence: sentenceOut,
@@ -2710,13 +2766,60 @@
         }
 
         // Destaca uma substring dentro de um texto, escapando o resto
+        // ---- Destaque do trecho dentro da frase, nos dois idiomas ----
+        // O tradutor raramente devolve o pedaço com a MESMA pontuação e caixa da
+        // frase ("Ele não defendeu" vs "ele não defendeu,"). Comparar por igualdade
+        // exata falhava e a tradução ficava sem destaque nenhum.
+        function normalizarParaComparar(s) {
+            return String(s == null ? '' : s).toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // tira acentos
+                .replace(/[^a-z0-9\s]/g, ' ')                       // tira pontuação
+                .replace(/\s+/g, ' ').trim();
+        }
+        // Palavras da frase, guardando onde cada uma começa e termina no texto original
+        function palavrasComPosicao(frase) {
+            const out = [];
+            const re = /\S+/g;
+            let m;
+            while((m = re.exec(frase)) !== null) {
+                const limpa = normalizarParaComparar(m[0]);
+                if(limpa) out.push({ palavra: limpa, ini: m.index, fim: m.index + m[0].length });
+            }
+            return out;
+        }
+        // Acha [início, fim] do trecho na frase. Tenta igualdade exata; não achando,
+        // procura a sequência de palavras que mais se parece com o trecho.
+        function acharTrechoNaFrase(frase, trecho) {
+            if(!frase || !trecho) return null;
+            const exato = frase.indexOf(trecho);
+            if(exato !== -1) return [exato, exato + trecho.length];
+
+            const alvo = normalizarParaComparar(trecho).split(' ').filter(Boolean);
+            const palavras = palavrasComPosicao(frase);
+            if(!alvo.length || !palavras.length) return null;
+
+            const doAlvo = new Set(alvo);
+            let melhor = null, melhorNota = 0;
+            // Janelas do tamanho do trecho, com uma palavra de folga para cada lado
+            const menor = Math.max(1, alvo.length - 1);
+            const maior = Math.min(palavras.length, alvo.length + 1);
+            for(let tam = menor; tam <= maior; tam++) {
+                for(let i = 0; i + tam <= palavras.length; i++) {
+                    let acertos = 0;
+                    for(let k = 0; k < tam; k++) if(doAlvo.has(palavras[i + k].palavra)) acertos++;
+                    const nota = acertos / Math.max(tam, alvo.length);
+                    if(nota > melhorNota) { melhorNota = nota; melhor = [palavras[i].ini, palavras[i + tam - 1].fim]; }
+                }
+            }
+            // Abaixo de metade das palavras batendo, é chute: melhor não destacar nada
+            return melhorNota >= 0.5 ? melhor : null;
+        }
         function highlightPart(full, part) {
-            if(!part) return escapeHtml(full);
-            const idx = full.indexOf(part);
-            if(idx === -1) return escapeHtml(full);
-            return escapeHtml(full.slice(0, idx))
-                 + '<span class="cue-focus">' + escapeHtml(part) + '</span>'
-                 + escapeHtml(full.slice(idx + part.length));
+            const p = acharTrechoNaFrase(full, part);
+            if(!p) return escapeHtml(full);
+            return escapeHtml(full.slice(0, p[0]))
+                 + '<span class="cue-focus">' + escapeHtml(full.slice(p[0], p[1])) + '</span>'
+                 + escapeHtml(full.slice(p[1]));
         }
 
         function escapeHtml(s) {
@@ -2731,13 +2834,10 @@
             _decoder.innerHTML = String(s);   // textarea: conteúdo é texto puro, não executa nada
             return _decoder.value;
         }
+        // Mesmo destaque do lado em inglês: a legenda pode vir com espaços ou
+        // pontuação diferentes de como aparece na frase montada
         function highlightCueInSentence(sentence, cueText) {
-            const cue = (cueText || '').trim();
-            const idx = cue ? sentence.indexOf(cue) : -1;
-            if(idx === -1) return escapeHtml(sentence);
-            return escapeHtml(sentence.slice(0, idx))
-                 + '<span class="cue-focus">' + escapeHtml(cue) + '</span>'
-                 + escapeHtml(sentence.slice(idx + cue.length));
+            return highlightPart(sentence, (cueText || '').trim());
         }
 
         function closeTransCard() {
@@ -2853,12 +2953,16 @@
                     ctxOrig.innerHTML = highlightCueInSentence(sentence.text, opts.cueText || src);
                     ctxBlock.style.display = 'block';
 
+                    // O destaque tem de sair nos DOIS lados. Quando o motor não
+                    // devolve o pedaço já recortado (sentencePart), a própria
+                    // tradução da legenda (main.text) serve de alvo da busca.
+                    const alvo = main.sentencePart || main.text;
                     if(main.sentence) {
-                        ctxTrans.innerHTML = highlightPart(main.sentence, main.sentencePart);
+                        ctxTrans.innerHTML = highlightPart(main.sentence, alvo);
                     } else {
                         // Motor sem frase pronta: traduz a frase e destaca o trecho já obtido
                         const ctx = await translateInContext(sentence.text, sentence, currentCueIndex);
-                        if(ctx) ctxTrans.innerHTML = highlightPart(ctx.text, main.text);
+                        if(ctx) ctxTrans.innerHTML = highlightPart(ctx.sentence || ctx.text, alvo);
                     }
                 }
             } else {
@@ -2945,6 +3049,10 @@
             updateVocabCount();
             // Vídeo local: a proporção real só é conhecida depois dos metadados
             video.addEventListener('loadedmetadata', () => posicionarLegenda());
+            // Vídeo local avisa play/pause por evento — não precisa de sondagem
+            ['play','playing','pause','ended','emptied'].forEach(ev =>
+                video.addEventListener(ev, atualizarTravaDeRolagem));
+            atualizarTravaDeRolagem();
             document.getElementById('api-key-input').value = YOUTUBE_API_KEY;
             document.getElementById('supadata-key-input').value = SUPADATA_API_KEY;
             document.getElementById('claude-key-input').value = CLAUDE_API_KEY;

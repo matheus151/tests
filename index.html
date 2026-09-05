@@ -180,6 +180,41 @@
         }
         .loading-more, .empty-msg { text-align: center; color: var(--text-dim); padding: 18px 8px; font-size: 0.85rem; }
 
+        /* ===================== CANAIS ===================== */
+        /* Canal reaproveita .video-item, só troca a miniatura por um avatar redondo */
+        .channel-item .video-thumb-wrapper { width: 62px; height: 62px; }
+        .channel-item .video-thumb { border-radius: 50%; }
+        .channel-item .video-info { align-self: center; }
+        .channel-item .video-title { -webkit-line-clamp: 2; }
+        .btn-fav-canal {
+            background: var(--input-bg); color: var(--text-main);
+            border: 1px solid var(--border-color); border-radius: 7px;
+            padding: 6px 10px; font-size: 0.9rem; line-height: 1;
+            cursor: pointer; flex-shrink: 0; align-self: center;
+        }
+        .btn-fav-canal.on { background: var(--accent); color: #000; border-color: var(--accent); }
+        .btn-fav-canal:active { filter: brightness(0.9); }
+
+        /* Alternador Vídeos / Canais na busca */
+        .seg { display: flex; gap: 6px; margin-bottom: 8px; }
+        .seg button {
+            flex: 1 1 0; padding: 7px 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+            background: var(--input-bg); color: var(--text-dim);
+            border: 1px solid var(--border-color); border-radius: 8px;
+        }
+        .seg button.on { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        /* Faixa "você está dentro do canal X" */
+        #canal-atual {
+            display: none; align-items: center; gap: 10px;
+            background: var(--input-bg); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 8px 10px; margin-bottom: 8px;
+        }
+        body.dentro-do-canal #canal-atual { display: flex; }
+        #canal-atual img { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; background: var(--panel-color); }
+        #canal-atual .nome { flex: 1 1 auto; font-size: 0.84rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+        #canal-atual .sub { font-size: 0.72rem; color: var(--text-dim); font-weight: 500; }
+
         /* Status */
         #resume-status {
             flex: 0 0 auto; font-size: 0.75rem; font-weight: 600; display: none;
@@ -315,6 +350,21 @@
         body.panel-collapsed #panel { display: none; }
         body.panel-collapsed #player-zone { aspect-ratio: auto; flex: 1 1 auto; max-height: none; }
         body.panel-collapsed #collapse-arrow { transform: rotate(180deg); }
+
+        /* No modo foco o vídeo 16:9 fica centralizado numa área bem mais alta, e a
+           faixa da legenda caía lá no rodapé, longe da imagem. Aqui a faixa vira
+           altura zero e a legenda é ancorada por JS na borda inferior do vídeo. */
+        body.panel-collapsed:not(.fs-active) #subtitle-strip {
+            position: static; height: 0; min-height: 0; overflow: visible;
+            padding: 0; background: transparent; border: none;
+        }
+        body.panel-collapsed:not(.fs-active) #subtitle-placeholder { display: none !important; }
+        body.panel-collapsed:not(.fs-active) #subtitle-container {
+            max-width: calc(100% - 20px);
+        }
+        body.panel-collapsed:not(.fs-active) .subtitle-box {
+            backdrop-filter: blur(3px); box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+        }
 
         .word {
             font-size: 1em; padding: 2px 1px; border-radius: 4px; display: inline; cursor: pointer;
@@ -494,6 +544,10 @@
         <!-- ---------- ABA BUSCAR ---------- -->
         <section class="tab-page active" id="page-buscar">
             <div class="card">
+                <div class="seg">
+                    <button id="seg-video" class="on" onclick="setModoBusca('video')">🎬 Vídeos</button>
+                    <button id="seg-canal" onclick="setModoBusca('canal')">📺 Canais</button>
+                </div>
                 <div class="row">
                     <input type="text" id="yt-search-input" class="modern-input" placeholder="Buscar no YouTube ou colar link..."
                            onkeydown="if(event.key==='Enter')initSearch()">
@@ -508,6 +562,18 @@
             </div>
 
             <div class="section-title" id="results-title">Resultados</div>
+
+            <!-- Aparece só quando você entra num canal (body.dentro-do-canal) -->
+            <div id="canal-atual">
+                <img id="canal-atual-img" alt="">
+                <div class="nome">
+                    <div id="canal-atual-nome"></div>
+                    <div class="sub">Vídeos mais recentes do canal</div>
+                </div>
+                <button class="btn-fav-canal" id="canal-atual-fav" onclick="toggleFavCanalAtual()" title="Favoritar canal">☆</button>
+                <button class="mini-btn" onclick="sairDoCanal()" title="Sair do canal">✕</button>
+            </div>
+
             <div class="card" id="results-card" style="padding:6px 10px">
                 <div id="search-results-list" class="scroll-list">
                     <div class="empty-msg">Nenhuma busca ainda.</div>
@@ -532,7 +598,18 @@
             <button id="btn-fav-current" class="btn btn-success btn-wide" style="display:none; margin-bottom:12px"
                     onclick="addCurrentToFavorites()">❤️ Favoritar vídeo atual (salva progresso)</button>
 
-            <div class="section-title">Meus favoritos</div>
+            <div class="section-head">
+                <span class="section-title" style="margin:0">Canais favoritos</span>
+                <div class="section-head-actions">
+                    <button class="mini-btn" id="btn-fav-canal-atual" onclick="favoritarCanalDoVideo()"
+                            title="Favoritar o canal do vídeo aberto">➕ canal do vídeo</button>
+                </div>
+            </div>
+            <div class="card" style="padding:6px 10px">
+                <div id="fav-channels-list" class="scroll-list"></div>
+            </div>
+
+            <div class="section-title" style="margin-top:14px">Vídeos favoritos</div>
             <div class="card" style="padding:6px 10px">
                 <div id="favorites-list" class="scroll-list"></div>
             </div>
@@ -845,7 +922,7 @@
             if(page) page.classList.add('active');
             if(btn) btn.classList.add('active');
             document.getElementById('panel').scrollTop = 0;
-            if(name === 'favoritos') renderFavorites();
+            if(name === 'favoritos') { renderFavorites(); renderFavChannels(); }
             if(name === 'ajustes') updateVocabCount();
         }
 
@@ -855,6 +932,7 @@
         function applyPanelState() {
             document.body.classList.toggle('panel-collapsed', panelCollapsed);
             document.getElementById('collapse-text').textContent = panelCollapsed ? 'Mostrar busca' : 'Ocultar busca';
+            posicionarLegenda();   // entrar/sair do foco muda a altura do vídeo
         }
         function togglePanel() {
             panelCollapsed = !panelCollapsed;
@@ -862,6 +940,7 @@
         }
         function collapsePanel() {
             if(!panelCollapsed) { panelCollapsed = true; applyPanelState(); }
+            else posicionarLegenda();   // já estava no foco: só reancora na imagem nova
         }
 
         function isLandscape() {
@@ -884,7 +963,7 @@
         // arrastada pela alça. Aqui só definimos a posição inicial.
         let subtitleDragged = false;
         function applyOverlaySubtitleDefault() {
-            if(!isOverlayMode()) { resetSubtitlePosition(); return; }
+            if(!isOverlayMode()) { posicionarLegenda(); return; }
             if(subtitleDragged) return; // o usuário escolheu outro lugar: respeita
             subContainer.style.position = 'fixed';
             subContainer.style.top = 'auto';
@@ -892,6 +971,49 @@
             subContainer.style.left = '50%';
             subContainer.style.transform = 'translateX(-50%)';
             subContainer.style.zIndex = '2147483647';
+        }
+
+        // Onde termina a IMAGEM do vídeo na tela. Não é a borda do #player-zone: no
+        // modo foco a zona é bem mais alta que o vídeo, que fica 16:9 centralizado
+        // nela com tarjas pretas em cima e embaixo.
+        function bordaInferiorDoVideo() {
+            const zona = document.getElementById('player-zone');
+            if(!zona) return null;
+            const r = zona.getBoundingClientRect();
+            if(!r.height || !r.width) return null;
+            let proporcao = 16 / 9;
+            if(playerType === 'local' && video.videoWidth && video.videoHeight) {
+                proporcao = video.videoWidth / video.videoHeight;
+            }
+            const alturaVideo = Math.min(r.height, r.width / proporcao);
+            return r.top + (r.height + alturaVideo) / 2;
+        }
+
+        // Modo foco em retrato: legenda logo abaixo da imagem, e não lá no rodapé
+        function posicionarLegendaNoFoco() {
+            const y = bordaInferiorDoVideo();
+            if(y == null) return false;
+            subContainer.style.position = 'fixed';
+            subContainer.style.bottom = 'auto';
+            subContainer.style.top = Math.round(y + 8) + 'px';
+            subContainer.style.left = '50%';
+            subContainer.style.transform = 'translateX(-50%)';
+            subContainer.style.width = 'auto';
+            subContainer.style.zIndex = '120';
+            return true;
+        }
+
+        // Ponto único de decisão de onde a legenda mora, para os três modos não brigarem
+        function posicionarLegenda() {
+            if(isOverlayMode()) { applyOverlaySubtitleDefault(); return; }
+            if(panelCollapsed) {
+                // getBoundingClientRect já força o navegador a recalcular o layout,
+                // então a medida sai correta na hora — sem requestAnimationFrame,
+                // que fica parado quando a aba não está em primeiro plano.
+                posicionarLegendaNoFoco();
+                return;
+            }
+            resetSubtitlePosition();
         }
 
         // ===================== SINCRONIA =====================
@@ -1355,6 +1477,142 @@
             }
         }
 
+        // ===================== CANAIS FAVORITOS =====================
+        let favChannels = JSON.parse(localStorage.getItem('ejoy_fav_channels') || '[]');
+        let modoBusca = 'video';   // 'video' = procura vídeos | 'canal' = procura canais
+        let canalAtual = null;     // {id, title, thumb} enquanto você navega dentro de um canal
+
+        function salvarCanais() {
+            try { localStorage.setItem('ejoy_fav_channels', JSON.stringify(favChannels)); return true; }
+            catch(e) { alert('Memória cheia: não deu para salvar o canal.'); return false; }
+        }
+        function canalFavoritado(id) { return favChannels.some(c => c.id === id); }
+
+        // Devolve true se acabou de favoritar, false se desfavoritou
+        function toggleFavCanal(canal) {
+            const i = favChannels.findIndex(c => c.id === canal.id);
+            if(i !== -1) favChannels.splice(i, 1);
+            else favChannels.push({ id: canal.id, title: canal.title, thumb: canal.thumb || '' });
+            salvarCanais();
+            renderFavChannels();
+            atualizarEstrelasCanal();
+            return i === -1;
+        }
+        // Mantém ☆/★ coerente em toda a tela sem redesenhar as listas
+        function atualizarEstrelasCanal() {
+            document.querySelectorAll('.btn-fav-canal[data-canal]').forEach(b => {
+                const on = canalFavoritado(b.getAttribute('data-canal'));
+                b.textContent = on ? '★' : '☆';
+                b.classList.toggle('on', on);
+                b.title = on ? 'Remover dos canais favoritos' : 'Favoritar canal';
+            });
+        }
+
+        function renderFavChannels() {
+            const lista = document.getElementById('fav-channels-list');
+            if(!lista) return;
+            lista.innerHTML = "";
+            if(!favChannels.length) {
+                lista.innerHTML = "<div class='empty-msg'>Nenhum canal favorito ainda. Busque em <b>📺 Canais</b> e toque na estrela.</div>";
+                return;
+            }
+            favChannels.forEach((c, i) => {
+                const el = document.createElement('div');
+                el.className = 'video-item channel-item';
+                el.innerHTML =
+                    `<div class="video-thumb-wrapper"><img src="${escapeHtml(c.thumb || '')}" class="video-thumb"></div>`
+                  + `<div class="video-info"><div class="video-title">${escapeHtml(decodeHtmlEntities(c.title || ''))}</div>`
+                  + `<div class="video-channel">Toque para ver os vídeos</div></div>`
+                  + `<button class="btn-del-fav" onclick="removerCanalFavorito(event,${i})">🗑️</button>`;
+                el.onclick = (e) => {
+                    if(e.target.classList.contains('btn-del-fav')) return;
+                    abrirCanal(c);
+                };
+                lista.appendChild(el);
+            });
+        }
+        function removerCanalFavorito(e, i) {
+            e.stopPropagation();
+            const c = favChannels[i];
+            if(!c) return;
+            if(!confirm('Remover "' + (c.title || 'canal') + '" dos canais favoritos?')) return;
+            favChannels.splice(i, 1);
+            salvarCanais();
+            renderFavChannels();
+            atualizarEstrelasCanal();
+        }
+
+        // Favoritar o canal do vídeo que está tocando. Quando o vídeo veio de uma
+        // busca, o canal já está em mãos; se veio de link ou histórico, pergunta à API.
+        async function favoritarCanalDoVideo() {
+            if(playerType !== 'youtube' || !currentPlayingYT) { alert('Abra um vídeo do YouTube primeiro.'); return; }
+            let canal = currentPlayingYT.canal;
+            if(!canal || !canal.id) {
+                if(!YOUTUBE_API_KEY) { alert('Para descobrir o canal deste vídeo é preciso a chave da API do YouTube (aba Ajustes).'); return; }
+                try {
+                    const u = `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${currentPlayingYT.id}&key=${YOUTUBE_API_KEY}`;
+                    const r = await fetchComTempo(u, null, 12000);
+                    const d = await r.json();
+                    const sn = d.items && d.items[0] && d.items[0].snippet;
+                    if(!sn || !sn.channelId) { alert('Não consegui identificar o canal deste vídeo.'); return; }
+                    canal = { id: sn.channelId, title: decodeHtmlEntities(sn.channelTitle || 'Canal'), thumb: '' };
+                    currentPlayingYT.canal = canal;
+                } catch(e) { alert('Erro de rede ao consultar o canal.'); return; }
+            }
+            // Sem foto do canal na resposta de vídeo: busca uma, sem travar se falhar
+            if(!canal.thumb && YOUTUBE_API_KEY) {
+                try {
+                    const u = `https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${canal.id}&key=${YOUTUBE_API_KEY}`;
+                    const r = await fetchComTempo(u, null, 12000);
+                    const d = await r.json();
+                    const t = d.items && d.items[0] && d.items[0].snippet && d.items[0].snippet.thumbnails;
+                    if(t) canal.thumb = (t.medium || t.default || {}).url || '';
+                } catch(e) {}
+            }
+            const virouFavorito = toggleFavCanal(canal);
+            alert(virouFavorito ? 'Canal "' + canal.title + '" salvo nos favoritos!'
+                                : 'Canal "' + canal.title + '" removido dos favoritos.');
+        }
+
+        // ---- navegação dentro de um canal ----
+        function abrirCanal(canal) {
+            if(!canal || !canal.id) return;
+            if(!YOUTUBE_API_KEY) { alert('Configure a chave da API do YouTube na aba Ajustes.'); showTab('ajustes'); return; }
+            canalAtual = { id: canal.id, title: canal.title || 'Canal', thumb: canal.thumb || '' };
+            document.body.classList.add('dentro-do-canal');
+            document.getElementById('canal-atual-img').src = canalAtual.thumb || '';
+            document.getElementById('canal-atual-nome').textContent = decodeHtmlEntities(canalAtual.title);
+            const fav = document.getElementById('canal-atual-fav');
+            fav.setAttribute('data-canal', canalAtual.id);
+            document.getElementById('results-title').textContent = 'Vídeos do canal';
+            atualizarEstrelasCanal();
+
+            showTab('buscar');
+            showResultsList();
+            nextPageToken = ""; autoPaginas = 0; resultsList.innerHTML = "";
+            fetchVideos("");
+        }
+        function sairDoCanal() {
+            canalAtual = null;
+            document.body.classList.remove('dentro-do-canal');
+            document.getElementById('results-title').textContent = 'Resultados';
+            nextPageToken = ""; autoPaginas = 0;
+            resultsList.innerHTML = "<div class='empty-msg'>Nenhuma busca ainda.</div>";
+        }
+        function toggleFavCanalAtual() {
+            if(!canalAtual) return;
+            toggleFavCanal(canalAtual);
+        }
+
+        function setModoBusca(m) {
+            modoBusca = (m === 'canal') ? 'canal' : 'video';
+            document.getElementById('seg-video').classList.toggle('on', modoBusca === 'video');
+            document.getElementById('seg-canal').classList.toggle('on', modoBusca === 'canal');
+            ytInput.placeholder = modoBusca === 'canal'
+                ? 'Nome do canal (ex.: BBC Learning English)'
+                : 'Buscar no YouTube ou colar link...';
+        }
+
         function openExternalDownSub() {
             const u = localStorage.getItem('ejoy_ytUrl');
             if(playerType !== 'youtube' || !u){ alert("Abra um vídeo do YouTube primeiro."); return; }
@@ -1372,17 +1630,72 @@
             if(q.includes('youtu')) { loadYouTubeFromInput(); return; }
             if(!YOUTUBE_API_KEY) { alert("Configure a chave da API do YouTube na aba Ajustes, ou cole um link de vídeo."); showTab('ajustes'); return; }
             if(!q) return;
+            // Uma busca nova sempre sai de dentro do canal
+            if(canalAtual) {
+                canalAtual = null;
+                document.body.classList.remove('dentro-do-canal');
+            }
+            document.getElementById('results-title').textContent = modoBusca === 'canal' ? 'Canais encontrados' : 'Resultados';
             nextPageToken = ""; autoPaginas = 0; resultsList.innerHTML = "";
             showResultsList();  // nunca buscar para dentro de uma lista escondida
-            await fetchVideos(q);
+            if(modoBusca === 'canal') await fetchCanais(q);
+            else await fetchVideos(q);
         }
+
+        // Rolagem infinita e botões precisam saber o que está listado agora
+        function carregarMais() {
+            if(canalAtual) return fetchVideos("");
+            if(modoBusca === 'canal') return fetchCanais(ytInput.value.trim());
+            return fetchVideos(ytInput.value);
+        }
+
+        async function fetchCanais(q) {
+            if(!q || isFetching) return; isFetching = true;
+            const loader = document.createElement('div');
+            loader.innerText = "Carregando..."; loader.className = "loading-more";
+            resultsList.appendChild(loader);
+            try {
+                let u = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=15&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`;
+                if(nextPageToken) u += `&pageToken=${nextPageToken}`;
+                const res = await fetchComTempo(u, null, 12000); const d = await res.json(); loader.remove();
+                if(d.error) { alert(d.error.message); return; }
+                nextPageToken = d.nextPageToken || "";
+                (d.items || []).forEach(i => {
+                    const cid = i.id && i.id.channelId;
+                    if(!cid) return;
+                    const th = ((i.snippet.thumbnails || {}).medium || (i.snippet.thumbnails || {}).default || {}).url || '';
+                    const nome = decodeHtmlEntities(i.snippet.title || 'Canal');
+                    const desc = decodeHtmlEntities(i.snippet.description || '');
+                    const el = document.createElement('div');
+                    el.className = 'video-item channel-item';
+                    el.innerHTML =
+                        `<div class="video-thumb-wrapper"><img src="${escapeHtml(th)}" class="video-thumb"></div>`
+                      + `<div class="video-info"><div class="video-title">${escapeHtml(nome)}</div>`
+                      + `<div class="video-channel">${escapeHtml(desc.slice(0, 70))}</div></div>`
+                      + `<button class="btn-fav-canal" data-canal="${escapeHtml(cid)}">☆</button>`;
+                    const botao = el.querySelector('.btn-fav-canal');
+                    botao.onclick = (e) => { e.stopPropagation(); toggleFavCanal({ id: cid, title: nome, thumb: th }); };
+                    el.onclick = () => abrirCanal({ id: cid, title: nome, thumb: th });
+                    resultsList.appendChild(el);
+                });
+                atualizarEstrelasCanal();
+                if(!resultsList.children.length) {
+                    resultsList.innerHTML = "<div class='empty-msg'>Nenhum canal encontrado.</div>";
+                }
+            } catch(e) { loader.innerText = "Erro na busca."; }
+            finally { isFetching = false; }
+        }
+
         async function fetchVideos(q) {
             if(isFetching) return; isFetching = true;
             const loader = document.createElement('div');
             loader.innerText = "Carregando..."; loader.className = "loading-more";
             resultsList.appendChild(loader);
             try {
-                let u = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`;
+                // Dentro de um canal listamos os vídeos dele por data, sem termo de busca
+                let u = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&key=${YOUTUBE_API_KEY}`;
+                if(canalAtual) u += `&channelId=${encodeURIComponent(canalAtual.id)}&order=date`;
+                else           u += `&q=${encodeURIComponent(q)}`;
                 if(nextPageToken) u += `&pageToken=${nextPageToken}`;
                 const res = await fetchComTempo(u, null, 12000); const d = await res.json(); loader.remove();
                 if(d.error) { alert(d.error.message); return; }
@@ -1415,7 +1728,9 @@
                         + `<div class="video-info"><div class="video-title">${escapeHtml(t)}</div>`
                         + `<div class="video-channel">${escapeHtml(canal)}`
                         + `${idade ? ` <span class="video-dot">•</span> ${escapeHtml(idade)}` : ''}</div></div>`;
-                    el.onclick = () => loadYouTube(vid, t, th);
+                    // Guarda o canal junto: dá para favoritá-lo depois sem outra consulta
+                    const canalDoItem = { id: i.snippet.channelId, title: canal, thumb: '' };
+                    el.onclick = () => loadYouTube(vid, t, th, null, canalDoItem);
                     resultsList.appendChild(el);
                 });
 
@@ -1428,7 +1743,9 @@
                     return;
                 }
                 if(!resultsList.children.length) {
-                    resultsList.innerHTML = "<div class='empty-msg'>Nenhum vídeo encontrado (Shorts são filtrados).</div>";
+                    resultsList.innerHTML = canalAtual
+                        ? "<div class='empty-msg'>Este canal não tem vídeos acima de 1:30 (Shorts são filtrados).</div>"
+                        : "<div class='empty-msg'>Nenhum vídeo encontrado (Shorts são filtrados).</div>";
                 }
             } catch(e) { loader.innerText = "Erro na busca."; }
             finally { isFetching = false; }
@@ -1477,7 +1794,7 @@
         document.getElementById('panel').addEventListener('scroll', function() {
             if(!document.getElementById('page-buscar').classList.contains('active')) return;
             if(this.scrollTop + this.clientHeight >= this.scrollHeight - 80 && nextPageToken && !isFetching) {
-                fetchVideos(ytInput.value);
+                carregarMais();
             }
         });
 
@@ -1561,7 +1878,7 @@
         }
         function onYouTubeIframeAPIReady() {}
 
-        function loadYouTube(vid, title, thumb, savedSubs=null) {
+        function loadYouTube(vid, title, thumb, savedSubs=null, canal=null) {
             subtitles = []; buildSentenceIndex(); subContent.innerHTML = "";
             playerType = 'youtube'; currentLocalFileName = "";
             if(currentVideoURL) { URL.revokeObjectURL(currentVideoURL); currentVideoURL = null; }
@@ -1571,6 +1888,8 @@
             gestureLayer.style.display = 'block';
             unlockBtn.style.display = 'block'; unlockBtn.innerText = "⚙️ YouTube"; ytControlsLocked = true;
             currentPlayingYT = { id: vid, title: title || "Vídeo", thumb: thumb || "" };
+            // Canal só existe quando o vídeo veio de uma busca; senão é buscado sob demanda
+            if(canal && canal.id) currentPlayingYT.canal = canal;
             btnFavCurrent.style.display = 'flex';
             addToHistory({ id: vid, title: title || "Vídeo",
                            thumb: thumb || `https://i.ytimg.com/vi/${vid}/mqdefault.jpg` });
@@ -2578,8 +2897,7 @@
         const mqLandscape = window.matchMedia('(orientation: landscape)');
         const onOrientationChange = () => {
             document.body.classList.toggle('fs-active', isFullscreenActive());
-            if(isOverlayMode()) applyOverlaySubtitleDefault();
-            else resetSubtitlePosition();
+            posicionarLegenda();
         };
         if(mqLandscape.addEventListener) mqLandscape.addEventListener('change', onOrientationChange);
         else if(mqLandscape.addListener) mqLandscape.addListener(onOrientationChange);
@@ -2597,8 +2915,8 @@
             if(transCard.style.display === 'block') positionTransCard();
             if(FLOAT_BTN) restoreFloatPos();  // mantém o botão dentro da tela ao girar
             if(!isOverlayMode()) {
-                // Voltou para retrato: a legenda retorna à faixa abaixo do vídeo
-                resetSubtitlePosition();
+                // Retrato: faixa abaixo do vídeo, ou colada na imagem se estiver no modo foco
+                posicionarLegenda();
                 return;
             }
             if(!subtitleDragged) { applyOverlaySubtitleDefault(); return; }
@@ -2622,7 +2940,11 @@
             applyHistoryVisibility();
             renderHistory();
             renderFavorites();
+            renderFavChannels();
+            setModoBusca('video');
             updateVocabCount();
+            // Vídeo local: a proporção real só é conhecida depois dos metadados
+            video.addEventListener('loadedmetadata', () => posicionarLegenda());
             document.getElementById('api-key-input').value = YOUTUBE_API_KEY;
             document.getElementById('supadata-key-input').value = SUPADATA_API_KEY;
             document.getElementById('claude-key-input').value = CLAUDE_API_KEY;

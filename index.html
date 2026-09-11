@@ -367,11 +367,19 @@
             padding: 0; background: transparent; border: none;
         }
         body.panel-collapsed:not(.fs-active) #subtitle-placeholder { display: none !important; }
-        body.panel-collapsed:not(.fs-active) #subtitle-container {
-            max-width: calc(100% - 20px);
-        }
         body.panel-collapsed:not(.fs-active) .subtitle-box {
             backdrop-filter: blur(3px); box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+        }
+        /* Retrato + modo foco: a legenda ocupa a largura toda (com margem) e o texto
+           fica justificado, em vez de uma coluna estreita no meio da tela.
+           A última linha fica centralizada, como legenda de cinema. */
+        @media (orientation: portrait) {
+            body.panel-collapsed:not(.fs-active) .subtitle-box {
+                width: 100%; box-sizing: border-box;
+                padding-left: 14px; padding-right: 14px;
+                text-align: justify;
+                -webkit-text-align-last: center; text-align-last: center;
+            }
         }
 
         .word {
@@ -956,7 +964,7 @@
         }
         // Em retrato a legenda vive na faixa abaixo do vídeo: limpa qualquer arraste anterior
         function resetSubtitlePosition() {
-            ['top','left','bottom','transform','position','z-index','width'].forEach(p => subContainer.style.removeProperty(p));
+            ['top','left','right','bottom','transform','position','z-index','width'].forEach(p => subContainer.style.removeProperty(p));
             subtitleDragged = false;
         }
 
@@ -977,6 +985,7 @@
             subContainer.style.top = 'auto';
             subContainer.style.bottom = '9%';
             subContainer.style.left = '50%';
+            subContainer.style.removeProperty('right');   // âncora do modo foco não vale aqui
             subContainer.style.transform = 'translateX(-50%)';
             subContainer.style.zIndex = '2147483647';
         }
@@ -1004,10 +1013,15 @@
             subContainer.style.position = 'fixed';
             subContainer.style.bottom = 'auto';
             subContainer.style.top = Math.round(y + 8) + 'px';
-            subContainer.style.left = '50%';
-            subContainer.style.transform = 'translateX(-50%)';
+            // Presa nas DUAS laterais. Com "left: 50%" + translate, um elemento fixo
+            // só dispõe de metade da tela para quebrar a linha — era isso que
+            // espremia a legenda numa coluna estreita no centro.
+            subContainer.style.left = '10px';
+            subContainer.style.right = '10px';
+            subContainer.style.transform = 'none';
             subContainer.style.width = 'auto';
             subContainer.style.zIndex = '120';
+            subtitleDragged = false;   // no foco a legenda não é arrastável: zera arraste antigo
             return true;
         }
 

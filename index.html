@@ -223,6 +223,25 @@
         #canal-atual .nome { flex: 1 1 auto; font-size: 0.84rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
         #canal-atual .sub { font-size: 0.72rem; color: var(--text-dim); font-weight: 500; }
 
+        /* ===================== VOCABULÁRIO NOS FAVORITOS ===================== */
+        .vocab-fav-head { cursor: pointer; user-select: none; -webkit-user-select: none; }
+        .seta-vocab { padding: 2px 8px; font-size: 0.8rem; }
+        body.vocab-fav-oculto #vocab-fav-card { display: none; }
+        .vocab-item { padding: 9px 2px; border-bottom: 1px solid var(--border-color); }
+        .vocab-item:last-child { border-bottom: none; }
+        .vocab-linha { display: flex; align-items: center; gap: 8px; }
+        .vocab-termo { flex: 1 1 auto; font-size: 0.9rem; line-height: 1.35; word-break: break-word; }
+        .vocab-btn {
+            flex: 0 0 auto; background: var(--input-bg); color: var(--text-main);
+            border: 1px solid var(--border-color); border-radius: 8px;
+            min-width: 38px; height: 32px; font-size: 0.95rem; line-height: 1; cursor: pointer;
+        }
+        .vocab-btn:active { filter: brightness(0.9); }
+        .vocab-btn.on { background: var(--accent); color: #000; border-color: var(--accent); }
+        .vocab-pt { margin-top: 6px; font-size: 0.86rem; line-height: 1.4; color: var(--success); font-weight: 600; }
+        .vocab-pt .motor { font-size: 0.66rem; color: var(--text-dim); font-weight: 600; margin-left: 6px; }
+        .vocab-pt .nota { display: block; margin-top: 2px; font-size: 0.74rem; color: var(--text-dim); font-weight: 500; }
+
         /* Status */
         #resume-status {
             flex: 0 0 auto; font-size: 0.75rem; font-weight: 600; display: none;
@@ -643,6 +662,15 @@
             <div class="card" style="padding:6px 10px">
                 <div id="favorites-list" class="scroll-list"></div>
             </div>
+
+            <!-- Vocabulário salvo: por último na aba, com setinha para ocultar -->
+            <div class="section-head vocab-fav-head" style="margin-top:14px" onclick="toggleVocabFavoritos()">
+                <span class="section-title" style="margin:0" id="vocab-fav-titulo">Vocabulário salvo</span>
+                <button class="mini-btn seta-vocab" id="btn-toggle-vocab-fav" title="Ocultar vocabulário">▾</button>
+            </div>
+            <div class="card" id="vocab-fav-card" style="padding:6px 10px">
+                <div id="vocab-fav-list" class="scroll-list"></div>
+            </div>
         </section>
 
         <!-- ---------- ABA LEGENDA ---------- -->
@@ -953,7 +981,7 @@
             if(page) page.classList.add('active');
             if(btn) btn.classList.add('active');
             document.getElementById('panel').scrollTop = 0;
-            if(name === 'favoritos') { renderFavorites(); renderFavChannels(); }
+            if(name === 'favoritos') { renderFavorites(); renderFavChannels(); renderVocabFavoritos(); }
             if(name === 'ajustes') updateVocabCount();
         }
 
@@ -1364,6 +1392,7 @@
         function updateVocabCount() {
             const el = document.getElementById('vocab-count');
             if(el) el.textContent = vocabList.length ? `${vocabList.length} item(ns) salvos.` : 'Nenhum item salvo ainda.';
+            renderVocabFavoritos();   // salvou/apagou: a lista da aba Favoritos acompanha
         }
         function saveCurrentVocab() {
             if(!currentTranslateSource) return;
@@ -1389,6 +1418,207 @@
                 vocabList = []; localStorage.removeItem('ejoy_vocab');
                 updateVocabCount(); alert("Vocabulário apagado!");
             }
+        }
+
+        // ===================== VOCABULÁRIO NOS FAVORITOS =====================
+        // Lista os termos salvos com dois botões: ouvir em inglês e ver a tradução.
+        // As traduções ficam num cache à parte (ejoy_vocab_pt): o formato de
+        // ejoy_vocab não muda, e o "Baixar" continua exportando a mesma lista.
+        let vocabPt = {};
+        try { vocabPt = JSON.parse(localStorage.getItem('ejoy_vocab_pt') || '{}') || {}; } catch(e) { vocabPt = {}; }
+        let VOCAB_FAV_OCULTO = localStorage.getItem('ejoy_vocab_fav_oculto') === '1';
+
+        function aplicarVocabOculto() {
+            document.body.classList.toggle('vocab-fav-oculto', VOCAB_FAV_OCULTO);
+            const b = document.getElementById('btn-toggle-vocab-fav');
+            if(b) {
+                b.textContent = VOCAB_FAV_OCULTO ? '▸' : '▾';
+                b.title = VOCAB_FAV_OCULTO ? 'Mostrar vocabulário' : 'Ocultar vocabulário';
+            }
+        }
+        function toggleVocabFavoritos() {
+            VOCAB_FAV_OCULTO = !VOCAB_FAV_OCULTO;
+            localStorage.setItem('ejoy_vocab_fav_oculto', VOCAB_FAV_OCULTO ? '1' : '0');
+            aplicarVocabOculto();
+        }
+
+        function renderVocabFavoritos() {
+            const lista = document.getElementById('vocab-fav-list');
+            if(!lista) return;
+            const titulo = document.getElementById('vocab-fav-titulo');
+            if(titulo) titulo.textContent = 'Vocabulário salvo' + (vocabList.length ? ' (' + vocabList.length + ')' : '');
+            lista.innerHTML = '';
+            if(!vocabList.length) {
+                lista.innerHTML = "<div class='empty-msg'>Nenhum termo salvo ainda. Traduza um trecho da legenda e toque em 💾 Salvar.</div>";
+                return;
+            }
+            // Mais recentes primeiro. Tudo por textContent: o termo vem da legenda.
+            vocabList.slice().reverse().forEach(termo => {
+                const item = document.createElement('div'); item.className = 'vocab-item';
+                const linha = document.createElement('div'); linha.className = 'vocab-linha';
+                const txt = document.createElement('span'); txt.className = 'vocab-termo'; txt.textContent = termo;
+                const ouvir = document.createElement('button');
+                ouvir.className = 'vocab-btn'; ouvir.textContent = '🔊'; ouvir.title = 'Ouvir em inglês';
+                const trad = document.createElement('button');
+                trad.className = 'vocab-btn'; trad.textContent = '🇧🇷'; trad.title = 'Ver tradução';
+                const pt = document.createElement('div'); pt.className = 'vocab-pt'; pt.hidden = true;
+                ouvir.onclick = (e) => { e.stopPropagation(); ouvirIngles(termo, ouvir); };
+                trad.onclick = (e) => { e.stopPropagation(); mostrarTraducaoVocab(termo, pt, trad); };
+                linha.append(txt, ouvir, trad);
+                item.append(linha, pt);
+                lista.appendChild(item);
+            });
+        }
+
+        // ---- Ouvir em inglês: voz do próprio aparelho (Web Speech) ----
+        let vozBotaoAtivo = null;
+        function vozIngles() {
+            const vozes = window.speechSynthesis.getVoices() || [];
+            return vozes.find(v => /^en[-_]US/i.test(v.lang) && v.localService)
+                || vozes.find(v => /^en[-_]US/i.test(v.lang))
+                || vozes.find(v => /^en/i.test(v.lang)) || null;
+        }
+        function ouvirIngles(termo, botao) {
+            if(!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+                alert('Este navegador não tem leitura em voz alta.'); return;
+            }
+            const s = window.speechSynthesis;
+            const mesmoBotao = vozBotaoAtivo === botao;
+            s.cancel();
+            if(vozBotaoAtivo) { vozBotaoAtivo.textContent = '🔊'; vozBotaoAtivo.classList.remove('on'); vozBotaoAtivo = null; }
+            if(mesmoBotao) return;          // segundo toque no mesmo botão = parar
+            pauseAny();                      // o som do vídeo não embola com a voz
+            const u = new SpeechSynthesisUtterance(termo);
+            u.lang = 'en-US';
+            u.rate = 0.9;                    // um pouco mais devagar, para estudo
+            const voz = vozIngles();
+            if(voz) u.voice = voz;
+            const fim = () => {
+                if(vozBotaoAtivo !== botao) return;
+                botao.textContent = '🔊'; botao.classList.remove('on'); vozBotaoAtivo = null;
+            };
+            u.onend = fim; u.onerror = fim;
+            vozBotaoAtivo = botao; botao.textContent = '⏹'; botao.classList.add('on');
+            s.speak(u);
+        }
+
+        // ---- Tradução: Groq primeiro, Google Tradutor como reserva ----
+        // O Groq aposenta modelos com frequência (os nomes fixos passaram a dar 404),
+        // então aqui o app PERGUNTA quais modelos a conta tem e usa o melhor.
+        const GROQ_MODELOS_CACHE_H = 12;
+        async function modelosGroq() {
+            const chave = IA_KEYS.groq;
+            if(!chave) return [];
+            const marca = chave.slice(-6);   // troca de chave = pergunta de novo
+            try {
+                const c = JSON.parse(localStorage.getItem('ejoy_groq_modelos') || 'null');
+                if(c && c.marca === marca && Array.isArray(c.lista) && c.lista.length
+                   && Date.now() - c.quando < GROQ_MODELOS_CACHE_H * 3600 * 1000) return c.lista;
+            } catch(e) {}
+            let lista = [];
+            try {
+                const r = await fetchComTempo('https://api.groq.com/openai/v1/models',
+                    { headers: { 'Authorization': 'Bearer ' + chave } }, 10000);
+                if(r.ok) {
+                    const d = await r.json();
+                    const preferencia = [/llama-3\.3-70b/i, /gpt-oss-120b/i, /llama-4/i, /kimi/i, /qwen/i, /gpt-oss-20b/i, /llama-3\.1-8b/i];
+                    const nota = id => { const i = preferencia.findIndex(re => re.test(id)); return i === -1 ? preferencia.length : i; };
+                    lista = (d.data || [])
+                        .filter(m => m && m.id && m.active !== false)
+                        .map(m => m.id)
+                        // fora: voz, transcrição, moderação e agentes
+                        .filter(id => !/whisper|tts|guard|playai|orpheus|embed|allam|compound/i.test(id))
+                        .sort((a, b) => nota(a) - nota(b))
+                        .slice(0, 4);
+                }
+            } catch(e) {}
+            if(lista.length) {
+                try { localStorage.setItem('ejoy_groq_modelos', JSON.stringify({ marca, quando: Date.now(), lista })); } catch(e) {}
+                return lista;
+            }
+            return IA_COMPAT.groq.modelos.slice();   // não deu para perguntar: tenta os conhecidos
+        }
+        // Devolve { pt, nota, motor } | { erro: status } | null
+        async function traduzirVocabGroq(termo) {
+            const chave = IA_KEYS.groq;
+            if(!chave) return null;
+            const modelos = await modelosGroq();
+            for(const modelo of modelos) {
+                let r;
+                try {
+                    r = await fetchComTempo(IA_COMPAT.groq.url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + chave },
+                        body: JSON.stringify({
+                            model: modelo, temperature: 0.2, max_tokens: 300,
+                            response_format: { type: 'json_object' },
+                            messages: [
+                                { role: 'system', content: 'Você traduz termos e frases de inglês para português do Brasil para um estudante. '
+                                    + 'Traduza pelo SENTIDO, como um brasileiro diria; gíria, expressão e phrasal verb viram o equivalente natural. '
+                                    + 'Responda SOMENTE com JSON: {"traducao": "...", "nota": "..."}. '
+                                    + 'nota: explicação de até 12 palavras se for gíria, expressão ou phrasal verb; senão "".' },
+                                { role: 'user', content: termo }
+                            ]
+                        })
+                    }, 15000);
+                } catch(e) { return null; }                  // rede: vai de Google
+                if(r.status === 401 || r.status === 403 || r.status === 429) return { erro: r.status };
+                if(!r.ok) continue;                          // modelo aposentado: tenta o próximo
+                try {
+                    const d = await r.json();
+                    const txt = (d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) || '';
+                    const bloco = txt.match(/\{[\s\S]*\}/);
+                    const j = JSON.parse(bloco ? bloco[0] : txt);
+                    const pt = String((j && j.traducao) || '').trim();
+                    if(pt && !mesmoTexto(pt, termo)) return { pt, nota: String(j.nota || '').trim(), motor: 'Groq' };
+                } catch(e) {}
+            }
+            // Nenhum modelo serviu: esquece a lista para perguntar de novo na próxima
+            try { localStorage.removeItem('ejoy_groq_modelos'); } catch(e) {}
+            return null;
+        }
+        async function traduzirVocab(termo) {
+            const k = termo.toLowerCase();
+            if(vocabPt[k]) return vocabPt[k];
+            let falhaGroq = 'sem chave do Groq';
+            if(IA_KEYS.groq) {
+                const g = await traduzirVocabGroq(termo);
+                if(g && g.pt) {
+                    vocabPt[k] = g;     // só guarda a do Groq; a do Google já tem cache próprio
+                    try { localStorage.setItem('ejoy_vocab_pt', JSON.stringify(vocabPt)); } catch(e) {}
+                    return g;
+                }
+                falhaGroq = !g ? 'Groq indisponível'
+                          : g.erro === 429 ? 'limite do Groq atingido'
+                          : 'chave do Groq recusada';
+            }
+            const goo = await translateEngine(termo, false);
+            if(goo && goo.text && !goo.naoTraduzido) return { pt: goo.text, nota: '', motor: 'Google', obs: falhaGroq };
+            return null;
+        }
+        async function mostrarTraducaoVocab(termo, caixa, botao) {
+            if(caixa.dataset.carregando === '1') return;
+            // Segundo toque com a tradução aberta: esconde
+            if(!caixa.hidden && caixa.dataset.pronto === '1') { caixa.hidden = true; botao.classList.remove('on'); return; }
+            caixa.hidden = false; botao.classList.add('on');
+            if(caixa.dataset.pronto === '1') return;
+            caixa.dataset.carregando = '1';
+            caixa.textContent = 'Traduzindo...';
+            let res = null;
+            try { res = await traduzirVocab(termo); } catch(e) { res = null; }
+            caixa.dataset.carregando = '0';
+            caixa.textContent = '';
+            if(!res) {
+                caixa.textContent = '⚠️ Não consegui traduzir agora — toque em 🇧🇷 de novo.';
+                caixa.dataset.pronto = '0';
+                return;
+            }
+            const t = document.createElement('span'); t.textContent = res.pt;
+            const m = document.createElement('span'); m.className = 'motor';
+            m.textContent = res.motor + (res.obs ? ' · ' + res.obs : '');
+            caixa.append(t, m);
+            if(res.nota) { const n = document.createElement('span'); n.className = 'nota'; n.textContent = res.nota; caixa.appendChild(n); }
+            caixa.dataset.pronto = '1';
         }
 
         // ===================== HISTÓRICO =====================
@@ -3322,6 +3552,9 @@
             renderFavorites();
             renderFavChannels();
             setModoBusca('video');
+            aplicarVocabOculto();
+            // Pede a lista de vozes cedo: no iPhone ela chega com atraso
+            if('speechSynthesis' in window) { try { speechSynthesis.getVoices(); } catch(e) {} }
             updateVocabCount();
             // Vídeo local: a proporção real só é conhecida depois dos metadados
             video.addEventListener('loadedmetadata', () => posicionarLegenda());

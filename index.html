@@ -370,15 +370,29 @@
         body.panel-collapsed:not(.fs-active) .subtitle-box {
             backdrop-filter: blur(3px); box-shadow: 0 4px 14px rgba(0,0,0,0.45);
         }
-        /* Retrato + modo foco: a legenda ocupa a largura toda (com margem) e o texto
-           fica justificado, em vez de uma coluna estreita no meio da tela.
-           A última linha fica centralizada, como legenda de cinema. */
+        /* Cada linha da legenda é um bloco próprio: quem decide a quebra é o app
+           (renderSubtitle), não o navegador */
+        #subtitle-content .linha { display: block; }
+
+        /* Retrato + modo foco: legenda em 89% da largura, linhas com altura fixa.
+           Só a linha QUASE CHEIA é justificada (.justa), então o espaço extra entre
+           as palavras é sempre pequeno e parecido; a última linha fica centralizada,
+           como legenda de cinema. Antes, o justify valia para o bloco todo e uma
+           linha com poucas palavras abria buracos grandes. */
         @media (orientation: portrait) {
             body.panel-collapsed:not(.fs-active) .subtitle-box {
                 width: 100%; box-sizing: border-box;
                 padding-left: 14px; padding-right: 14px;
+                text-align: center;
+                line-height: 1.45;
+            }
+            body.panel-collapsed:not(.fs-active) #subtitle-content .linha.justa {
                 text-align: justify;
-                -webkit-text-align-last: center; text-align-last: center;
+                -webkit-text-align-last: justify; text-align-last: justify;
+            }
+            /* O 🌐 não pode esticar a altura da última linha */
+            body.panel-collapsed:not(.fs-active) .translate-btn {
+                margin-top: -6px; margin-bottom: -6px;
             }
         }
 
@@ -893,7 +907,8 @@
 
         let currentVideoURL = null;
         let currentFontSize = parseFloat(localStorage.getItem('ejoy_sub_font')) || 1.2;
-        let subtitles = [];
+        let subtitles = [];          // blocos exibidos (duas linhas cada) — ver montarBlocos
+        let legendasBrutas = [];     // legendas como vieram (Supadata, .srt, favorito): é o que se salva
         let playerType = 'none';
         let ytPlayer = null;
         let ytTimer = null;
@@ -949,6 +964,7 @@
             document.body.classList.toggle('panel-collapsed', panelCollapsed);
             document.getElementById('collapse-text').textContent = panelCollapsed ? 'Mostrar busca' : 'Ocultar busca';
             posicionarLegenda();   // entrar/sair do foco muda a altura do vídeo
+            reconstruirBlocos(false);   // ...e a largura da linha: refaz os blocos na hora
         }
         function togglePanel() {
             panelCollapsed = !panelCollapsed;
@@ -1006,6 +1022,9 @@
             return r.top + (r.height + alturaVideo) / 2;
         }
 
+        // Largura da legenda no modo foco em retrato (fração da tela)
+        const LARGURA_LEGENDA_FOCO = 0.89;
+
         // Modo foco em retrato: legenda logo abaixo da imagem, e não lá no rodapé
         function posicionarLegendaNoFoco() {
             const y = bordaInferiorDoVideo();
@@ -1016,8 +1035,9 @@
             // Presa nas DUAS laterais. Com "left: 50%" + translate, um elemento fixo
             // só dispõe de metade da tela para quebrar a linha — era isso que
             // espremia a legenda numa coluna estreita no centro.
-            subContainer.style.left = '10px';
-            subContainer.style.right = '10px';
+            const lateral = Math.round(window.innerWidth * (1 - LARGURA_LEGENDA_FOCO) / 2);
+            subContainer.style.left = lateral + 'px';
+            subContainer.style.right = lateral + 'px';
             subContainer.style.transform = 'none';
             subContainer.style.width = 'auto';
             subContainer.style.zIndex = '120';
@@ -1027,6 +1047,7 @@
 
         // Ponto único de decisão de onde a legenda mora, para os três modos não brigarem
         function posicionarLegenda() {
+            agendarReconstrucao();   // mudou o lugar da legenda, pode ter mudado a largura
             if(isOverlayMode()) { applyOverlaySubtitleDefault(); return; }
             if(panelCollapsed) {
                 // getBoundingClientRect já força o navegador a recalcular o layout,
@@ -1075,10 +1096,10 @@
 
         const REACTION_COMP = 0.15; // compensa o tempo de reação ao tocar
         function autoSyncTap() {
-            if(!subtitles.length) { alert('Carregue uma legenda primeiro.'); return; }
+            if(!legendasBrutas.length) { alert('Carregue uma legenda primeiro.'); return; }
             const now = getTime() - REACTION_COMP;
             let best = null, bestDiff = Infinity;
-            for(const s of subtitles) {
+            for(const s of legendasBrutas) {   // inícios exatos, não os estimados dos blocos
                 const diff = Math.abs(s.start - now);
                 if(diff < bestDiff) { bestDiff = diff; best = s; }
             }
@@ -1108,6 +1129,7 @@
             currentFontSize = Math.min(3, Math.max(0.5, currentFontSize + d));
             localStorage.setItem('ejoy_sub_font', currentFontSize);
             subBox.style.fontSize = currentFontSize + 'rem';
+            reconstruirBlocos(false);   // outra fonte = outra quantidade de palavras por linha
         }
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
@@ -1489,13 +1511,13 @@
                 }
             };
             if(playerType === 'youtube' && currentPlayingYT) {
-                const favObj = { ...currentPlayingYT, savedSubs: subtitles.length ? subtitles : null };
+                const favObj = { ...currentPlayingYT, savedSubs: legendasBrutas.length ? legendasBrutas : null };
                 saveIt(favObj, favorites.findIndex(f => f.id === currentPlayingYT.id), "Favorito do YouTube salvo!");
             } else if(playerType === 'local' && currentLocalFileName) {
                 const favObj = {
                     id: 'local_' + currentLocalFileName, title: currentLocalFileName,
                     thumb: 'https://img.icons8.com/color/160/000000/video-file.png',
-                    isLocal: true, savedSubs: subtitles.length ? subtitles : null, time: video.currentTime
+                    isLocal: true, savedSubs: legendasBrutas.length ? legendasBrutas : null, time: video.currentTime
                 };
                 saveIt(favObj, favorites.findIndex(f => f.id === favObj.id), "Vídeo local salvo com o progresso!");
             } else { alert("Abra um vídeo primeiro."); }
@@ -1882,15 +1904,15 @@
                     return;
                 }
 
-                subtitles = data.content.map(c => ({
+                const brutas = data.content.map(c => ({
                     start: c.offset / 1000,
                     end: (c.offset + c.duration) / 1000,
                     text: (c.text || '').replace(/\n/g, ' ').trim(),
                 })).filter(s => s.text);
 
-                lastRenderedText = "";
-                buildSentenceIndex();
-                try { localStorage.setItem('ejoy_auto_subs_' + vid, JSON.stringify(subtitles)); } catch(e) {}
+                // Guarda as ORIGINAIS: os blocos de duas linhas dependem da tela
+                definirLegendas(brutas);
+                try { localStorage.setItem('ejoy_auto_subs_' + vid, JSON.stringify(brutas)); } catch(e) {}
                 setStatus(`✅ Legenda automática carregada (${data.lang || 'idioma detectado'})`, 'success');
             } catch(e) {
                 if(myToken !== autoFetchToken) return;
@@ -1911,7 +1933,7 @@
         function onYouTubeIframeAPIReady() {}
 
         function loadYouTube(vid, title, thumb, savedSubs=null, canal=null) {
-            subtitles = []; buildSentenceIndex(); subContent.innerHTML = "";
+            definirLegendas([]); subContent.innerHTML = "";
             playerType = 'youtube'; currentLocalFileName = "";
             if(currentVideoURL) { URL.revokeObjectURL(currentVideoURL); currentVideoURL = null; }
             video.removeAttribute('src'); video.load(); video.style.display = 'none';
@@ -1935,7 +1957,7 @@
             loadOffsetForCurrent();
 
             if(savedSubs && savedSubs.length) {
-                subtitles = savedSubs; buildSentenceIndex();
+                definirLegendas(savedSubs);
                 setStatus('✅ Legenda salva do favorito carregada', 'success');
             } else {
                 let usedCache = false;
@@ -1944,7 +1966,7 @@
                     try {
                         const parsed = JSON.parse(cached);
                         if(parsed && parsed.length) {
-                            subtitles = parsed; buildSentenceIndex();
+                            definirLegendas(parsed);
                             setStatus('✅ Legenda automática (cache) carregada', 'success');
                             usedCache = true;
                         }
@@ -2041,9 +2063,8 @@
             loadOffsetForCurrent();
 
             if(window.pendingLocalFav && window.pendingLocalFav.title === f.name) {
-                subtitles = window.pendingLocalFav.savedSubs || [];
-                buildSentenceIndex();
-                if(subtitles.length) setStatus('✅ Legenda restaurada do favorito!', 'success');
+                definirLegendas(window.pendingLocalFav.savedSubs || []);
+                if(legendasBrutas.length) setStatus('✅ Legenda restaurada do favorito!', 'success');
                 else statusEl.style.display = 'none';
                 video.onloadedmetadata = () => {
                     video.currentTime = window.pendingLocalFav ? (window.pendingLocalFav.time || 0) : 0;
@@ -2052,7 +2073,7 @@
                 };
             } else {
                 window.pendingLocalFav = null;
-                subtitles = []; buildSentenceIndex();
+                definirLegendas([]);
                 subContent.innerHTML = ""; statusEl.style.display = 'none';
             }
         };
@@ -2073,10 +2094,9 @@
             const f = e.target.files[0]; if(!f) return;
             const r = new FileReader();
             r.onload = res => {
-                subtitles = parseSubtitlesLocal(res.target.result);
-                buildSentenceIndex(); lastRenderedText = "";
-                if(subtitles.length) {
-                    setStatus('✅ Arquivo de legenda carregado (' + subtitles.length + ' linhas)', 'success');
+                definirLegendas(parseSubtitlesLocal(res.target.result));
+                if(legendasBrutas.length) {
+                    setStatus('✅ Arquivo de legenda carregado (' + legendasBrutas.length + ' linhas)', 'success');
                 } else {
                     setStatus('⚠️ Não foi possível ler esse arquivo de legenda.', 'warn');
                 }
@@ -2144,10 +2164,215 @@
         // Após um salto, segura a legenda alvo na tela durante a margem de
         // antecedência, senão ela pisca (o tempo ainda não alcançou o start)
         let stickyCueIdx = -1, stickyCueUntil = 0;
+        // Onde o último pulo deixou o player: { idx, efetivo } (tempo já com o ajuste de sincronia)
+        let ultimoPulo = null;
+
+        // ===================== BLOCOS DE DUAS LINHAS =====================
+        // Cada legenda exibida ocupa DUAS linhas, uma acima da outra. As originais
+        // variam muito: a legenda automática vem em pedaços de meia linha, a da CNN
+        // em blocos de três linhas. Aqui as originais são redistribuídas em blocos
+        // que enchem duas linhas na largura REAL da tela, com a fonte atual.
+        const LINHAS_POR_BLOCO = 2;
+        const BLOCO_SILENCIO_MAX = 1.5;     // pausa maior que isso na fala separa blocos
+        const BLOCO_PREENCHIMENTO_MIN = 0.5; // não fecha bloco com menos de ~1 linha, se der
+        const RESERVA_GLOBO = 30;           // o 🌐 no fim da última linha ocupa ~30px
+        const ESPACO_EXTRA_MAX = 0.5;       // justificar pode aumentar cada espaço em no máx. 50%
+        const FOLGA_LARGURA = 0.97;         // margem contra diferença de medida canvas × tela
+
+        let layoutLegenda = null;           // { largura, medir } da última medição
+        let chaveLayout = '';
+        const _ctxMedida = document.createElement('canvas').getContext('2d');
+        const _cacheLargura = new Map();
+
+        function fonteDaLegenda() {
+            const cs = getComputedStyle(subContent);
+            return `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        }
+        function medidorPara(fonte) {
+            return (texto) => {
+                const k = fonte + ' ' + texto;
+                let w = _cacheLargura.get(k);
+                if(w === undefined) {
+                    _ctxMedida.font = fonte;
+                    w = _ctxMedida.measureText(texto).width;
+                    if(_cacheLargura.size > 20000) _cacheLargura.clear();
+                    _cacheLargura.set(k, w);
+                }
+                return w;
+            };
+        }
+        // Largura útil de uma linha de legenda no modo atual. Mede na própria tela
+        // com um texto longo; os nós reais são guardados e devolvidos (com os eventos).
+        function larguraUtilDaLegenda() {
+            const vazia = subStrip.classList.contains('empty');
+            const guardados = document.createDocumentFragment();
+            while(subContent.firstChild) guardados.appendChild(subContent.firstChild);
+            if(vazia) subStrip.classList.remove('empty');
+            subContent.textContent = 'mmmm '.repeat(120);
+            const w = subContent.clientWidth;
+            subContent.textContent = '';
+            subContent.appendChild(guardados);
+            if(vazia) subStrip.classList.add('empty');
+            return w;
+        }
+
+        // Quebra as palavras em linhas como o navegador faz: só entre palavras.
+        // Cada palavra é um <span> com 1px de padding de cada lado (+2px).
+        function quebrarLinhas(palavras, largura, medir) {
+            const max = largura * FOLGA_LARGURA;
+            const esp = medir(' ');
+            const linhas = [];
+            let atual = [], w = 0;
+            for(let i = 0; i < palavras.length; i++) {
+                const pw = medir(palavras[i]) + 2;
+                if(atual.length && w + esp + pw > max) { linhas.push({ idx: atual, largura: w }); atual = []; w = 0; }
+                w = atual.length ? w + esp + pw : pw;
+                atual.push(i);
+            }
+            if(atual.length) linhas.push({ idx: atual, largura: w });
+            return linhas;
+        }
+        // Linhas que o bloco ocupa na tela, contando o 🌐 que vai no fim
+        function linhasOcupadas(palavras, largura, medir) {
+            if(!palavras.length) return 0;
+            const ls = quebrarLinhas(palavras, largura, medir);
+            const ultima = ls[ls.length - 1];
+            return ls.length + (ultima.largura + RESERVA_GLOBO > largura * FOLGA_LARGURA ? 1 : 0);
+        }
+
+        // Redistribui as legendas originais em blocos de até duas linhas.
+        // O tempo de cada palavra dentro de uma legenda é estimado pela posição
+        // das letras; por isso o corte prefere cair ENTRE legendas originais,
+        // onde o início do bloco é o tempo exato da fala (exato: true).
+        function montarBlocos(brutas, largura, medir) {
+            const toks = [];
+            let tAnterior = 0;
+            brutas.forEach((c, ci) => {
+                const palavras = String(c.text || '').split(/\s+/).filter(Boolean);
+                if(!palavras.length) return;
+                const ini = Number(c.start) || 0;
+                const fim = Math.max(ini, Number(c.end) || ini);
+                const total = palavras.join(' ').length || 1;
+                let pos = 0;
+                palavras.forEach((p, k) => {
+                    let t = ini + (fim - ini) * (pos / total);
+                    // legendas automáticas às vezes se sobrepõem: o tempo nunca volta
+                    const exato = (k === 0 && t >= tAnterior);
+                    if(t < tAnterior) t = tAnterior;
+                    tAnterior = t;
+                    toks.push({ p, ci, k, t, exato, cueIni: ini, cueFim: fim });
+                    pos += p.length + 1;
+                });
+            });
+            for(let i = 0; i < toks.length; i++) {
+                const prox = toks[i + 1];
+                const fimNatural = (prox && prox.ci === toks[i].ci) ? prox.t : toks[i].cueFim;
+                toks[i].fim = Math.max(toks[i].t, fimNatural);
+            }
+
+            const esp = medir(' ');
+            const capacidade = largura * FOLGA_LARGURA * LINHAS_POR_BLOCO;
+            const cabe = arr => linhasOcupadas(arr.map(x => x.p), largura, medir) <= LINHAS_POR_BLOCO;
+            const fimDeFrase = p => /[.!?…]["'”’)\]]?$/.test(p);
+            const pausaCurta = p => /[,;:]["'”’)\]]?$/.test(p);
+
+            // Onde fechar o bloco: o bloco leva arr[0..p-1]. Pontua cada corte possível.
+            function melhorCorte(arr, seguinteGlobal) {
+                const acum = [];
+                let w = 0;
+                arr.forEach((x, i) => { w += medir(x.p) + 2 + (i ? esp : 0); acum.push(w); });
+                let melhor = arr.length, melhorNota = -1;
+                for(let p = 1; p <= arr.length; p++) {
+                    const cheio = acum[p - 1] / capacidade;
+                    if(cheio < BLOCO_PREENCHIMENTO_MIN && p < arr.length) continue;
+                    const ultimo = arr[p - 1];
+                    const seguinte = p < arr.length ? arr[p] : seguinteGlobal;
+                    let base = 0;
+                    if(!seguinte || seguinte.exato) base = 1.0 + (fimDeFrase(ultimo.p) ? 0.3 : 0); // entre legendas
+                    else if(fimDeFrase(ultimo.p)) base = 0.7;
+                    else if(pausaCurta(ultimo.p)) base = 0.35;
+                    const nota = base + cheio;
+                    if(nota >= melhorNota) { melhorNota = nota; melhor = p; }
+                }
+                return melhor;
+            }
+
+            const blocos = [];
+            const fechar = arr => {
+                if(!arr.length) return;
+                blocos.push({
+                    start: arr[0].t,
+                    end: arr[arr.length - 1].fim,
+                    text: arr.map(x => x.p).join(' '),
+                    exato: arr[0].exato
+                });
+            };
+            let atual = [];
+            for(const tk of toks) {
+                if(atual.length) {
+                    const ant = atual[atual.length - 1];
+                    if(tk.k === 0 && tk.cueIni - ant.cueFim > BLOCO_SILENCIO_MAX) { fechar(atual); atual = []; }
+                }
+                if(atual.length && !cabe(atual.concat(tk))) {
+                    const p = melhorCorte(atual, tk);
+                    fechar(atual.slice(0, p));
+                    atual = atual.slice(p);
+                    if(atual.length && !cabe(atual.concat(tk))) { fechar(atual); atual = []; }
+                }
+                atual.push(tk);
+            }
+            fechar(atual);
+            // Um bloco nunca invade o seguinte (senão o seguinte não aparece)
+            for(let i = 0; i + 1 < blocos.length; i++) {
+                if(blocos[i].end > blocos[i + 1].start) blocos[i].end = blocos[i + 1].start;
+            }
+            return blocos;
+        }
+
+        // Refaz os blocos quando a largura ou a fonte mudam (girar, modo foco, fonte)
+        function reconstruirBlocos(forcar) {
+            if(!legendasBrutas.length) {
+                subtitles = []; buildSentenceIndex(); chaveLayout = ''; ultimoPulo = null;
+                return;
+            }
+            const largura = larguraUtilDaLegenda();
+            if(!largura) return;    // legenda fora da tela agora: mede quando voltar
+            const fonte = fonteDaLegenda();
+            const chave = largura + '|' + fonte;
+            if(!forcar && chave === chaveLayout && subtitles.length) return;
+            chaveLayout = chave;
+            layoutLegenda = { largura, medir: medidorPara(fonte) };
+            subtitles = montarBlocos(legendasBrutas, largura, layoutLegenda.medir);
+            buildSentenceIndex();
+            stickyCueIdx = -1; ultimoPulo = null; lastRenderedText = ""; currentCueIndex = -1;
+            if(playerType !== 'none') renderLogic(getTime());
+        }
+        function definirLegendas(brutas) {
+            legendasBrutas = Array.isArray(brutas)
+                ? brutas.filter(c => c && String(c.text || '').trim()) : [];
+            reconstruirBlocos(true);
+        }
+        let _timerBlocos = null;
+        function agendarReconstrucao() {
+            clearTimeout(_timerBlocos);
+            _timerBlocos = setTimeout(() => reconstruirBlocos(false), 120);
+        }
+
+        // Qual bloco vale para este instante. Logo depois de um pulo o player fica
+        // na margem ANTES do início do alvo; nessa margem o alvo é quem vale —
+        // mesmo pausado, sem voltar a mostrar o bloco anterior.
+        function indiceParaTempo(t) {
+            if(ultimoPulo && subtitles[ultimoPulo.idx]) {
+                const alvo = subtitles[ultimoPulo.idx];
+                if(t >= ultimoPulo.efetivo - 0.2 && t < alvo.start + 0.05) return ultimoPulo.idx;
+                if(t >= alvo.start + 0.05) ultimoPulo = null;   // a fala começou: segue normal
+            }
+            return subtitles.findIndex(s => t >= s.start && t <= s.end);
+        }
 
         function renderLogic(time) {
             const t = time + subtitleOffset;
-            let idx = subtitles.findIndex(s => t >= s.start && t <= s.end);
+            let idx = indiceParaTempo(t);
             if(idx !== -1) {
                 stickyCueIdx = -1; // chegou na legenda: dispensa o "segura"
             } else if(stickyCueIdx >= 0 && Date.now() < stickyCueUntil && stickyCueIdx < subtitles.length) {
@@ -2165,12 +2390,14 @@
         }
         function renderSubtitle(text) {
             subContent.innerHTML = "";
-            text.split(' ').forEach((w, i) => {
+            // /\s+/ + filtro: espaço duplo na fonte virava um <span> vazio e abria um buraco
+            const palavras = String(text).split(/\s+/).filter(Boolean);
+            const criar = (w, i) => {
                 const s = document.createElement('span');
                 s.textContent = w + ' '; s.className = 'word'; s.dataset.index = i;
                 s.dataset.raw = w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "");
-                subContent.appendChild(s);
-            });
+                return s;
+            };
             const btn = document.createElement('span');
             btn.className = 'translate-btn'; btn.innerHTML = '🌐';
             const fire = (e) => {
@@ -2181,7 +2408,32 @@
             };
             btn.addEventListener('touchstart', (e) => { e.preventDefault(); fire(e); });
             btn.onclick = fire;
-            subContent.appendChild(btn);
+
+            if(!layoutLegenda) {
+                // ainda sem medida da tela: fluxo simples, como antes
+                palavras.forEach((w, i) => subContent.appendChild(criar(w, i)));
+                subContent.appendChild(btn);
+                return;
+            }
+            // Cada linha é decidida aqui. Uma linha só é justificada se, para
+            // encostar nas duas bordas, nenhum espaço entre palavras precisar
+            // crescer mais que ESPACO_EXTRA_MAX do espaço normal. Senão ela fica
+            // centralizada com o espaço natural — assim o espaçamento parece igual
+            // em todas as linhas, justificadas ou não.
+            const espacoNatural = layoutLegenda.medir(' ') + 2;
+            const linhas = quebrarLinhas(palavras, layoutLegenda.largura, layoutLegenda.medir);
+            linhas.forEach((ln, li) => {
+                const div = document.createElement('div');
+                div.className = 'linha';
+                const vaos = ln.idx.length - 1;
+                if(li < linhas.length - 1 && vaos > 0) {
+                    const sobraPorVao = (layoutLegenda.largura - ln.largura) / vaos;
+                    if(sobraPorVao <= espacoNatural * ESPACO_EXTRA_MAX) div.classList.add('justa');
+                }
+                ln.idx.forEach(i => div.appendChild(criar(palavras[i], i)));
+                if(li === linhas.length - 1) div.appendChild(btn);
+                subContent.appendChild(div);
+            });
         }
 
         // ===================== CONTROLES & GESTOS =====================
@@ -2198,39 +2450,49 @@
         // Margem de antecedência ao pular de legenda, em segundos.
         // Garante que a fala seja ouvida desde o começo (aumente se ainda cortar).
         const JUMP_LEAD_IN = 0.25;
+        // Bloco que começa no MEIO de uma legenda original tem o início estimado
+        // (proporcional às letras): cai um pouco mais cedo para não cortar a fala.
+        const JUMP_LEAD_IN_ESTIMADO = 0.45;
 
         function jumpSubtitle(dir) {
             if(!subtitles.length) { seek(getTime() + (dir*10)); return; }
+            renderLogic(getTime());               // parte do que está na tela AGORA
             const eff = getTime() + subtitleOffset;
-            let currentIdx = subtitles.findIndex(s => eff >= s.start && eff <= s.end);
-            if(currentIdx === -1) {
-                for(let i = subtitles.length - 1; i >= 0; i--) {
-                    if(subtitles[i].start <= eff) { currentIdx = i; break; }
-                }
-            }
+
             let targetIdx;
-            if(dir === 1) targetIdx = currentIdx + 1;
-            else {
-                // Estilo Ejoy: no meio da linha, "anterior" reinicia a linha atual
-                if(currentIdx >= 0 && (eff - subtitles[currentIdx].start) > 1.0) targetIdx = currentIdx;
-                else targetIdx = currentIdx - 1;
+            if(currentCueIndex >= 0) {
+                // "Anterior" é SEMPRE a legenda de antes, no início exato dela.
+                // (Antes, passado 1s da legenda atual, "anterior" só reiniciava a
+                // atual — nas legendas longas da CNN isso acontecia quase sempre.)
+                targetIdx = currentCueIndex + dir;
+            } else {
+                // Entre duas falas, sem legenda na tela: "anterior" volta para a
+                // que acabou de passar e "próxima" vai para a que vem.
+                let ultima = -1;
+                for(let i = subtitles.length - 1; i >= 0; i--) {
+                    if(subtitles[i].start <= eff) { ultima = i; break; }
+                }
+                targetIdx = dir === 1 ? ultima + 1 : ultima;
             }
             if(targetIdx < 0) targetIdx = 0;
             if(targetIdx >= subtitles.length) targetIdx = subtitles.length - 1;
 
             const target = subtitles[targetIdx];
+            const margem = target.exato === false ? JUMP_LEAD_IN_ESTIMADO : JUMP_LEAD_IN;
             // Tempo real de reprodução em que a fala desta legenda começa
             const cueTime = target.start - subtitleOffset;
             // Cai um pouco ANTES: legendas automáticas marcam o tempo quando a palavra
             // é reconhecida, e o YouTube encaixa o seek em keyframes — sem essa margem
             // a primeira sílaba é cortada.
-            let seekTime = cueTime - JUMP_LEAD_IN;
+            let seekTime = cueTime - margem;
             if(seekTime < 0) seekTime = 0;
             seek(seekTime);
 
-            // Mantém a legenda alvo visível durante a margem, sem piscar
+            // Lembra onde o player ficou: nessa margem o alvo continua sendo a
+            // legenda "atual", então toques seguidos andam uma legenda por vez
+            ultimoPulo = { idx: targetIdx, efetivo: seekTime + subtitleOffset };
             stickyCueIdx = targetIdx;
-            stickyCueUntil = Date.now() + (JUMP_LEAD_IN * 1000) + 400;
+            stickyCueUntil = Date.now() + (margem * 1000) + 400;
             lastRenderedText = "";
             renderLogic(cueTime + 0.01);
         }
@@ -3063,6 +3325,8 @@
             updateVocabCount();
             // Vídeo local: a proporção real só é conhecida depois dos metadados
             video.addEventListener('loadedmetadata', () => posicionarLegenda());
+            // Girar / redimensionar muda a largura da linha: refaz os blocos
+            window.addEventListener('resize', agendarReconstrucao);
             // Vídeo local avisa play/pause por evento — não precisa de sondagem
             ['play','playing','pause','ended','emptied'].forEach(ev =>
                 video.addEventListener(ev, atualizarTravaDeRolagem));

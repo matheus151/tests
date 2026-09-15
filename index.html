@@ -241,6 +241,12 @@
         .vocab-pt { margin-top: 6px; font-size: 0.86rem; line-height: 1.4; color: var(--success); font-weight: 600; }
         .vocab-pt .motor { font-size: 0.66rem; color: var(--text-dim); font-weight: 600; margin-left: 6px; }
         .vocab-pt .nota { display: block; margin-top: 2px; font-size: 0.74rem; color: var(--text-dim); font-weight: 500; }
+        .vocab-eq { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 6px; }
+        .vocab-eq-rot { font-size: 0.7rem; color: var(--text-dim); font-weight: 600; }
+        .vocab-chip {
+            font-size: 0.74rem; font-weight: 600; color: #1a5276;
+            background: #e3f0fa; border: 1px solid #b8d8ee; padding: 2px 8px; border-radius: 20px;
+        }
 
         /* Status */
         #resume-status {
@@ -1397,8 +1403,11 @@
         function saveCurrentVocab() {
             if(!currentTranslateSource) return;
             const btn = document.getElementById('btn-save-vocab');
-            if(!vocabList.includes(currentTranslateSource)) {
-                vocabList.push(currentTranslateSource);
+            // Salva já corrigido ("he isnt" -> "he isn't"): a voz lê direito depois
+            const termo = corrigirTermo(currentTranslateSource);
+            if(!termo) return;
+            if(!vocabList.some(v => v.toLowerCase() === termo.toLowerCase())) {
+                vocabList.push(termo);
                 localStorage.setItem('ejoy_vocab', JSON.stringify(vocabList));
                 btn.innerText = "✅ Salvo";
                 setTimeout(()=>btn.innerText = "💾 Salvar", 1500);
@@ -1419,6 +1428,55 @@
                 updateVocabCount(); alert("Vocabulário apagado!");
             }
         }
+
+        // ===================== CORREÇÃO DOS TERMOS SALVOS =====================
+        // A seleção antiga e algumas legendas perdiam o apóstrofo ("he isnt",
+        // "dont", "im") e a voz lia errado. Aqui entram só correções SEGURAS:
+        // palavras que não existem sem o apóstrofo. "its", "were", "well", "ill",
+        // "id", "lets", "hell", "shed" e "wed" ficam como estão, porque também são
+        // palavras certas — esses o Groq corrige na tradução (aplicarCorrecaoVocab).
+        const CONTRACOES = {
+            isnt: "isn't", arent: "aren't", wasnt: "wasn't", werent: "weren't",
+            dont: "don't", doesnt: "doesn't", didnt: "didn't",
+            havent: "haven't", hasnt: "hasn't", hadnt: "hadn't",
+            cant: "can't", couldnt: "couldn't", wont: "won't", wouldnt: "wouldn't",
+            shouldnt: "shouldn't", mustnt: "mustn't", neednt: "needn't", mightnt: "mightn't", shant: "shan't",
+            aint: "ain't", im: "I'm", ive: "I've",
+            youre: "you're", youve: "you've", youll: "you'll", youd: "you'd",
+            theyre: "they're", theyve: "they've", theyll: "they'll", theyd: "they'd",
+            weve: "we've", hes: "he's", hed: "he'd", shes: "she's", itd: "it'd", itll: "it'll",
+            thats: "that's", thatll: "that'll", whats: "what's", wheres: "where's", whos: "who's",
+            wholl: "who'll", whod: "who'd", hows: "how's", theres: "there's", therell: "there'll", heres: "here's",
+            couldve: "could've", wouldve: "would've", shouldve: "should've", mightve: "might've", mustve: "must've",
+            yall: "y'all"
+        };
+        function corrigirTermo(texto) {
+            let t = String(texto == null ? '' : texto)
+                .replace(/[’‘`´]/g, "'")                 // apóstrofo curvo -> reto
+                .replace(/\s+/g, ' ').trim()
+                .replace(/^["“”'(\[]+/, '')             // aspas/parênteses soltos no começo
+                .replace(/["“”'),;:\]]+$/, '')          // ...e no fim (mantém . ? !)
+                .trim();
+            t = t.replace(/[A-Za-z]+/g, p => {
+                const certo = CONTRACOES[p.toLowerCase()];
+                if(!certo) return p;
+                if(certo[0] === 'I') return certo;        // I'm, I've: sempre maiúsculo
+                return p[0] === p[0].toUpperCase() ? certo[0].toUpperCase() + certo.slice(1) : certo;
+            });
+            return t.replace(/\bi\b/g, 'I');             // "i" sozinho é sempre "I"
+        }
+        // Corrige também o que já estava salvo (grava só se algo mudou)
+        (function corrigirVocabSalvo() {
+            const vistos = new Set(), novo = [];
+            vocabList.forEach(v => {
+                const c = corrigirTermo(v), k = c.toLowerCase();
+                if(c && !vistos.has(k)) { vistos.add(k); novo.push(c); }
+            });
+            if(JSON.stringify(novo) !== JSON.stringify(vocabList)) {
+                vocabList = novo;
+                try { localStorage.setItem('ejoy_vocab', JSON.stringify(vocabList)); } catch(e) {}
+            }
+        })();
 
         // ===================== VOCABULÁRIO NOS FAVORITOS =====================
         // Lista os termos salvos com dois botões: ouvir em inglês e ver a tradução.
@@ -1455,6 +1513,7 @@
             // Mais recentes primeiro. Tudo por textContent: o termo vem da legenda.
             vocabList.slice().reverse().forEach(termo => {
                 const item = document.createElement('div'); item.className = 'vocab-item';
+                item.dataset.termo = termo;    // pode ser corrigido depois pelo Groq
                 const linha = document.createElement('div'); linha.className = 'vocab-linha';
                 const txt = document.createElement('span'); txt.className = 'vocab-termo'; txt.textContent = termo;
                 const ouvir = document.createElement('button');
@@ -1462,8 +1521,8 @@
                 const trad = document.createElement('button');
                 trad.className = 'vocab-btn'; trad.textContent = '🇧🇷'; trad.title = 'Ver tradução';
                 const pt = document.createElement('div'); pt.className = 'vocab-pt'; pt.hidden = true;
-                ouvir.onclick = (e) => { e.stopPropagation(); ouvirIngles(termo, ouvir); };
-                trad.onclick = (e) => { e.stopPropagation(); mostrarTraducaoVocab(termo, pt, trad); };
+                ouvir.onclick = (e) => { e.stopPropagation(); ouvirIngles(item.dataset.termo, ouvir); };
+                trad.onclick = (e) => { e.stopPropagation(); mostrarTraducaoVocab(item, pt, trad); };
                 linha.append(txt, ouvir, trad);
                 item.append(linha, pt);
                 lista.appendChild(item);
@@ -1555,8 +1614,11 @@
                             messages: [
                                 { role: 'system', content: 'Você traduz termos e frases de inglês para português do Brasil para um estudante. '
                                     + 'Traduza pelo SENTIDO, como um brasileiro diria; gíria, expressão e phrasal verb viram o equivalente natural. '
-                                    + 'Responda SOMENTE com JSON: {"traducao": "...", "nota": "..."}. '
-                                    + 'nota: explicação de até 12 palavras se for gíria, expressão ou phrasal verb; senão "".' },
+                                    + 'Responda SOMENTE com JSON: {"traducao": "...", "nota": "...", "equivalentes": ["..."], "ingles_corrigido": "..."}. '
+                                    + 'nota: explicação de até 12 palavras se for gíria, expressão ou phrasal verb; senão "". '
+                                    + 'equivalentes: 3 a 5 outras formas de dizer o mesmo EM INGLÊS (palavras ou expressões em inglês, não traduções). '
+                                    + 'ingles_corrigido: o termo original com apóstrofos, maiúsculas e pontuação corrigidos '
+                                    + '(ex.: "he isnt" vira "he isn\u0027t"), SEM trocar, tirar ou acrescentar palavras.' },
                                 { role: 'user', content: termo }
                             ]
                         })
@@ -1570,7 +1632,10 @@
                     const bloco = txt.match(/\{[\s\S]*\}/);
                     const j = JSON.parse(bloco ? bloco[0] : txt);
                     const pt = String((j && j.traducao) || '').trim();
-                    if(pt && !mesmoTexto(pt, termo)) return { pt, nota: String(j.nota || '').trim(), motor: 'Groq' };
+                    const eq = Array.isArray(j.equivalentes)
+                        ? j.equivalentes.map(x => String(x).trim()).filter(Boolean).slice(0, 5) : [];
+                    if(pt && !mesmoTexto(pt, termo)) return { pt, nota: String(j.nota || '').trim(), motor: 'Groq',
+                        equivalentes: eq, corrigido: String(j.ingles_corrigido || '').trim(), v: 2 };
                 } catch(e) {}
             }
             // Nenhum modelo serviu: esquece a lista para perguntar de novo na próxima
@@ -1579,7 +1644,7 @@
         }
         async function traduzirVocab(termo) {
             const k = termo.toLowerCase();
-            if(vocabPt[k]) return vocabPt[k];
+            if(vocabPt[k] && vocabPt[k].v === 2) return vocabPt[k];   // v2 = com equivalentes
             let falhaGroq = 'sem chave do Groq';
             if(IA_KEYS.groq) {
                 const g = await traduzirVocabGroq(termo);
@@ -1592,11 +1657,19 @@
                           : g.erro === 429 ? 'limite do Groq atingido'
                           : 'chave do Groq recusada';
             }
-            const goo = await translateEngine(termo, false);
-            if(goo && goo.text && !goo.naoTraduzido) return { pt: goo.text, nota: '', motor: 'Google', obs: falhaGroq };
+            const goo = await translateEngine(termo, false, null, 'google');
+            if(goo && goo.text && !goo.naoTraduzido) {
+                // Sem Groq: os parecidos vêm do dicionário do Google
+                let eq = [];
+                try { eq = await googleSynonyms(termo); } catch(e) {}
+                eq = (Array.isArray(eq) ? eq : [])
+                    .map(x => typeof x === 'string' ? x : (x && (x.word || x.text)) || '')
+                    .filter(Boolean).slice(0, 5);
+                return { pt: goo.text, nota: '', motor: 'Google', obs: falhaGroq, equivalentes: eq };
+            }
             return null;
         }
-        async function mostrarTraducaoVocab(termo, caixa, botao) {
+        async function mostrarTraducaoVocab(item, caixa, botao) {
             if(caixa.dataset.carregando === '1') return;
             // Segundo toque com a tradução aberta: esconde
             if(!caixa.hidden && caixa.dataset.pronto === '1') { caixa.hidden = true; botao.classList.remove('on'); return; }
@@ -1604,6 +1677,7 @@
             if(caixa.dataset.pronto === '1') return;
             caixa.dataset.carregando = '1';
             caixa.textContent = 'Traduzindo...';
+            const termo = item.dataset.termo;
             let res = null;
             try { res = await traduzirVocab(termo); } catch(e) { res = null; }
             caixa.dataset.carregando = '0';
@@ -1613,12 +1687,42 @@
                 caixa.dataset.pronto = '0';
                 return;
             }
+            if(res.corrigido) aplicarCorrecaoVocab(item, termo, res.corrigido, res);
             const t = document.createElement('span'); t.textContent = res.pt;
             const m = document.createElement('span'); m.className = 'motor';
             m.textContent = res.motor + (res.obs ? ' · ' + res.obs : '');
             caixa.append(t, m);
             if(res.nota) { const n = document.createElement('span'); n.className = 'nota'; n.textContent = res.nota; caixa.appendChild(n); }
+            // Formas equivalentes em inglês
+            if(res.equivalentes && res.equivalentes.length) {
+                const eq = document.createElement('div'); eq.className = 'vocab-eq';
+                const rot = document.createElement('span'); rot.className = 'vocab-eq-rot'; rot.textContent = 'Parecidos:';
+                eq.appendChild(rot);
+                res.equivalentes.forEach(x => {
+                    const c = document.createElement('span'); c.className = 'vocab-chip'; c.textContent = x; eq.appendChild(c);
+                });
+                caixa.appendChild(eq);
+            }
             caixa.dataset.pronto = '1';
+        }
+        // O Groq devolve o inglês corrigido ("its raining" -> "it's raining").
+        // Só é aceito se as LETRAS forem exatamente as mesmas: muda apóstrofo,
+        // maiúscula e pontuação, nunca as palavras.
+        function soLetras(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+        function aplicarCorrecaoVocab(item, antigo, sugerido, res) {
+            const novo = corrigirTermo(sugerido);
+            if(!novo || novo === antigo || soLetras(novo) !== soLetras(antigo)) return;
+            const i = vocabList.indexOf(antigo);
+            if(i === -1) return;
+            const repetido = vocabList.some((v, k) => k !== i && v.toLowerCase() === novo.toLowerCase());
+            if(repetido) vocabList.splice(i, 1); else vocabList[i] = novo;
+            try { localStorage.setItem('ejoy_vocab', JSON.stringify(vocabList)); } catch(e) {}
+            vocabPt[novo.toLowerCase()] = res;
+            try { localStorage.setItem('ejoy_vocab_pt', JSON.stringify(vocabPt)); } catch(e) {}
+            item.dataset.termo = novo;
+            const span = item.querySelector('.vocab-termo');
+            if(span) span.textContent = novo;
+            if(repetido) updateVocabCount();   // já existia igual: some da lista
         }
 
         // ===================== HISTÓRICO =====================
@@ -2625,7 +2729,9 @@
             const criar = (w, i) => {
                 const s = document.createElement('span');
                 s.textContent = w + ' '; s.className = 'word'; s.dataset.index = i;
-                s.dataset.raw = w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "");
+                // Tira a pontuação, mas mantém apóstrofo e hífen DENTRO da palavra:
+                // antes "isn't" virava "isnt" e "well-known" virava "wellknown"
+                s.dataset.raw = w.replace(/[.,\/#!$%\^&\*;:{}=_`~()?"]/g, "").replace(/^['’‘“”\-]+|['’‘“”\-]+$/g, "");
                 return s;
             };
             const btn = document.createElement('span');
@@ -2977,7 +3083,9 @@
             }
 
             let ultimoErro = '';
-            for(const modelo of cfg.modelos) {
+            // Groq: pergunta quais modelos a conta tem (os nomes fixos passaram a dar 404)
+            const listaModelos = motor === 'groq' ? await modelosGroq() : cfg.modelos;
+            for(const modelo of listaModelos) {
                 let r;
                 try {
                     r = await fetchComTempo(cfg.url, {
@@ -3035,6 +3143,7 @@
                 if(!j || !j.traducao) { ultimoErro = 'JSON inválido'; continue; }
                 return normalizeIaResult(j, 'ia');
             }
+            if(motor === 'groq') { try { localStorage.removeItem('ejoy_groq_modelos'); } catch(e) {} }
             setStatus('⚠️ ' + cfg.nome + ' indisponível (' + ultimoErro + ') — traduzindo com o Google.', 'warn');
             return null;
         }
@@ -3122,7 +3231,7 @@
         // `exigir` é um teste opcional que a resposta precisa passar. A tradução com
         // marcadores usa isso: se o provedor engoliu os [[ ]], o trecho não pode ser
         // recortado e vale mais tentar o próximo provedor do que desistir do contexto.
-        async function translateEngine(text, wantDict, exigir) {
+        async function translateEngine(text, wantDict, exigir, primeiro) {
             const clean = (text || '').trim();
             if(!clean) return { text:'', dict:null };
             // Prefixo novo de cache: ignora resultados ruins gravados antes desta correção
@@ -3137,7 +3246,7 @@
                 mymemory: { nome:'mymemory', fn: () => provedorMyMemory(clean) },
             };
             const ordem = ['google', 'google2', 'mymemory'];
-            const escolhido = catalogo[MOTOR_PADRAO] ? MOTOR_PADRAO : 'google';
+            const escolhido = catalogo[primeiro] ? primeiro : (catalogo[MOTOR_PADRAO] ? MOTOR_PADRAO : 'google');
             const provedores = [escolhido].concat(ordem.filter(m => m !== escolhido)).map(m => catalogo[m]);
 
             let reserva = null;  // veio resposta, mas idêntica à entrada
@@ -3205,7 +3314,10 @@
         // Ordem: IA (se escolhida) → tradutor padrão com marcadores → tradução direta.
         // O truque dos marcadores manda a FRASE INTEIRA ao tradutor e recorta só o
         // trecho pedido: é o que dá contexto mesmo sem IA.
-        async function translateInContext(fragment, group, cueIdx) {
+        // modo: 'google' = só Google Tradutor (globo 🌐: rápido, sem esperar IA)
+        //       'groq'   = Groq primeiro (trecho selecionado com o dedo)
+        //       omitido  = motor padrão de Ajustes, como antes
+        async function translateInContext(fragment, group, cueIdx, modo) {
             const frag = (fragment || '').trim();
             if(!frag) return null;
             const sentenceText = (group && group.text) ? group.text : frag;
@@ -3215,21 +3327,31 @@
             const hasRealContext = !!(group && group.text && !mesmoTexto(group.text, frag));
 
             // 1) IA — o único tipo de motor que entende contexto e gíria de verdade.
-            //    Só entra quando escolhido em Ajustes e com chave configurada.
-            if(MOTORES_IA.indexOf(MOTOR_PADRAO) >= 0 && chaveDoMotor(MOTOR_PADRAO)) {
-                const ck = 'ia3:' + MOTOR_PADRAO + '|' + frag.toLowerCase() + '||' + sentenceText.toLowerCase();
+            //    Globo: nunca (vai direto no Google, sem esperar a IA falhar).
+            //    Trecho selecionado: Groq se houver chave; senão o motor de Ajustes.
+            const padraoEhIa = MOTORES_IA.indexOf(MOTOR_PADRAO) >= 0 && !!chaveDoMotor(MOTOR_PADRAO);
+            let iaMotor = null;
+            if(modo === 'groq') iaMotor = IA_KEYS.groq ? 'groq' : (padraoEhIa ? MOTOR_PADRAO : null);
+            else if(modo !== 'google') iaMotor = padraoEhIa ? MOTOR_PADRAO : null;
+            if(iaMotor) {
+                const ck = 'ia3:' + iaMotor + '|' + frag.toLowerCase() + '||' + sentenceText.toLowerCase();
                 if(transCache[ck]) return transCache[ck];
-                const ia = MOTOR_PADRAO === 'ia'
+                const ia = iaMotor === 'ia'
                     ? await callClaude(frag, sentenceText)
-                    : await callIaCompat(MOTOR_PADRAO, frag, sentenceText);
-                if(ia && ia.text && !mesmoTexto(ia.text, frag)) { cacheSet(ck, ia); return ia; }
+                    : await callIaCompat(iaMotor, frag, sentenceText);
+                if(ia && ia.text && !mesmoTexto(ia.text, frag)) {
+                    ia.motorNome = MOTOR_NOME[iaMotor];   // o selo do card mostra quem traduziu
+                    cacheSet(ck, ia); return ia;
+                }
             }
+            // No globo o Google vai na frente mesmo que outro tradutor seja o padrão
+            const primeiroGoogle = modo === 'google' ? 'google' : null;
 
             // 2) Google com marcadores: recupera o trecho e a frase com o destaque no lugar
             if(hasRealContext) {
                 const marked = buildMarkedSentence(group, cueIdx, frag);
                 if(marked) {
-                    const res = await translateEngine(marked, false, t => MARK_RE.test(t));
+                    const res = await translateEngine(marked, false, t => MARK_RE.test(t), primeiroGoogle);
                     if(res && res.text) {
                         const m = res.text.match(MARK_RE);
                         if(m) {
@@ -3258,7 +3380,7 @@
             }
 
             // 3) Tradução direta
-            const direct = await translateEngine(frag, false);
+            const direct = await translateEngine(frag, false, null, primeiroGoogle);
             if(!direct) return null;
             return {
                 text: direct.text, literal: null, nota: null,
@@ -3420,7 +3542,8 @@
             // Qualquer erro inesperado vira falha visível — nunca deixa o card
             // preso em "Traduzindo..."
             let main = null;
-            try { main = await translateInContext(src, sentence, currentCueIndex); }
+            // Globo (fala inteira) = Google; trecho selecionado com o dedo = Groq
+            try { main = await translateInContext(src, sentence, currentCueIndex, isFullLine ? 'google' : 'groq'); }
             catch(e) { main = null; }
             if(!main) {
                 mostrarFalhaDeTraducao(src, dsp, opts);
@@ -3438,7 +3561,7 @@
 
             const nomeMotor = main.engine === 'mymemory' ? 'MyMemory' : 'Google Tradutor';
             if(main.engine === 'claude')   { engineBadge.textContent = '✨ Claude + contexto'; engineBadge.classList.add('ia'); }
-            else if(main.engine === 'ia')  { engineBadge.textContent = '✨ ' + (MOTOR_NOME[MOTOR_PADRAO] || 'IA') + ' + contexto'; engineBadge.classList.add('ia'); }
+            else if(main.engine === 'ia')  { engineBadge.textContent = '✨ ' + (main.motorNome || MOTOR_NOME[MOTOR_PADRAO] || 'IA') + ' + contexto'; engineBadge.classList.add('ia'); }
             else if(main.contextual)       { engineBadge.textContent = '🔗 ' + nomeMotor + ' + contexto'; }
             else                           { engineBadge.textContent = nomeMotor; }
 
@@ -3467,7 +3590,7 @@
                         ctxTrans.innerHTML = highlightPart(main.sentence, alvo);
                     } else {
                         // Motor sem frase pronta: traduz a frase e destaca o trecho já obtido
-                        const ctx = await translateInContext(sentence.text, sentence, currentCueIndex);
+                        const ctx = await translateInContext(sentence.text, sentence, currentCueIndex, 'google');
                         if(ctx) ctxTrans.innerHTML = highlightPart(ctx.sentence || ctx.text, alvo);
                     }
                 }

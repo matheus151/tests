@@ -57,6 +57,20 @@
             overflow: hidden;
             display: flex; align-items: center; justify-content: center;
         }
+        /* O vídeo começava em y=0, POR BAIXO da barra de status do iPhone (relógio,
+           ilha dinâmica): viewport-fit=cover estende a página até lá, e nada reservava
+           esse espaço. O iOS escurece essa faixa para o relógio ficar legível — era a
+           "sombra" no topo do vídeo. Agora a faixa vira uma tarja preta e o vídeo
+           começa logo abaixo dela, sem perder altura (content-box: a tarja não sai do 16:9).
+           Só no retrato fora do modo foco: no foco o vídeo já fica centralizado com
+           tarja preta em cima, e em paisagem não há barra de status. */
+        :root { --topo-seguro: env(safe-area-inset-top, 0px); }
+        @media (orientation: portrait) {
+            body:not(.panel-collapsed):not(.fs-active) #player-zone {
+                box-sizing: content-box;
+                border-top: var(--topo-seguro) solid #000;
+            }
+        }
         video { width: 100%; height: 100%; object-fit: contain; display: block; }
 
         #yt-container { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 1; }

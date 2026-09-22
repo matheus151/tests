@@ -136,6 +136,28 @@
             overflow-y: hidden;
             touch-action: pan-x;   /* o navegador para de disputar o deslize lateral */
         }
+
+        /* ===================== BUSCA AMPLA ===================== */
+        /* Ao pesquisar, o player some e a lista de resultados ocupa a tela toda.
+           Tocar num vídeo (ou em "Mostrar vídeo") volta à visualização padrão.
+           Só em retrato: em paisagem a busca nem aparece. */
+        #barra-mostrar-video {
+            display: none; flex: 0 0 auto; align-items: center; justify-content: center; gap: 8px;
+            background: #000; color: var(--text-dim); font-size: 0.72rem; font-weight: 700;
+            padding: calc(8px + var(--topo-seguro)) 0 8px 0;   /* fica abaixo do relógio/ilha */
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer; user-select: none; -webkit-user-select: none;
+        }
+        #barra-mostrar-video:active { filter: brightness(1.3); }
+        @media (orientation: portrait) {
+            body.busca-ampla #player-zone,
+            body.busca-ampla #subtitle-strip,
+            body.busca-ampla #collapse-bar,
+            body.busca-ampla #float-tools { display: none !important; }
+            body.busca-ampla #barra-mostrar-video { display: flex; }
+            /* A trava de rolagem com o vídeo tocando não vale aqui: a lista precisa rolar */
+            body.busca-ampla.video-tocando #panel { overflow-y: auto; touch-action: auto; }
+        }
         .tab-page { display: none; }
         .tab-page.active { display: block; }
 
@@ -572,6 +594,11 @@
 <body>
 
     <!-- ============ PLAYER SEMPRE VISÍVEL NO TOPO ============ -->
+    <!-- Só aparece na busca ampla (player escondido): volta ao vídeo atual -->
+    <div id="barra-mostrar-video" onclick="sairDaBuscaAmpla()">
+        <span>▼</span><span>Mostrar vídeo</span>
+    </div>
+
     <div id="player-zone">
         <video id="mainVideo" controls playsinline preload="metadata" style="display:none"></video>
         <div id="yt-container"><div id="yt-player"></div></div>
@@ -1008,7 +1035,22 @@
         const statusEl = document.getElementById('resume-status');
 
         // ===================== ABAS =====================
+        // ===================== BUSCA AMPLA =====================
+        // Pesquisar esconde o player para a lista de resultados ocupar a tela;
+        // escolher um vídeo (ou tocar em "Mostrar vídeo") volta ao normal.
+        function entrarNaBuscaAmpla() {
+            // A busca fica no painel: se estava no modo foco (painel recolhido), abre
+            if(panelCollapsed) { panelCollapsed = false; applyPanelState(); }
+            document.body.classList.add('busca-ampla');
+        }
+        function sairDaBuscaAmpla() {
+            if(!document.body.classList.contains('busca-ampla')) return;
+            document.body.classList.remove('busca-ampla');
+            posicionarLegenda();   // o player voltou: a legenda se reajusta a ele
+        }
+
         function showTab(name) {
+            if(name !== 'buscar') sairDaBuscaAmpla();   // saiu da aba de busca: volta ao normal
             document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             const page = document.getElementById('page-' + name);
@@ -2008,6 +2050,7 @@
 
             showTab('buscar');
             showResultsList();
+            entrarNaBuscaAmpla();   // vídeos do canal na tela toda
             nextPageToken = ""; autoPaginas = 0; resultsList.innerHTML = "";
             fetchVideos("");
         }
@@ -2049,6 +2092,7 @@
             if(q.includes('youtu')) { loadYouTubeFromInput(); return; }
             if(!YOUTUBE_API_KEY) { alert("Configure a chave da API do YouTube na aba Ajustes, ou cole um link de vídeo."); showTab('ajustes'); return; }
             if(!q) return;
+            entrarNaBuscaAmpla();   // resultados na tela toda
             // Uma busca nova sempre sai de dentro do canal
             if(canalAtual) {
                 canalAtual = null;
@@ -2298,6 +2342,7 @@
         function onYouTubeIframeAPIReady() {}
 
         function loadYouTube(vid, title, thumb, savedSubs=null, canal=null) {
+            sairDaBuscaAmpla();   // escolheu um vídeo: volta à visualização padrão
             definirLegendas([]); subContent.innerHTML = "";
             playerType = 'youtube'; currentLocalFileName = "";
             if(currentVideoURL) { URL.revokeObjectURL(currentVideoURL); currentVideoURL = null; }
@@ -2409,6 +2454,7 @@
         // Vídeo local
         document.getElementById('videoInput').onchange = e => {
             const f = e.target.files[0]; if(!f) return;
+            sairDaBuscaAmpla();
             playerType = 'local';
             ytContainer.style.display = 'none'; gestureLayer.style.display = 'none';
             unlockBtn.style.display = 'none'; playerEmpty.style.display = 'none';

@@ -561,6 +561,12 @@
         body.fs-active #drag-handle { display: block; }
         body.fs-active .subtitle-box { backdrop-filter: blur(3px); box-shadow: 0 4px 14px rgba(0,0,0,0.45); }
         body.fs-active #yt-container { left: 0; right: 0; }
+        /* Em tela cheia a legenda também usa a largura toda: com "left: 50%" um
+           elemento fixo só dispõe de METADE da tela e o texto fica espremido */
+        body.fs-active #subtitle-container {
+            width: calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+            max-width: calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+        }
 
         /* ===================== MODO PAISAGEM = CINEMA ===================== */
         /* Vídeo em tela cheia e legenda sobreposta (aqui não há espaço abaixo) */
@@ -574,8 +580,10 @@
             #subtitle-placeholder { display: none !important; }
             #subtitle-container {
                 position: fixed; bottom: 9%; left: 50%; transform: translateX(-50%);
-                width: auto; min-width: 80%; z-index: 9999;
-                /* fica longe da ilha dinâmica nas laterais */
+                z-index: 9999;
+                /* Largura quase cheia (e longe da ilha dinâmica nas laterais): a
+                   legenda se espalha na tela em vez de ficar espremida no meio */
+                width: calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
                 max-width: calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
             }
             .subtitle-box { backdrop-filter: blur(3px); box-shadow: 0 4px 14px rgba(0,0,0,0.45); }
@@ -1107,6 +1115,9 @@
             subContainer.style.bottom = '9%';
             subContainer.style.left = '50%';
             subContainer.style.removeProperty('right');   // âncora do modo foco não vale aqui
+            // O modo foco deixa "width: auto" fixado no elemento; sem tirar, ele
+            // anula a largura quase cheia da paisagem e a legenda fica espremida
+            subContainer.style.removeProperty('width');
             subContainer.style.transform = 'translateX(-50%)';
             subContainer.style.zIndex = '2147483647';
         }
@@ -2741,19 +2752,36 @@
         }
 
         // Refaz os blocos quando a largura ou a fonte mudam (girar, modo foco, fonte)
+        // Largura que decide QUANTAS PALAVRAS entram em cada legenda.
+        // Em paisagem e em tela cheia ela é a mesma do retrato no modo foco, para
+        // a legenda ter exatamente as mesmas palavras nos dois modos. Já a largura
+        // de DESENHO continua sendo a real da tela: assim o texto se espalha na
+        // largura toda, em vez de ficar espremido numa coluna no meio.
+        function larguraParaMontarBlocos(larguraDaLinha) {
+            // Fora do modo foco (faixa abaixo do vídeo) vale a largura real da faixa
+            if(!isOverlayMode() && !panelCollapsed) return larguraDaLinha;
+            // No foco a conta é a mesma da paisagem — e não a medida da tela — para
+            // os dois modos darem exatamente as mesmas palavras (1px já muda o corte)
+            const ladoMenor = Math.min(window.innerWidth, window.innerHeight);       // = a largura do retrato
+            const comoNoRetrato = Math.round(ladoMenor * LARGURA_LEGENDA_FOCO) - 28; // 14px de recuo de cada lado
+            return Math.max(120, Math.min(larguraDaLinha, comoNoRetrato));
+        }
+
         function reconstruirBlocos(forcar) {
             if(!legendasBrutas.length) {
                 subtitles = []; buildSentenceIndex(); chaveLayout = ''; ultimoPulo = null;
                 return;
             }
-            const largura = larguraUtilDaLegenda();
-            if(!largura) return;    // legenda fora da tela agora: mede quando voltar
+            const larguraLinha = larguraUtilDaLegenda();
+            if(!larguraLinha) return;    // legenda fora da tela agora: mede quando voltar
             const fonte = fonteDaLegenda();
-            const chave = largura + '|' + fonte;
+            const larguraBlocos = larguraParaMontarBlocos(larguraLinha);
+            const chave = larguraLinha + '|' + larguraBlocos + '|' + fonte;
             if(!forcar && chave === chaveLayout && subtitles.length) return;
             chaveLayout = chave;
-            layoutLegenda = { largura, medir: medidorPara(fonte) };
-            subtitles = montarBlocos(legendasBrutas, largura, layoutLegenda.medir);
+            // largura = onde a linha quebra ao desenhar; larguraBlocos = quantas palavras entram
+            layoutLegenda = { largura: larguraLinha, larguraBlocos, medir: medidorPara(fonte) };
+            subtitles = montarBlocos(legendasBrutas, larguraBlocos, layoutLegenda.medir);
             buildSentenceIndex();
             stickyCueIdx = -1; ultimoPulo = null; lastRenderedText = ""; currentCueIndex = -1;
             if(playerType !== 'none') renderLogic(getTime());

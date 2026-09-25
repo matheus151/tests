@@ -2598,7 +2598,7 @@
         const BLOCO_SILENCIO_MAX = 1.5;     // pausa maior que isso na fala separa blocos
         const BLOCO_PREENCHIMENTO_MIN = 0.5; // não fecha bloco com menos de ~1 linha, se der
         const RESERVA_GLOBO = 30;           // o 🌐 no fim da última linha ocupa ~30px
-        const ESPACO_EXTRA_MAX = 0.5;       // justificar pode aumentar cada espaço em no máx. 50%
+        const ESPACO_EXTRA_MAX = 0.2;       // justificar pode aumentar cada espaço em no máx. 20%
         const FOLGA_LARGURA = 0.97;         // margem contra diferença de medida canvas × tela
 
         let layoutLegenda = null;           // { largura, medir } da última medição
@@ -2660,6 +2660,36 @@
             const ls = quebrarLinhas(palavras, largura, medir);
             const ultima = ls[ls.length - 1];
             return ls.length + (ultima.largura + RESERVA_GLOBO > largura * FOLGA_LARGURA ? 1 : 0);
+        }
+
+        // Em paisagem e em tela cheia a linha é bem mais larga que no retrato, e o
+        // texto caberia todo numa linha só. Aqui ele é dividido no MESMO número de
+        // linhas do retrato, com as linhas de larguras parecidas entre si — a última
+        // reserva espaço para o 🌐. Sem corte possível, cai na quebra normal.
+        function equilibrarLinhas(palavras, quantas, largura, medir) {
+            if(quantas !== 2 || palavras.length < 2) return quebrarLinhas(palavras, largura, medir);
+            const max = largura * FOLGA_LARGURA;
+            const esp = medir(' ');
+            const larg = palavras.map(p => medir(p) + 2);
+            const larguraDe = (i, j) => {
+                let w = 0;
+                for(let k = i; k < j; k++) w += larg[k] + (k > i ? esp : 0);
+                return w;
+            };
+            let melhor = -1, menorDiferenca = Infinity;
+            for(let corte = 1; corte < palavras.length; corte++) {
+                const a = larguraDe(0, corte);
+                const b = larguraDe(corte, palavras.length) + RESERVA_GLOBO;
+                if(a > max || b > max) continue;            // não cabe: corte inválido
+                const dif = Math.abs(a - b);
+                if(dif < menorDiferenca) { menorDiferenca = dif; melhor = corte; }
+            }
+            if(melhor === -1) return quebrarLinhas(palavras, largura, medir);
+            const todos = palavras.map((_, i) => i);
+            return [
+                { idx: todos.slice(0, melhor), largura: larguraDe(0, melhor) },
+                { idx: todos.slice(melhor), largura: larguraDe(melhor, palavras.length) }
+            ];
         }
 
         // Redistribui as legendas originais em blocos de até duas linhas.
@@ -2862,7 +2892,14 @@
             // centralizada com o espaço natural — assim o espaçamento parece igual
             // em todas as linhas, justificadas ou não.
             const espacoNatural = layoutLegenda.medir(' ') + 2;
-            const linhas = quebrarLinhas(palavras, layoutLegenda.largura, layoutLegenda.medir);
+            // O retrato é a referência: a legenda fica com o mesmo número de linhas
+            // nos dois modos. Onde a área é mais larga (paisagem, tela cheia), as
+            // palavras são repartidas em linhas parecidas em vez de uma linha só.
+            const linhasNoRetrato = quebrarLinhas(palavras, layoutLegenda.larguraBlocos, layoutLegenda.medir).length;
+            const areaMaisLarga = layoutLegenda.largura > layoutLegenda.larguraBlocos + 8;
+            const linhas = (areaMaisLarga && linhasNoRetrato > 1)
+                ? equilibrarLinhas(palavras, linhasNoRetrato, layoutLegenda.largura, layoutLegenda.medir)
+                : quebrarLinhas(palavras, layoutLegenda.largura, layoutLegenda.medir);
             linhas.forEach((ln, li) => {
                 const div = document.createElement('div');
                 div.className = 'linha';

@@ -640,6 +640,21 @@
         #page-vocabulario .vocab-btn { min-width: 44px; height: 38px; font-size: 1.05rem; }
         #page-vocabulario .vocab-pt { font-size: 0.9rem; margin-top: 8px; }
         #page-vocabulario .vocab-chip { font-size: 0.78rem; padding: 3px 9px; }
+        /* ===================== TELA INICIAL SEM VÍDEO ===================== */
+        /* Nenhum vídeo aberto: a área do player, a faixa da legenda e a barra
+           "Ocultar busca" não aparecem — a busca ocupa a tela toda. Tudo volta
+           assim que um vídeo é escolhido. Só em retrato: em paisagem a tela é
+           do vídeo e nada muda. */
+        @media (orientation: portrait) {
+            body.sem-video #player-zone,
+            body.sem-video #subtitle-strip,
+            body.sem-video #collapse-bar,
+            body.sem-video #barra-mostrar-video,
+            body.sem-video #float-tools { display: none !important; }
+            /* A tarja da barra de status ficava na área do vídeo; sem ela, as abas
+               é que precisam começar abaixo do relógio e da ilha dinâmica */
+            body.sem-video #tab-bar { padding-top: calc(2px + var(--topo-seguro)); }
+        }
     </style>
 </head>
 <body>
@@ -1102,6 +1117,14 @@
             if(!document.body.classList.contains('busca-ampla')) return;
             document.body.classList.remove('busca-ampla');
             posicionarLegenda();   // o player voltou: a legenda se reajusta a ele
+        }
+
+        // Tela inicial: sem vídeo aberto, a área de cima some e a busca ocupa tudo
+        function atualizarVisibilidadeDoPlayer() {
+            const temVideo = (playerType === 'youtube' || playerType === 'local');
+            document.body.classList.toggle('sem-video', !temVideo);
+            // Sem vídeo não existe "modo foco": o painel precisa estar à mostra
+            if(!temVideo && panelCollapsed) { panelCollapsed = false; applyPanelState(); }
         }
 
         function showTab(name) {
@@ -2452,6 +2475,7 @@
             sairDaBuscaAmpla();   // escolheu um vídeo: volta à visualização padrão
             definirLegendas([]); subContent.innerHTML = "";
             playerType = 'youtube'; currentLocalFileName = "";
+            atualizarVisibilidadeDoPlayer();   // escolheu um vídeo: a área do player volta
             if(currentVideoURL) { URL.revokeObjectURL(currentVideoURL); currentVideoURL = null; }
             video.removeAttribute('src'); video.load(); video.style.display = 'none';
             playerEmpty.style.display = 'none';
@@ -2563,6 +2587,7 @@
             const f = e.target.files[0]; if(!f) return;
             sairDaBuscaAmpla();
             playerType = 'local';
+            atualizarVisibilidadeDoPlayer();   // abriu um arquivo: a área do player volta
             ytContainer.style.display = 'none'; gestureLayer.style.display = 'none';
             unlockBtn.style.display = 'none'; playerEmpty.style.display = 'none';
             btnFavCurrent.style.display = 'flex';
@@ -3955,6 +3980,7 @@
             ['play','playing','pause','ended','emptied'].forEach(ev =>
                 video.addEventListener(ev, atualizarTravaDeRolagem));
             atualizarTravaDeRolagem();
+            atualizarVisibilidadeDoPlayer();   // começa sem vídeo: busca em tela cheia
             document.getElementById('api-key-input').value = YOUTUBE_API_KEY;
             document.getElementById('supadata-key-input').value = SUPADATA_API_KEY;
             document.getElementById('claude-key-input').value = CLAUDE_API_KEY;

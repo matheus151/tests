@@ -597,6 +597,49 @@
             #player-zone { padding-left: 0; padding-right: 0; }
             #yt-container { left: 0; right: 0; }
         }
+        /* ===================== TRADUÇÃO RÁPIDA (AO PAUSAR) ===================== */
+        #subtitle-trad {
+            display: none; margin-top: 5px; padding-bottom: 2px;
+            color: var(--accent); font-weight: 600; font-size: 0.8em; line-height: 1.35;
+        }
+
+        /* ===================== REFINO VISUAL ===================== */
+        /* Só aparência: nenhuma regra daqui muda o funcionamento do app. */
+        :root { --radius: 12px; --sombra-card: 0 1px 2px rgba(0,0,0,0.20); }
+        body.light-mode { --sombra-card: 0 1px 3px rgba(0,0,0,0.08); }
+
+        #panel { padding: 14px 14px 44px 14px; }
+        .card { box-shadow: var(--sombra-card); margin-bottom: 14px; }
+
+        /* Título de seção com um tracinho na cor do app */
+        .section-title {
+            display: flex; align-items: center; gap: 6px; font-size: 0.68rem;
+        }
+        .section-title::before {
+            content: ''; width: 3px; height: 11px; border-radius: 2px;
+            background: var(--primary); opacity: 0.9; flex: 0 0 auto;
+        }
+
+        /* Abas: cabem cinco, com a ativa destacada */
+        #tab-bar { padding: 2px 2px 0 2px; }
+        .tab-btn {
+            font-size: 0.6rem; padding: 8px 1px 6px 1px;
+            border-radius: 10px 10px 0 0; white-space: nowrap;
+        }
+        .tab-btn .ico { transition: transform 0.15s; }
+        .tab-btn.active { background: linear-gradient(180deg, rgba(10,132,255,0.12), rgba(10,132,255,0)); }
+        .tab-btn.active .ico { transform: translateY(-1px) scale(1.08); }
+
+        .btn-primary { box-shadow: 0 1px 6px rgba(10,132,255,0.3); }
+        .btn:active { transform: translateY(1px); }
+        .video-item { border-radius: 10px; }
+
+        /* Vocabulário na aba própria: linhas folgadas e botões maiores */
+        #page-vocabulario .vocab-item { padding: 12px 4px; }
+        #page-vocabulario .vocab-termo { font-size: 0.95rem; }
+        #page-vocabulario .vocab-btn { min-width: 44px; height: 38px; font-size: 1.05rem; }
+        #page-vocabulario .vocab-pt { font-size: 0.9rem; margin-top: 8px; }
+        #page-vocabulario .vocab-chip { font-size: 0.78rem; padding: 3px 9px; }
     </style>
 </head>
 <body>
@@ -625,6 +668,8 @@
             <div class="subtitle-box" id="subtitle-box">
                 <div id="drag-handle"></div>
                 <div id="subtitle-content"></div>
+                <!-- Tradução rápida (ao pausar): amarela, sem caixa -->
+                <div id="subtitle-trad"></div>
             </div>
         </div>
     </div>
@@ -642,6 +687,9 @@
         </button>
         <button class="tab-btn" data-tab="favoritos" onclick="showTab('favoritos')">
             <span class="ico">⭐</span><span>Favoritos</span>
+        </button>
+        <button class="tab-btn" data-tab="vocabulario" onclick="showTab('vocabulario')">
+            <span class="ico">📒</span><span>Vocabulário</span>
         </button>
         <button class="tab-btn" data-tab="legenda" onclick="showTab('legenda')">
             <span class="ico">💬</span><span>Legenda</span>
@@ -732,15 +780,22 @@
             <div class="card" style="padding:6px 10px">
                 <div id="favorites-list" class="scroll-list"></div>
             </div>
+        </section>
 
-            <!-- Vocabulário salvo: por último na aba, com setinha para ocultar -->
-            <div class="section-head vocab-fav-head" style="margin-top:14px" onclick="toggleVocabFavoritos()">
+        <!-- ---------- ABA VOCABULÁRIO (tela inteira só para ele) ---------- -->
+        <section class="tab-page" id="page-vocabulario">
+            <div class="section-head vocab-fav-head" onclick="toggleVocabFavoritos()">
                 <span class="section-title" style="margin:0" id="vocab-fav-titulo">Vocabulário salvo</span>
-                <button class="mini-btn seta-vocab" id="btn-toggle-vocab-fav" title="Ocultar vocabulário">▾</button>
+                <div class="section-head-actions">
+                    <button class="mini-btn" onclick="event.stopPropagation(); downloadVocabulary()" title="Baixar em texto">📥</button>
+                    <button class="mini-btn" onclick="event.stopPropagation(); clearVocabulary()" title="Limpar tudo">🗑️</button>
+                    <button class="mini-btn seta-vocab" id="btn-toggle-vocab-fav" title="Ocultar vocabulário">▾</button>
+                </div>
             </div>
-            <div class="card" id="vocab-fav-card" style="padding:6px 10px">
+            <div class="card" id="vocab-fav-card" style="padding:4px 12px">
                 <div id="vocab-fav-list" class="scroll-list"></div>
             </div>
+            <div class="hint" id="vocab-count" style="margin: -6px 2px 0 2px"></div>
         </section>
 
         <!-- ---------- ABA LEGENDA ---------- -->
@@ -790,16 +845,7 @@
 
         <!-- ---------- ABA AJUSTES ---------- -->
         <section class="tab-page" id="page-ajustes">
-            <div class="section-title">Vocabulário salvo</div>
-            <div class="card">
-                <div class="grid2">
-                    <button class="btn btn-purple" onclick="downloadVocabulary()">📥 Baixar</button>
-                    <button class="btn btn-danger" onclick="clearVocabulary()">🗑️ Limpar</button>
-                </div>
-                <div class="hint" id="vocab-count"></div>
-            </div>
-
-            <div class="section-title">Mecanismo de tradução</div>
+            <div class="section-title">Tradução</div>
             <div class="card">
                 <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Tradutor padrão</label>
                 <select id="motor-select" class="modern-input" style="width:100%; margin-top:6px" onchange="saveMotor()">
@@ -1025,6 +1071,7 @@
         const unlockBtn = document.getElementById('unlock-yt-btn');
         const playerEmpty = document.getElementById('player-empty');
         const subContent = document.getElementById('subtitle-content');
+        const subTrad = document.getElementById('subtitle-trad');
         const subBox = document.getElementById('subtitle-box');
         const subContainer = document.getElementById('subtitle-container');
         const subStrip = document.getElementById('subtitle-strip');
@@ -1066,7 +1113,8 @@
             if(page) page.classList.add('active');
             if(btn) btn.classList.add('active');
             document.getElementById('panel').scrollTop = 0;
-            if(name === 'favoritos') { renderFavorites(); renderFavChannels(); renderVocabFavoritos(); }
+            if(name === 'favoritos') { renderFavorites(); renderFavChannels(); }
+            if(name === 'vocabulario') updateVocabCount();   // conta e redesenha a lista
             if(name === 'ajustes') updateVocabCount();
         }
 
@@ -1287,6 +1335,9 @@
             if(tocando === rolagemTravada) return;
             rolagemTravada = tocando;
             document.body.classList.toggle('video-tocando', tocando);
+            // Pausou: mostra a tradução rápida. Voltou a tocar: some.
+            if(tocando) esconderTraducaoRapida();
+            else mostrarTraducaoRapida();
         }
         function toggleFloatBtn() {
             FLOAT_BTN = !FLOAT_BTN;
@@ -1621,28 +1672,73 @@
                 || vozes.find(v => /^en[-_]US/i.test(v.lang))
                 || vozes.find(v => /^en/i.test(v.lang)) || null;
         }
-        function ouvirIngles(termo, botao) {
-            if(!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
-                alert('Este navegador não tem leitura em voz alta.'); return;
+        // No iPhone com o app na tela de início, a leitura do navegador (Web Speech)
+        // costuma não sair som nenhum. Então, nesse caso, o som vem de um ÁUDIO
+        // comum (o mesmo que o Google Tradutor usa), que toca normalmente. Se um
+        // caminho falhar, o app tenta o outro sozinho.
+        const APP_NA_TELA_DE_INICIO = !!(window.navigator && window.navigator.standalone);
+        let audioVoz = null;
+
+        function temLeituraDoNavegador() {
+            return ('speechSynthesis' in window) && typeof SpeechSynthesisUtterance !== 'undefined';
+        }
+        function pararVoz() {
+            if(temLeituraDoNavegador()) { try { window.speechSynthesis.cancel(); } catch(e) {} }
+            if(audioVoz) { try { audioVoz.pause(); } catch(e) {} audioVoz = null; }
+            if(vozBotaoAtivo) {
+                vozBotaoAtivo.textContent = '🔊'; vozBotaoAtivo.classList.remove('on');
+                vozBotaoAtivo = null;
             }
+        }
+        function tocarComAudio(termo, botao, seFalhar) {
+            const url = 'https://translate.googleapis.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q='
+                      + encodeURIComponent(termo.slice(0, 190));
+            const a = new Audio(url);
+            audioVoz = a;
+            const acabou = () => { if(audioVoz === a) { audioVoz = null; if(vozBotaoAtivo === botao) pararVoz(); } };
+            a.onended = acabou;
+            a.onerror = () => { if(audioVoz === a) { audioVoz = null; if(seFalhar) seFalhar(); else acabou(); } };
+            const p = a.play();
+            if(p && p.catch) p.catch(() => { if(audioVoz === a) { audioVoz = null; if(seFalhar) seFalhar(); else acabou(); } });
+        }
+        function falarComONavegador(termo, botao, seFalhar) {
+            if(!temLeituraDoNavegador()) { if(seFalhar) seFalhar(); return; }
             const s = window.speechSynthesis;
-            const mesmoBotao = vozBotaoAtivo === botao;
-            s.cancel();
-            if(vozBotaoAtivo) { vozBotaoAtivo.textContent = '🔊'; vozBotaoAtivo.classList.remove('on'); vozBotaoAtivo = null; }
-            if(mesmoBotao) return;          // segundo toque no mesmo botão = parar
-            pauseAny();                      // o som do vídeo não embola com a voz
             const u = new SpeechSynthesisUtterance(termo);
             u.lang = 'en-US';
             u.rate = 0.9;                    // um pouco mais devagar, para estudo
             const voz = vozIngles();
             if(voz) u.voice = voz;
-            const fim = () => {
-                if(vozBotaoAtivo !== botao) return;
-                botao.textContent = '🔊'; botao.classList.remove('on'); vozBotaoAtivo = null;
-            };
-            u.onend = fim; u.onerror = fim;
+            let comecou = false;
+            u.onstart = () => { comecou = true; };
+            u.onend = () => { if(vozBotaoAtivo === botao) pararVoz(); };
+            u.onerror = () => { if(!comecou && seFalhar) seFalhar(); else if(vozBotaoAtivo === botao) pararVoz(); };
+            try { s.speak(u); } catch(e) { if(seFalhar) seFalhar(); return; }
+            // Não começou a falar? O navegador engoliu: vai pelo áudio
+            setTimeout(() => {
+                if(comecou || vozBotaoAtivo !== botao) return;
+                try { s.cancel(); } catch(e) {}
+                if(seFalhar) seFalhar();
+            }, 700);
+        }
+        function ouvirIngles(termo, botao) {
+            const mesmoBotao = vozBotaoAtivo === botao;
+            pararVoz();
+            if(mesmoBotao) return;           // segundo toque no mesmo botão = parar
+            if(!termo) return;
+            pauseAny();                      // o som do vídeo não embola com a voz
             vozBotaoAtivo = botao; botao.textContent = '⏹'; botao.classList.add('on');
-            s.speak(u);
+            if(APP_NA_TELA_DE_INICIO || !temLeituraDoNavegador()) {
+                tocarComAudio(termo, botao, () => falarComONavegador(termo, botao, () => {
+                    if(vozBotaoAtivo === botao) pararVoz();
+                    setStatus('⚠️ Não consegui tocar o áudio deste termo.', 'warn');
+                }));
+            } else {
+                falarComONavegador(termo, botao, () => tocarComAudio(termo, botao, () => {
+                    if(vozBotaoAtivo === botao) pararVoz();
+                    setStatus('⚠️ Não consegui tocar o áudio deste termo.', 'warn');
+                }));
+            }
         }
 
         // ---- Tradução: Groq primeiro, Google Tradutor como reserva ----
@@ -2839,6 +2935,33 @@
             return subtitles.findIndex(s => t >= s.start && t <= s.end);
         }
 
+        // ===================== TRADUÇÃO RÁPIDA AO PAUSAR =====================
+        // Pausou o vídeo: a tradução aparece em amarelo logo abaixo da legenda em
+        // inglês, sem caixa nenhuma. É só para dar uma olhada rápida — o 🌐 e a
+        // seleção de palavras continuam abrindo o card completo, como antes.
+        let traducaoRapidaToken = 0;
+        function esconderTraducaoRapida() {
+            traducaoRapidaToken++;              // cancela uma tradução em andamento
+            if(!subTrad) return;
+            subTrad.textContent = '';
+            subTrad.style.display = 'none';
+        }
+        async function mostrarTraducaoRapida(texto) {
+            if(!subTrad) return;
+            const frase = (texto || lastRenderedText || '').trim();
+            if(!frase) { esconderTraducaoRapida(); return; }
+            const meu = ++traducaoRapidaToken;
+            subTrad.style.display = 'block';
+            subTrad.textContent = '…';
+            let r = null;
+            // 'google' = direto no Google Tradutor: é o caminho rápido
+            try { r = await translateInContext(frase, getSentenceFor(frase), currentCueIndex, 'google'); }
+            catch(e) { r = null; }
+            if(meu !== traducaoRapidaToken) return;   // trocou de legenda ou voltou a tocar
+            if(r && r.text && !r.naoTraduzido) subTrad.textContent = r.text;
+            else { subTrad.textContent = ''; subTrad.style.display = 'none'; }
+        }
+
         function renderLogic(time) {
             const t = time + subtitleOffset;
             let idx = indiceParaTempo(t);
@@ -2912,6 +3035,9 @@
                 if(li === linhas.length - 1) div.appendChild(btn);
                 subContent.appendChild(div);
             });
+            // Trocou de legenda com o vídeo pausado: a tradução rápida acompanha
+            if(isPlayingNow()) esconderTraducaoRapida();
+            else mostrarTraducaoRapida(text);
         }
 
         // ===================== CONTROLES & GESTOS =====================

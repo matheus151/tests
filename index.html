@@ -939,6 +939,17 @@
                 </div>
             </div>
 
+            <div class="section-title">Gestos</div>
+            <div class="card">
+                <button id="btn-gesto-repetir" class="btn btn-soft btn-wide" onclick="toggleGestoRepetir()">🔁 Repetir legenda</button>
+                <div class="hint">
+                    Deslize o dedo <b>de baixo para cima</b> sobre o vídeo (ou logo abaixo dele)
+                    para ouvir a legenda atual de novo, desde o começo.<br>
+                    Os deslizes para os lados continuam valendo: <b>←</b> legenda anterior,
+                    <b>→</b> próxima legenda.
+                </div>
+            </div>
+
             <div class="section-title">Player do YouTube</div>
             <div class="card">
                 <button id="btn-yt-controls" class="btn btn-soft btn-wide" onclick="toggleYtControlsSetting()">🎛️ Controles do YouTube</button>
@@ -3103,6 +3114,13 @@
                 }
                 targetIdx = dir === 1 ? ultima + 1 : ultima;
             }
+            irParaLegenda(targetIdx);
+        }
+
+        // Leva o vídeo ao COMEÇO exato de uma legenda. É o mesmo caminho usado pelo
+        // anterior/próxima — por isso o repetir cai no ponto certo do mesmo jeito.
+        function irParaLegenda(targetIdx) {
+            if(!subtitles.length) return;
             if(targetIdx < 0) targetIdx = 0;
             if(targetIdx >= subtitles.length) targetIdx = subtitles.length - 1;
 
@@ -3126,6 +3144,20 @@
             renderLogic(cueTime + 0.01);
         }
 
+        // Deslizar de baixo para cima: ouve a legenda atual de novo, desde o início
+        function repetirLegenda() {
+            if(!subtitles.length) return;
+            renderLogic(getTime());              // parte do que está na tela agora
+            let idx = currentCueIndex;
+            if(idx < 0) {                         // entre falas: repete a que acabou de passar
+                const eff = getTime() + subtitleOffset;
+                for(let i = subtitles.length - 1; i >= 0; i--) {
+                    if(subtitles[i].start <= eff) { idx = i; break; }
+                }
+            }
+            irParaLegenda(idx < 0 ? 0 : idx);
+        }
+
         // Gestos válidos em QUALQUER canto da tela, não só sobre o vídeo.
         // O deslize precisa ser mais horizontal que vertical, para não atrapalhar
         // a rolagem das listas nem a seleção de palavras na legenda.
@@ -3135,9 +3167,31 @@
         const DESLIZE_RAZAO    = 1.8;  // o horizontal tem de superar o vertical nessa proporção
         const DESLIZE_CANCELA_Y = 30;  // saiu na vertical primeiro: era rolagem
         const DESLIZE_RETORNO  = 0.6;  // terminou longe do ponto mais distante = vai-e-volta
+        const DESLIZE_CIMA_MIN = 45;   // subir pelo menos isso para repetir a legenda
+
+        // Gesto de repetir (deslizar para cima). Dá para desligar em Ajustes.
+        let GESTO_REPETIR = localStorage.getItem('ejoy_gesto_repetir') !== '0';
+        function applyGestoRepetirLabel() {
+            const b = document.getElementById('btn-gesto-repetir');
+            if(b) b.textContent = GESTO_REPETIR
+                ? '🔁 Repetir legenda deslizando: LIGADO'
+                : '🔁 Repetir legenda deslizando: DESLIGADO';
+        }
+        function toggleGestoRepetir() {
+            GESTO_REPETIR = !GESTO_REPETIR;
+            localStorage.setItem('ejoy_gesto_repetir', GESTO_REPETIR ? '1' : '0');
+            applyGestoRepetirLabel();
+        }
 
         function setupGlobalGestures() {
             let x0 = 0, y0 = 0, t0 = 0, ativo = false, cancelado = false, maxDx = 0, maxDy = 0;
+            let alvoInicial = null;
+
+            // O gesto de repetir só conta quando COMEÇA na área do vídeo ou na faixa
+            // da legenda. Assim a rolagem das listas (vídeo pausado) continua livre.
+            const naAreaDoVideo = (alvo) => !!(alvo && alvo.closest && (
+                alvo.closest('#player-zone') || alvo.closest('#subtitle-strip')
+            ));
 
             const ignorar = (alvo) => !!(alvo && alvo.closest && (
                 alvo.closest('#subtitle-container') ||   // seleção de palavras
@@ -3150,6 +3204,7 @@
                 // Dois dedos = pinça/zoom: nunca é comando de legenda
                 if(e.touches.length > 1 || ignorar(e.target)) { ativo = false; return; }
                 ativo = true; cancelado = false; maxDx = 0; maxDy = 0;
+                alvoInicial = e.target;
                 x0 = e.changedTouches[0].screenX;
                 y0 = e.changedTouches[0].screenY;
                 t0 = Date.now();
@@ -3179,6 +3234,17 @@
                 // Toque curto sobre o vídeo: play/pause (como antes)
                 if(dur < 250 && Math.abs(dx) < 12 && Math.abs(dy) < 12) {
                     if(e.target.closest && e.target.closest('#player-zone')) togglePlay();
+                    return;
+                }
+                // Deslize de BAIXO PARA CIMA começando no vídeo (ou logo abaixo dele):
+                // repete a legenda atual, desde o começo. Vale mesmo que o controle
+                // horizontal já tenha sido cancelado por ser um gesto vertical.
+                if(GESTO_REPETIR && dur <= DESLIZE_MAX_MS
+                   && dy < -DESLIZE_CIMA_MIN
+                   && Math.abs(dy) > Math.abs(dx) * DESLIZE_RAZAO
+                   && !(maxDy > 0 && Math.abs(dy) < maxDy * DESLIZE_RETORNO)   // subiu e voltou
+                   && naAreaDoVideo(alvoInicial)) {
+                    repetirLegenda();
                     return;
                 }
                 if(cancelado) return;
@@ -3968,6 +4034,7 @@
             renderFavorites();
             renderFavChannels();
             setModoBusca('video');
+            applyGestoRepetirLabel();
             aplicarVocabOculto();
             // Pede a lista de vozes cedo: no iPhone ela chega com atraso
             if('speechSynthesis' in window) { try { speechSynthesis.getVoices(); } catch(e) {} }

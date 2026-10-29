@@ -281,7 +281,10 @@
         .vocab-item { padding: 9px 2px; border-bottom: 1px solid var(--border-color); }
         .vocab-item:last-child { border-bottom: none; }
         .vocab-linha { display: flex; align-items: center; gap: 8px; }
-        .vocab-termo { flex: 1 1 auto; font-size: 0.9rem; line-height: 1.35; word-break: break-word; }
+        .vocab-termo {
+            flex: 1 1 auto; font-size: 0.9rem; line-height: 1.35; word-break: break-word;
+            cursor: pointer;   /* tocar no termo também fala */
+        }
         .vocab-btn {
             flex: 0 0 auto; background: var(--input-bg); color: var(--text-main);
             border: 1px solid var(--border-color); border-radius: 8px;
@@ -1716,6 +1719,8 @@
                 trad.className = 'vocab-btn'; trad.textContent = '🇧🇷'; trad.title = 'Ver tradução';
                 const pt = document.createElement('div'); pt.className = 'vocab-pt'; pt.hidden = true;
                 ouvir.onclick = (e) => { e.stopPropagation(); ouvirIngles(item.dataset.termo, ouvir); };
+                // Tocar no próprio termo também fala
+                txt.onclick = (e) => { e.stopPropagation(); ouvirIngles(item.dataset.termo, ouvir); };
                 trad.onclick = (e) => { e.stopPropagation(); mostrarTraducaoVocab(item, pt, trad); };
                 linha.append(txt, ouvir, trad);
                 item.append(linha, pt);
@@ -1731,18 +1736,42 @@
                 || vozes.find(v => /^en[-_]US/i.test(v.lang))
                 || vozes.find(v => /^en/i.test(v.lang)) || null;
         }
-        // No iPhone com o app na tela de início, a leitura do navegador (Web Speech)
-        // costuma não sair som nenhum. Então, nesse caso, o som vem de um ÁUDIO
-        // comum (o mesmo que o Google Tradutor usa), que toca normalmente. Se um
-        // caminho falhar, o app tenta o outro sozinho.
-        const APP_NA_TELA_DE_INICIO = !!(window.navigator && window.navigator.standalone);
+        // ---- De onde vem o som ----
+        // A fala NATIVA do aparelho (a voz do próprio iPhone) vem SEMPRE primeiro e é
+        // disparada DENTRO do toque: o iOS recusa falar quando o pedido chega de um
+        // retorno de rede ou de um temporizador — era por isso que não saía som.
+        // O áudio do Google só entra se a fala nativa não começar.
         let audioVoz = null;
+        let vozDestravada = false;
 
         function temLeituraDoNavegador() {
             return ('speechSynthesis' in window) && typeof SpeechSynthesisUtterance !== 'undefined';
         }
+        // O iPhone só libera a fala depois de um primeiro pedido feito dentro de um
+        // toque. Esta fala muda, no primeiro toque na tela, destrava as seguintes.
+        function destravarVoz() {
+            if(vozDestravada || !temLeituraDoNavegador()) return;
+            vozDestravada = true;
+            try {
+                const u = new SpeechSynthesisUtterance(' ');
+                u.volume = 0; u.lang = 'en-US';
+                window.speechSynthesis.speak(u);
+            } catch(e) {}
+        }
+        // Em CAPTURA: os botões do vocabulário param a propagação do toque, e sem
+        // isso o destravamento nunca acontecia justamente no primeiro toque deles
+        document.addEventListener('touchstart', destravarVoz, { once: true, passive: true, capture: true });
+        document.addEventListener('click', destravarVoz, { once: true, capture: true });
+
         function pararVoz() {
-            if(temLeituraDoNavegador()) { try { window.speechSynthesis.cancel(); } catch(e) {} }
+            // cancel() com a fila vazia deixa a fala do iPhone travada para sempre:
+            // só cancela quando há mesmo algo falando ou na fila
+            if(temLeituraDoNavegador()) {
+                try {
+                    const s = window.speechSynthesis;
+                    if(s.speaking || s.pending) s.cancel();
+                } catch(e) {}
+            }
             if(audioVoz) { try { audioVoz.pause(); } catch(e) {} audioVoz = null; }
             if(vozBotaoAtivo) {
                 vozBotaoAtivo.textContent = '🔊'; vozBotaoAtivo.classList.remove('on');
@@ -1763,22 +1792,23 @@
         function falarComONavegador(termo, botao, seFalhar) {
             if(!temLeituraDoNavegador()) { if(seFalhar) seFalhar(); return; }
             const s = window.speechSynthesis;
+            try { s.resume(); } catch(e) {}   // o iPhone às vezes deixa a fila em pausa
             const u = new SpeechSynthesisUtterance(termo);
-            u.lang = 'en-US';
-            u.rate = 0.9;                    // um pouco mais devagar, para estudo
+            u.lang = 'en-US';                 // a voz de inglês do próprio aparelho
+            u.rate = 0.9;                     // um pouco mais devagar, para estudo
             const voz = vozIngles();
-            if(voz) u.voice = voz;
+            if(voz) { try { u.voice = voz; } catch(e) {} }
             let comecou = false;
             u.onstart = () => { comecou = true; };
             u.onend = () => { if(vozBotaoAtivo === botao) pararVoz(); };
-            u.onerror = () => { if(!comecou && seFalhar) seFalhar(); else if(vozBotaoAtivo === botao) pararVoz(); };
+            u.onerror = () => { if(!comecou) { if(seFalhar) seFalhar(); } else if(vozBotaoAtivo === botao) pararVoz(); };
             try { s.speak(u); } catch(e) { if(seFalhar) seFalhar(); return; }
-            // Não começou a falar? O navegador engoliu: vai pelo áudio
+            // Não começou a falar em 1,5s? Só então tenta o áudio de reserva
             setTimeout(() => {
                 if(comecou || vozBotaoAtivo !== botao) return;
-                try { s.cancel(); } catch(e) {}
+                try { if(s.speaking || s.pending) s.cancel(); } catch(e) {}
                 if(seFalhar) seFalhar();
-            }, 700);
+            }, 1500);
         }
         function ouvirIngles(termo, botao) {
             const mesmoBotao = vozBotaoAtivo === botao;
@@ -1787,17 +1817,16 @@
             if(!termo) return;
             pauseAny();                      // o som do vídeo não embola com a voz
             vozBotaoAtivo = botao; botao.textContent = '⏹'; botao.classList.add('on');
-            if(APP_NA_TELA_DE_INICIO || !temLeituraDoNavegador()) {
-                tocarComAudio(termo, botao, () => falarComONavegador(termo, botao, () => {
-                    if(vozBotaoAtivo === botao) pararVoz();
-                    setStatus('⚠️ Não consegui tocar o áudio deste termo.', 'warn');
-                }));
-            } else {
-                falarComONavegador(termo, botao, () => tocarComAudio(termo, botao, () => {
-                    if(vozBotaoAtivo === botao) pararVoz();
-                    setStatus('⚠️ Não consegui tocar o áudio deste termo.', 'warn');
-                }));
-            }
+
+            const avisar = () => {
+                if(vozBotaoAtivo !== botao) return;    // o usuário já mandou parar
+                pararVoz();
+                setStatus('⚠️ Sem som? Confira o volume e a chave de silencioso do iPhone.', 'warn');
+            };
+            const reserva = () => { if(vozBotaoAtivo === botao) tocarComAudio(termo, botao, avisar); };
+            // A fala nativa é pedida AQUI, ainda dentro do toque — é o que o iOS exige
+            if(temLeituraDoNavegador()) falarComONavegador(termo, botao, reserva);
+            else tocarComAudio(termo, botao, avisar);
         }
 
         // ---- Tradução: Groq primeiro, Google Tradutor como reserva ----

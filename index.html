@@ -600,7 +600,10 @@
         /* ===================== TRADUÇÃO RÁPIDA (AO PAUSAR) ===================== */
         #subtitle-trad {
             display: none; margin-top: 5px; padding-bottom: 2px;
-            color: var(--accent); font-weight: 600; font-size: 0.8em; line-height: 1.35;
+            color: var(--accent); font-weight: 600; line-height: 1.35;
+            /* Em "em": acompanha o tamanho da legenda em inglês. O ajuste fica em
+               Legenda > Aparência da legenda (changeTradFontSize). */
+            font-size: var(--trad-tam, 0.95em);
         }
 
         /* ===================== REFINO VISUAL ===================== */
@@ -836,6 +839,14 @@
                     <div class="stepper">
                         <button class="font-btn" onclick="changeFontSize(-0.1)">A-</button>
                         <button class="font-btn" onclick="changeFontSize(0.1)">A+</button>
+                    </div>
+                </div>
+                <div class="style-line">
+                    <span class="lbl">Tamanho da tradução ao pausar</span>
+                    <div class="stepper">
+                        <button class="font-btn" onclick="changeTradFontSize(-0.05)">A-</button>
+                        <span id="trad-size-label" class="sync-label" style="min-width:52px; text-align:center"></span>
+                        <button class="font-btn" onclick="changeTradFontSize(0.05)">A+</button>
                     </div>
                 </div>
                 <div class="style-line">
@@ -1328,6 +1339,20 @@
             localStorage.setItem('ejoy_sub_font', currentFontSize);
             subBox.style.fontSize = currentFontSize + 'rem';
             reconstruirBlocos(false);   // outra fonte = outra quantidade de palavras por linha
+        }
+
+        // Tamanho da tradução que aparece ao pausar, em relação à legenda em inglês.
+        // 100% = do mesmo tamanho dela. Não mexe na montagem das linhas da legenda.
+        let tradFontScale = parseFloat(localStorage.getItem('ejoy_trad_font')) || 0.95;
+        function applyTradFontSize() {
+            document.documentElement.style.setProperty('--trad-tam', tradFontScale.toFixed(2) + 'em');
+            const el = document.getElementById('trad-size-label');
+            if(el) el.textContent = Math.round(tradFontScale * 100) + '%';
+        }
+        function changeTradFontSize(d) {
+            tradFontScale = Math.min(1.5, Math.max(0.6, Math.round((tradFontScale + d) * 100) / 100));
+            localStorage.setItem('ejoy_trad_font', tradFontScale);
+            applyTradFontSize();
         }
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
@@ -4035,6 +4060,7 @@
             renderFavChannels();
             setModoBusca('video');
             applyGestoRepetirLabel();
+            applyTradFontSize();
             aplicarVocabOculto();
             // Pede a lista de vozes cedo: no iPhone ela chega com atraso
             if('speechSynthesis' in window) { try { speechSynthesis.getVoices(); } catch(e) {} }

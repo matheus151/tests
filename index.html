@@ -928,7 +928,16 @@
 
             <div class="section-title">Legenda automática</div>
             <div class="card">
-                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave da Supadata (busca as legendas do YouTube)</label>
+                <div class="hint" style="margin-top:0">
+                    As legendas vêm de <b>servidores livres</b> (projeto Invidious): sem chave, sem cota
+                    e sem cobrança. Quando um servidor sai do ar, o app procura outro sozinho.
+                </div>
+                <button id="btn-supadata-toggle" class="btn btn-soft btn-wide" style="margin-top:10px" onclick="toggleSupadata()">💳 Reserva paga (Supadata)</button>
+                <div class="hint">
+                    <b>Desligada:</b> o app nunca consome a cota da Supadata — nada é cobrado.<br>
+                    <b>Ligada:</b> ela é usada só nos vídeos em que nenhum servidor livre tem a legenda.
+                </div>
+                <label class="lbl" style="font-size:0.8rem; color:var(--text-dim)">Chave da Supadata (opcional, só para a reserva)</label>
                 <input type="text" id="supadata-key-input" class="modern-input" style="width:100%; margin-top:6px" placeholder="Cole sua chave da Supadata aqui">
                 <button class="btn btn-primary btn-wide" style="margin-top:8px" onclick="saveSupadataKey()">Salvar chave</button>
                 <div class="hint">Grátis em <a href="https://dash.supadata.ai?plan=free" target="_blank">dash.supadata.ai</a> (100 vídeos/mês, sem cartão).</div>
@@ -2486,42 +2495,169 @@
             btn.title = 'Ocultar lista de vídeos';
         }
 
+        // ---- De onde vem a legenda automática ----
+        // Principal: servidores Invidious — de graça, SEM CHAVE e SEM COTA. Eles
+        // entregam a legenda do próprio YouTube em WebVTT, com CORS liberado.
+        // A Supadata (que cobra por excedente) virou RESERVA e só entra se você
+        // ligar em Ajustes: desligada, nenhum vídeo consome cota paga.
+        const SERVIDORES_LEGENDA = [
+            'https://yt.chocolatemoo53.com',
+            'https://invidious.tiekoetter.com',
+            'https://inv.nadeko.net',
+            'https://invidious.nerdvpn.de',
+        ];
+        const LISTA_SERVIDORES_URL = 'https://api.invidious.io/instances.json?pretty=1&sort_by=type,users';
+        const LISTA_SERVIDORES_H = 24;   // de quanto em quanto tempo procurar servidores novos
+
+        let USAR_SUPADATA = localStorage.getItem('ejoy_usar_supadata') === '1';
+        function applySupadataLabel() {
+            const b = document.getElementById('btn-supadata-toggle');
+            if(b) b.textContent = USAR_SUPADATA
+                ? '💳 Reserva paga (Supadata): LIGADA'
+                : '💳 Reserva paga (Supadata): DESLIGADA';
+        }
+        function toggleSupadata() {
+            USAR_SUPADATA = !USAR_SUPADATA;
+            localStorage.setItem('ejoy_usar_supadata', USAR_SUPADATA ? '1' : '0');
+            applySupadataLabel();
+        }
+
+        // Quando um servidor sai do ar, o app pega a lista oficial e acha outro
+        // sozinho — sem precisar de uma versão nova do app.
+        async function servidoresDeLegenda() {
+            let guardado = null;
+            try { guardado = JSON.parse(localStorage.getItem('ejoy_servidores_legenda') || 'null'); } catch(e) {}
+            const atual = guardado && Array.isArray(guardado.lista) && guardado.lista.length
+                          && (Date.now() - guardado.quando) < LISTA_SERVIDORES_H * 3600 * 1000;
+            let daLista = atual ? guardado.lista : [];
+            if(!atual) {
+                try {
+                    const r = await fetchComTempo(LISTA_SERVIDORES_URL, null, 10000);
+                    if(r.ok) {
+                        const arr = await r.json();
+                        const achados = (arr || [])
+                            .map(i => (i && i[1]) || {})
+                            .filter(d => d.uri && /^https/i.test(d.type || '') && d.api !== false)
+                            .map(d => String(d.uri).replace(/\/+$/, ''));
+                        if(achados.length) {
+                            daLista = achados;
+                            try { localStorage.setItem('ejoy_servidores_legenda',
+                                JSON.stringify({ quando: Date.now(), lista: achados })); } catch(e) {}
+                        }
+                    }
+                } catch(e) { /* sem a lista: segue com os conhecidos */ }
+            }
+            const vistos = new Set();
+            return [...SERVIDORES_LEGENDA, ...daLista].filter(u => {
+                if(!/^https:\/\//i.test(u) || vistos.has(u)) return false;
+                vistos.add(u); return true;
+            }).slice(0, 8);
+        }
+
+        // WebVTT (ou SRT) -> blocos {start, end, text}
+        function lerVtt(texto) {
+            const t = String(texto || '').replace(/\r\n|\r/g, '\n');
+            const re = /(\d{1,2}:)?(\d{1,2}):(\d{2})[.,](\d{1,3})\s*-->\s*(\d{1,2}:)?(\d{1,2}):(\d{2})[.,](\d{1,3})[^\n]*\n([\s\S]*?)(?=\n\s*\n|$)/g;
+            const seg = (h, m, sg, ms) => (parseInt(h || 0, 10) * 3600) + (parseInt(m, 10) * 60)
+                                        + parseInt(sg, 10) + (parseInt(ms, 10) / (ms.length === 2 ? 100 : 1000));
+            const blocos = [];
+            let m;
+            while((m = re.exec(t)) !== null) {
+                const ini = seg(m[1], m[2], m[3], m[4]);
+                const fim = seg(m[5], m[6], m[7], m[8]);
+                let txt = String(m[9]).replace(/<[^>]*>/g, ' ');
+                txt = decodeHtmlEntities(txt).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+                if(!txt) continue;
+                const ant = blocos[blocos.length - 1];
+                // Legenda automática às vezes repete a linha anterior: junta em vez de duplicar
+                if(ant && ant.text === txt) { ant.end = Math.max(ant.end, fim); continue; }
+                blocos.push({ start: ini, end: Math.max(fim, ini + 0.4), text: txt });
+            }
+            return blocos;
+        }
+
+        // Tenta um servidor de cada vez até alguém ter a legenda do vídeo.
+        // Primeiro os conhecidos (caminho rápido, sem depender de mais nada);
+        // só se todos falharem é que vai atrás da lista oficial.
+        async function legendaPorServidorLivre(vid, meuToken) {
+            const achado = await tentarServidores(SERVIDORES_LEGENDA, vid, meuToken);
+            if(achado) return achado;
+            if(meuToken !== autoFetchToken) return null;
+            const outros = (await servidoresDeLegenda()).filter(u => SERVIDORES_LEGENDA.indexOf(u) === -1);
+            return outros.length ? await tentarServidores(outros, vid, meuToken) : null;
+        }
+        async function tentarServidores(servidores, vid, meuToken) {
+            for(const base of servidores) {
+                if(meuToken !== autoFetchToken) return null;   // o usuário trocou de vídeo
+                try {
+                    const r = await fetchComTempo(base + '/api/v1/captions/' + encodeURIComponent(vid), null, 9000);
+                    if(!r.ok) continue;
+                    const j = await r.json();
+                    const faixas = (j && j.captions) || [];
+                    if(!faixas.length) continue;
+                    const en = faixas.find(c => /^en/i.test(c.languageCode || '')) || faixas[0];
+                    if(!en || !en.url) continue;
+                    const endereco = /^https?:/i.test(en.url) ? en.url : base + en.url;
+                    const a = await fetchComTempo(endereco, null, 15000);
+                    if(!a.ok) continue;
+                    const blocos = lerVtt(await a.text());
+                    if(blocos.length >= 3) return { blocos, servidor: base.replace(/^https:\/\//i, '') };
+                } catch(e) { /* servidor fora do ar: tenta o próximo */ }
+            }
+            return null;
+        }
+
         async function fetchAutoSubtitles(vid, opts) {
             opts = opts || {};
-            if(!SUPADATA_API_KEY) {
-                setStatus('⚠️ Legenda automática não configurada. Vá em Ajustes e informe a chave da Supadata, ou carregue uma legenda manualmente.', 'warn');
-                return;
-            }
             const myToken = ++autoFetchToken;
             setStatus('⏳ Buscando legenda automática...', 'info');
-            try {
-                const url = `https://api.supadata.ai/v1/transcript?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + vid)}&lang=en`;
-                const res = await fetchComTempo(url, { headers: { 'x-api-key': SUPADATA_API_KEY } }, 20000);
-                const data = await res.json();
-                if(myToken !== autoFetchToken) return;
 
-                if(!res.ok || data.error || !data.content || !data.content.length) {
-                    let msg = data.message || data.error || 'Legenda automática indisponível';
-                    if(res.status === 401) msg = 'Chave da Supadata inválida.';
-                    if(res.status === 429) msg = 'Limite mensal gratuito da Supadata atingido.';
-                    setStatus('⚠️ ' + msg + ' — toque aqui para tentar de novo.', 'warn', vid);
+            // 1) Servidores livres: sem chave, sem cota, sem cobrança
+            let achado = null;
+            try { achado = await legendaPorServidorLivre(vid, myToken); } catch(e) { achado = null; }
+            if(myToken !== autoFetchToken) return;
+            if(achado) {
+                // Guarda as ORIGINAIS: os blocos de duas linhas dependem da tela
+                definirLegendas(achado.blocos);
+                try { localStorage.setItem('ejoy_auto_subs_' + vid, JSON.stringify(achado.blocos)); } catch(e) {}
+                setStatus('✅ Legenda automática carregada (grátis, via ' + achado.servidor + ')', 'success');
+                return;
+            }
+
+            // 2) Supadata: só com a reserva ligada e chave salva
+            if(USAR_SUPADATA && SUPADATA_API_KEY) {
+                try {
+                    const url = `https://api.supadata.ai/v1/transcript?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + vid)}&lang=en`;
+                    const res = await fetchComTempo(url, { headers: { 'x-api-key': SUPADATA_API_KEY } }, 20000);
+                    const data = await res.json();
+                    if(myToken !== autoFetchToken) return;
+
+                    if(!res.ok || data.error || !data.content || !data.content.length) {
+                        let msg = data.message || data.error || 'Legenda automática indisponível';
+                        if(res.status === 401) msg = 'Chave da Supadata inválida.';
+                        if(res.status === 429) msg = 'Limite da Supadata atingido.';
+                        setStatus('⚠️ ' + msg + ' — toque aqui para tentar de novo.', 'warn', vid);
+                        return;
+                    }
+                    const brutas = data.content.map(c => ({
+                        start: c.offset / 1000,
+                        end: (c.offset + c.duration) / 1000,
+                        text: (c.text || '').replace(/\n/g, ' ').trim(),
+                    })).filter(s => s.text);
+                    definirLegendas(brutas);
+                    try { localStorage.setItem('ejoy_auto_subs_' + vid, JSON.stringify(brutas)); } catch(e) {}
+                    setStatus('✅ Legenda carregada pela reserva paga (Supadata)', 'success');
+                    return;
+                } catch(e) {
+                    if(myToken !== autoFetchToken) return;
+                    setStatus('⚠️ Erro de rede ao buscar a legenda — toque aqui para tentar de novo.', 'error', vid);
                     return;
                 }
-
-                const brutas = data.content.map(c => ({
-                    start: c.offset / 1000,
-                    end: (c.offset + c.duration) / 1000,
-                    text: (c.text || '').replace(/\n/g, ' ').trim(),
-                })).filter(s => s.text);
-
-                // Guarda as ORIGINAIS: os blocos de duas linhas dependem da tela
-                definirLegendas(brutas);
-                try { localStorage.setItem('ejoy_auto_subs_' + vid, JSON.stringify(brutas)); } catch(e) {}
-                setStatus(`✅ Legenda automática carregada (${data.lang || 'idioma detectado'})`, 'success');
-            } catch(e) {
-                if(myToken !== autoFetchToken) return;
-                setStatus('⚠️ Erro de rede ao buscar a legenda — toque aqui para tentar de novo.', 'error', vid);
             }
+
+            // 3) Ninguém tinha a legenda
+            setStatus('⚠️ Nenhum servidor livre tinha a legenda deste vídeo — toque aqui para tentar de novo, '
+                    + 'ou use 📄 DownSub e carregue o arquivo.', 'warn', vid);
         }
 
         // ===================== PLAYER =====================
@@ -4090,6 +4226,7 @@
             setModoBusca('video');
             applyGestoRepetirLabel();
             applyTradFontSize();
+            applySupadataLabel();
             aplicarVocabOculto();
             // Pede a lista de vozes cedo: no iPhone ela chega com atraso
             if('speechSynthesis' in window) { try { speechSynthesis.getVoices(); } catch(e) {} }

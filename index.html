@@ -2573,7 +2573,41 @@
                 if(ant && ant.text === txt) { ant.end = Math.max(ant.end, fim); continue; }
                 blocos.push({ start: ini, end: Math.max(fim, ini + 0.4), text: txt });
             }
-            return blocos;
+            return tirarRepeticao(blocos);
+        }
+
+        // A legenda automática do YouTube costuma vir "rolando": cada fala REPETE a
+        // anterior e acrescenta um pedaço no fim. Sem tirar isso, a tela mostra a
+        // mesma frase várias vezes seguidas — era o que deixava a legenda bagunçada.
+        function tirarRepeticao(blocos) {
+            const saida = [];
+            let anterior = [];
+            for(const b of blocos) {
+                const palavras = b.text.split(/\s+/).filter(Boolean);
+                if(!palavras.length) continue;
+                // maior pedaço do FIM da fala anterior que é igual ao COMEÇO desta
+                let corte = 0;
+                for(let k = Math.min(anterior.length, palavras.length); k > 0; k--) {
+                    let igual = true;
+                    for(let i = 0; i < k; i++) {
+                        if(anterior[anterior.length - k + i].toLowerCase() !== palavras[i].toLowerCase()) { igual = false; break; }
+                    }
+                    if(igual) { corte = k; break; }
+                }
+                // Repetição de uma ou duas palavras pode ser fala mesmo ("you know, you know"):
+                // só corta quando repete a fala anterior inteira ou um trecho grande.
+                if(corte && corte < 3 && corte !== anterior.length) corte = 0;
+                const novas = palavras.slice(corte);
+                anterior = palavras;
+                if(!novas.length) continue;          // a fala era só repetição
+                saida.push({ start: b.start, end: b.end, text: novas.join(' ') });
+            }
+            // Sem sobreposição: uma fala termina quando a seguinte começa
+            for(let i = 0; i + 1 < saida.length; i++) {
+                if(saida[i].end > saida[i + 1].start) saida[i].end = saida[i + 1].start;
+                if(saida[i].end <= saida[i].start) saida[i].end = saida[i].start + 0.4;
+            }
+            return saida;
         }
 
         // Tenta um servidor de cada vez até alguém ter a legenda do vídeo.
@@ -2916,7 +2950,10 @@
         // variam muito: a legenda automática vem em pedaços de meia linha, a da CNN
         // em blocos de três linhas. Aqui as originais são redistribuídas em blocos
         // que enchem duas linhas na largura REAL da tela, com a fonte atual.
-        const LINHAS_POR_BLOCO = 2;
+        // Até 3 linhas: a legenda do YouTube vem em falas de ~18 palavras. Com 2
+        // linhas, quase toda fala precisava ser cortada no meio — e o meio da fala
+        // nao tem tempo real, so estimado. Com 3, a fala quase sempre cabe inteira.
+        const LINHAS_POR_BLOCO = 3;
         const BLOCO_SILENCIO_MAX = 1.5;     // pausa maior que isso na fala separa blocos
         const BLOCO_PREENCHIMENTO_MIN = 0.5; // não fecha bloco com menos de ~1 linha, se der
         const RESERVA_GLOBO = 30;           // o 🌐 no fim da última linha ocupa ~30px
@@ -2989,7 +3026,7 @@
         // linhas do retrato, com as linhas de larguras parecidas entre si — a última
         // reserva espaço para o 🌐. Sem corte possível, cai na quebra normal.
         function equilibrarLinhas(palavras, quantas, largura, medir) {
-            if(quantas !== 2 || palavras.length < 2) return quebrarLinhas(palavras, largura, medir);
+            if(quantas < 2 || palavras.length < quantas) return quebrarLinhas(palavras, largura, medir);
             const max = largura * FOLGA_LARGURA;
             const esp = medir(' ');
             const larg = palavras.map(p => medir(p) + 2);
@@ -2998,20 +3035,33 @@
                 for(let k = i; k < j; k++) w += larg[k] + (k > i ? esp : 0);
                 return w;
             };
-            let melhor = -1, menorDiferenca = Infinity;
-            for(let corte = 1; corte < palavras.length; corte++) {
-                const a = larguraDe(0, corte);
-                const b = larguraDe(corte, palavras.length) + RESERVA_GLOBO;
-                if(a > max || b > max) continue;            // não cabe: corte inválido
-                const dif = Math.abs(a - b);
-                if(dif < menorDiferenca) { menorDiferenca = dif; melhor = corte; }
-            }
-            if(melhor === -1) return quebrarLinhas(palavras, largura, medir);
+            // Procura os cortes que deixam a linha MAIS LARGA o menor possível:
+            // é isso que faz as linhas ficarem parecidas entre si.
+            let melhor = null, menorPior = Infinity;
+            const buscar = (inicio, faltam, cortes) => {
+                if(faltam === 1) {
+                    const ultima = larguraDe(inicio, palavras.length) + RESERVA_GLOBO;
+                    if(ultima > max) return;
+                    let pior = ultima, ini = 0;
+                    for(const c of cortes) { pior = Math.max(pior, larguraDe(ini, c)); ini = c; }
+                    if(pior < menorPior) { menorPior = pior; melhor = cortes.slice(); }
+                    return;
+                }
+                for(let c = inicio + 1; c <= palavras.length - (faltam - 1); c++) {
+                    if(larguraDe(inicio, c) > max) break;   // daqui para a frente só piora
+                    buscar(c, faltam - 1, cortes.concat(c));
+                }
+            };
+            buscar(0, quantas, []);
+            if(!melhor) return quebrarLinhas(palavras, largura, medir);
             const todos = palavras.map((_, i) => i);
-            return [
-                { idx: todos.slice(0, melhor), largura: larguraDe(0, melhor) },
-                { idx: todos.slice(melhor), largura: larguraDe(melhor, palavras.length) }
-            ];
+            const linhas = [];
+            let ini = 0;
+            melhor.concat(palavras.length).forEach(fim => {
+                linhas.push({ idx: todos.slice(ini, fim), largura: larguraDe(ini, fim) });
+                ini = fim;
+            });
+            return linhas;
         }
 
         // Redistribui as legendas originais em blocos de até duas linhas.
@@ -3081,20 +3131,53 @@
                     exato: arr[0].exato
                 });
             };
+            // Monta por FALA INTEIRA: o bloco só corta uma fala no meio quando ela
+            // sozinha não cabe. Como o início de cada fala tem tempo REAL (e o meio
+            // dela é só estimado), isso é o que mantém a legenda no tempo certo.
+            const porFala = [];
+            toks.forEach(t => { (porFala[t.ci] = porFala[t.ci] || []).push(t); });
+
+            // Fala que não cabe é dividida em pedaços PARECIDOS entre si. Encher o
+            // primeiro pedaço e deixar o resto criava migalhas de duas palavras
+            // piscando por meio segundo na tela.
+            const ehPausa = tk => /[.!?…,;:]["'”’)\]]?$/.test(tk.p);
+            const partirFala = (fala) => {
+                for(let partes = 2; partes <= fala.length; partes++) {
+                    // Cortes espalhados por igual (e não "enche um, sobra o resto",
+                    // que deixava migalhas de duas palavras piscando na tela)
+                    const cortes = [];
+                    for(let i = 1; i < partes; i++) {
+                        const minimo = (cortes[cortes.length - 1] || 0) + 1;
+                        const maximo = fala.length - (partes - i);
+                        let alvo = Math.min(Math.max(Math.round(fala.length * i / partes), minimo), maximo);
+                        for(let j = Math.min(maximo, alvo + 2); j >= Math.max(minimo, alvo - 2); j--) {
+                            if(ehPausa(fala[j - 1])) { alvo = j; break; }   // encosta na pontuação
+                        }
+                        cortes.push(alvo);
+                    }
+                    const saida = [];
+                    let ini = 0;
+                    cortes.concat(fala.length).forEach(f => { saida.push(fala.slice(ini, f)); ini = f; });
+                    if(saida.every(p => p.length && cabe(p))) return saida;
+                }
+                return [fala];
+            };
+
             let atual = [];
-            for(const tk of toks) {
+            porFala.filter(Boolean).forEach(fala => {
                 if(atual.length) {
                     const ant = atual[atual.length - 1];
-                    if(tk.k === 0 && tk.cueIni - ant.cueFim > BLOCO_SILENCIO_MAX) { fechar(atual); atual = []; }
+                    const silencio = fala[0].cueIni - ant.cueFim > BLOCO_SILENCIO_MAX;
+                    if(silencio || !cabe(atual.concat(fala))) { fechar(atual); atual = []; }
                 }
-                if(atual.length && !cabe(atual.concat(tk))) {
-                    const p = melhorCorte(atual, tk);
-                    fechar(atual.slice(0, p));
-                    atual = atual.slice(p);
-                    if(atual.length && !cabe(atual.concat(tk))) { fechar(atual); atual = []; }
+                if(!atual.length && !cabe(fala)) {        // fala grande demais: parte em pedaços
+                    const partes = partirFala(fala);
+                    partes.slice(0, -1).forEach(fechar);
+                    atual = partes[partes.length - 1];
+                    return;
                 }
-                atual.push(tk);
-            }
+                atual = atual.concat(fala);
+            });
             fechar(atual);
             // Um bloco nunca invade o seguinte (senão o seguinte não aparece)
             for(let i = 0; i + 1 < blocos.length; i++) {

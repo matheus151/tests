@@ -3126,16 +3126,8 @@
                 return melhor;
             }
 
-            const blocos = [];
-            const fechar = arr => {
-                if(!arr.length) return;
-                blocos.push({
-                    start: arr[0].t,
-                    end: arr[arr.length - 1].fim,
-                    text: arr.map(x => x.p).join(' '),
-                    exato: arr[0].exato
-                });
-            };
+            const grupos = [];
+            const fechar = arr => { if(arr.length) grupos.push(arr.slice()); };
             // Monta por FALA INTEIRA: o bloco só corta uma fala no meio quando ela
             // sozinha não cabe. Como o início de cada fala tem tempo REAL (e o meio
             // dela é só estimado), isso é o que mantém a legenda no tempo certo.
@@ -3168,12 +3160,20 @@
                 return [fala];
             };
 
+            const linhasDe = arr => linhasOcupadas(arr.map(x => x.p), largura, medir);
+
             let atual = [];
             porFala.filter(Boolean).forEach(fala => {
                 if(atual.length) {
                     const ant = atual[atual.length - 1];
                     const silencio = fala[0].cueIni - ant.cueFim > BLOCO_SILENCIO_MAX;
-                    if(silencio || !cabe(atual.concat(fala))) { fechar(atual); atual = []; }
+                    // Legenda de UMA linha só fica estranha. Se o bloco ainda está
+                    // com uma linha, ele aceita a fala seguinte mesmo que isso leve
+                    // a três linhas — melhor do que uma linha solta, e sem mexer no
+                    // tempo (a fala entra inteira, com o início real dela).
+                    const juntos = atual.concat(fala);
+                    const serve = cabe(juntos) || (linhasDe(atual) < 2 && cabeApertado(juntos));
+                    if(silencio || !serve) { fechar(atual); atual = []; }
                 }
                 if(!atual.length && !cabe(fala)) {
                     // A fala não cabe em 2 linhas. Se couber em 3, vai inteira:
@@ -3189,6 +3189,13 @@
                 atual = atual.concat(fala);
             });
             fechar(atual);
+
+            const blocos = grupos.filter(g => g.length).map(arr => ({
+                start: arr[0].t,
+                end: arr[arr.length - 1].fim,
+                text: arr.map(x => x.p).join(' '),
+                exato: arr[0].exato
+            }));
             // Um bloco nunca invade o seguinte (senão o seguinte não aparece)
             for(let i = 0; i + 1 < blocos.length; i++) {
                 if(blocos[i].end > blocos[i + 1].start) blocos[i].end = blocos[i + 1].start;

@@ -2950,14 +2950,18 @@
         // variam muito: a legenda automática vem em pedaços de meia linha, a da CNN
         // em blocos de três linhas. Aqui as originais são redistribuídas em blocos
         // que enchem duas linhas na largura REAL da tela, com a fonte atual.
-        // Até 3 linhas: a legenda do YouTube vem em falas de ~18 palavras. Com 2
-        // linhas, quase toda fala precisava ser cortada no meio — e o meio da fala
-        // nao tem tempo real, so estimado. Com 3, a fala quase sempre cabe inteira.
-        const LINHAS_POR_BLOCO = 3;
+        // A legenda tem 2 linhas, como antes. A terceira só é usada quando uma fala
+        // sozinha não cabe em duas — porque cortá-la no meio é pior: só o INÍCIO da
+        // fala tem tempo real, o meio é estimado por contagem de letras.
+        const LINHAS_POR_BLOCO = 2;
+        const LINHAS_MAXIMAS   = 3;
         const BLOCO_SILENCIO_MAX = 1.5;     // pausa maior que isso na fala separa blocos
         const BLOCO_PREENCHIMENTO_MIN = 0.5; // não fecha bloco com menos de ~1 linha, se der
         const RESERVA_GLOBO = 30;           // o 🌐 no fim da última linha ocupa ~30px
-        const ESPACO_EXTRA_MAX = 0.2;       // justificar pode aumentar cada espaço em no máx. 20%
+        // Justificar estica os espaços da linha. Este é o limite: a linha só encosta
+        // nas duas bordas se cada espaço crescer no máximo isto (1 = o dobro do
+        // espaço normal). Acima disso a linha fica centralizada, com espaço natural.
+        const ESPACO_EXTRA_MAX = 1.0;
         const FOLGA_LARGURA = 0.97;         // margem contra diferença de medida canvas × tela
 
         let layoutLegenda = null;           // { largura, medir } da última medição
@@ -3097,6 +3101,7 @@
             const esp = medir(' ');
             const capacidade = largura * FOLGA_LARGURA * LINHAS_POR_BLOCO;
             const cabe = arr => linhasOcupadas(arr.map(x => x.p), largura, medir) <= LINHAS_POR_BLOCO;
+            const cabeApertado = arr => linhasOcupadas(arr.map(x => x.p), largura, medir) <= LINHAS_MAXIMAS;
             const fimDeFrase = p => /[.!?…]["'”’)\]]?$/.test(p);
             const pausaCurta = p => /[,;:]["'”’)\]]?$/.test(p);
 
@@ -3141,7 +3146,7 @@
             // primeiro pedaço e deixar o resto criava migalhas de duas palavras
             // piscando por meio segundo na tela.
             const ehPausa = tk => /[.!?…,;:]["'”’)\]]?$/.test(tk.p);
-            const partirFala = (fala) => {
+            const partirFala = (fala, serve) => {
                 for(let partes = 2; partes <= fala.length; partes++) {
                     // Cortes espalhados por igual (e não "enche um, sobra o resto",
                     // que deixava migalhas de duas palavras piscando na tela)
@@ -3158,7 +3163,7 @@
                     const saida = [];
                     let ini = 0;
                     cortes.concat(fala.length).forEach(f => { saida.push(fala.slice(ini, f)); ini = f; });
-                    if(saida.every(p => p.length && cabe(p))) return saida;
+                    if(saida.every(p => p.length && serve(p))) return saida;
                 }
                 return [fala];
             };
@@ -3170,8 +3175,13 @@
                     const silencio = fala[0].cueIni - ant.cueFim > BLOCO_SILENCIO_MAX;
                     if(silencio || !cabe(atual.concat(fala))) { fechar(atual); atual = []; }
                 }
-                if(!atual.length && !cabe(fala)) {        // fala grande demais: parte em pedaços
-                    const partes = partirFala(fala);
+                if(!atual.length && !cabe(fala)) {
+                    // A fala não cabe em 2 linhas. Se couber em 3, vai inteira:
+                    // melhor uma linha a mais do que um corte em tempo estimado.
+                    if(cabeApertado(fala)) { fechar(fala); return; }
+                    // Nem em 3: parte em pedaços parecidos, cada um de até 2 linhas
+                    let partes = partirFala(fala, cabe);
+                    if(partes.length === 1) partes = partirFala(fala, cabeApertado);
                     partes.slice(0, -1).forEach(fechar);
                     atual = partes[partes.length - 1];
                     return;

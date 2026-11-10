@@ -971,9 +971,13 @@
             <div class="section-title">Gestos</div>
             <div class="card">
                 <button id="btn-gesto-repetir" class="btn btn-soft btn-wide" onclick="toggleGestoRepetir()">🔁 Repetir legenda</button>
+                <button id="btn-repetir-pausa" class="btn btn-soft btn-wide" onclick="toggleRepetirPausa()">⏸️ Pausar e traduzir ao repetir</button>
                 <div class="hint">
                     Deslize o dedo <b>de baixo para cima</b> sobre o vídeo (ou logo abaixo dele)
                     para ouvir a legenda atual de novo, desde o começo.<br>
+                    Com <b>Pausar e traduzir</b> ligado, o vídeo para na legenda repetida e a
+                    tradução em português aparece em amarelo embaixo dela. Desligado, ele
+                    repete a fala e continua tocando.<br>
                     Os deslizes para os lados continuam valendo: <b>←</b> legenda anterior,
                     <b>→</b> próxima legenda.
                 </div>
@@ -3000,13 +3004,12 @@
         // Justificar estica os espaços da linha. Este é o limite: a linha só encosta
         // nas duas bordas se cada espaço crescer no máximo isto (1 = o dobro do
         // espaço normal). Acima disso a linha fica centralizada, com espaço natural.
-        // Vale para TODAS as linhas, inclusive a última: com as duas linhas cheias,
-        // as duas encostam nas bordas e a legenda fica um bloco só. A linha que
-        // precisaria de mais espaço que isso (um fim de frase com três palavras)
-        // fica centralizada com o espaço normal, em vez de esticada na tela.
-        // 1.6 = o vão pode chegar a ~2,6x o espaço normal (~20px). Mais que isso
-        // a linha fica com cara de esticada; olhei nas duas larguras antes de fixar.
-        const ESPACO_EXTRA_MAX = 1.6;
+        // 0.8 = o vão pode chegar a ~1,8x o espaço normal (~14px). Acima disso
+        // abrem buracos entre as palavras, que é o que incomodava: a linha que
+        // precisaria de mais que isso fica centralizada com o espaço normal.
+        // A ÚLTIMA linha do bloco nunca é justificada — ela é a que sobra mais
+        // curta, e esticá-la de ponta a ponta era o pior dos casos.
+        const ESPACO_EXTRA_MAX = 0.8;
         const FOLGA_LARGURA = 0.97;         // margem contra diferença de medida canvas × tela
 
         let layoutLegenda = null;           // { largura, medir } da última medição
@@ -3270,8 +3273,10 @@
         // inglês, sem caixa nenhuma. É só para dar uma olhada rápida — o 🌐 e a
         // seleção de palavras continuam abrindo o card completo, como antes.
         let traducaoRapidaToken = 0;
+        let fraseRapidaNaTela = '';
         function esconderTraducaoRapida() {
             traducaoRapidaToken++;              // cancela uma tradução em andamento
+            fraseRapidaNaTela = '';
             if(!subTrad) return;
             subTrad.textContent = '';
             subTrad.style.display = 'none';
@@ -3280,6 +3285,10 @@
             if(!subTrad) return;
             const frase = (texto || lastRenderedText || '').trim();
             if(!frase) { esconderTraducaoRapida(); return; }
+            // Já está traduzindo (ou mostrando) esta mesma frase: não pede de novo.
+            // Ao repetir a legenda, o gesto e o pulso de 100ms chamavam os dois.
+            if(frase === fraseRapidaNaTela) return;
+            fraseRapidaNaTela = frase;
             const meu = ++traducaoRapidaToken;
             subTrad.style.display = 'block';
             subTrad.textContent = '…';
@@ -3357,7 +3366,7 @@
                 const div = document.createElement('div');
                 div.className = 'linha';
                 const vaos = ln.idx.length - 1;
-                if(vaos > 0) {
+                if(li < linhas.length - 1 && vaos > 0) {
                     const sobraPorVao = (layoutLegenda.largura - ln.largura) / vaos;
                     if(sobraPorVao <= espacoNatural * ESPACO_EXTRA_MAX) div.classList.add('justa');
                 }
@@ -3372,6 +3381,7 @@
 
         // ===================== CONTROLES & GESTOS =====================
         function pauseAny(){ if(playerType === 'local') video.pause(); else if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); }
+        function tocarAny(){ if(playerType === 'local') video.play(); else if(ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo(); }
         function togglePlay(){
             if(playerType === 'local') video.paused ? video.play() : video.pause();
             else if(ytPlayer && ytPlayer.getPlayerState) (ytPlayer.getPlayerState() === 1) ? ytPlayer.pauseVideo() : ytPlayer.playVideo();
@@ -3462,6 +3472,11 @@
         const DESLIZE_CANCELA_Y = 30;  // saiu na vertical primeiro: era rolagem
         const DESLIZE_RETORNO  = 0.6;  // terminou longe do ponto mais distante = vai-e-volta
         const DESLIZE_CIMA_MIN = 45;   // subir pelo menos isso para repetir a legenda
+        // Toque no vídeo: o vídeo para depois deste tempo, sem esperar o dedo sair.
+        // Curto o bastante para parecer imediato e longo o bastante para o dedo que
+        // vai deslizar já ter saído do lugar (aí a pausa nem acontece).
+        const PAUSA_NO_TOQUE_MS = 60;
+        const PAUSA_NO_TOQUE_PX = 8;   // andou mais que isso antes: era deslize
 
         // Gesto de repetir (deslizar para cima). Dá para desligar em Ajustes.
         let GESTO_REPETIR = localStorage.getItem('ejoy_gesto_repetir') !== '0';
@@ -3477,9 +3492,26 @@
             applyGestoRepetirLabel();
         }
 
+        // Ao repetir a legenda, o vídeo para nela e a tradução aparece em amarelo.
+        let REPETIR_PAUSA = localStorage.getItem('ejoy_repetir_pausa') !== '0';
+        function applyRepetirPausaLabel() {
+            const b = document.getElementById('btn-repetir-pausa');
+            if(b) b.textContent = REPETIR_PAUSA
+                ? '⏸️ Pausar e traduzir ao repetir: LIGADO'
+                : '⏸️ Pausar e traduzir ao repetir: DESLIGADO';
+        }
+        function toggleRepetirPausa() {
+            REPETIR_PAUSA = !REPETIR_PAUSA;
+            localStorage.setItem('ejoy_repetir_pausa', REPETIR_PAUSA ? '1' : '0');
+            applyRepetirPausaLabel();
+        }
+
         function setupGlobalGestures() {
             let x0 = 0, y0 = 0, t0 = 0, ativo = false, cancelado = false, maxDx = 0, maxDy = 0;
             let alvoInicial = null;
+            // Pausa já no encostar do dedo: guarda se foi este toque que pausou,
+            // para o vídeo voltar a tocar caso o gesto vire um deslize.
+            let pausouNesteToque = false, timerPausa = null;
 
             // O gesto de repetir só conta quando COMEÇA na área do vídeo ou na faixa
             // da legenda. Assim a rolagem das listas (vídeo pausado) continua livre.
@@ -3502,6 +3534,23 @@
                 x0 = e.changedTouches[0].screenX;
                 y0 = e.changedTouches[0].screenY;
                 t0 = Date.now();
+                // Pausa assim que o dedo encosta no vídeo, sem esperar ele levantar
+                // — era essa espera (uns 150ms) que dava a sensação de atraso. Os
+                // PAUSA_NO_TOQUE_MS servem só para o dedo mostrar que não é deslize:
+                // se ele andar antes disso, o vídeo nem chega a parar.
+                pausouNesteToque = false;
+                clearTimeout(timerPausa);
+                if(e.target.closest && e.target.closest('#player-zone') && isPlayingNow()) {
+                    timerPausa = setTimeout(() => {
+                        if(!ativo || !isPlayingNow()) return;
+                        pauseAny();
+                        pausouNesteToque = true;
+                        updatePlayPauseIcon();
+                        // A trava de rolagem e a tradução em amarelo ficam por conta
+                        // do pulso de 100ms: mexer nelas com o dedo ainda na tela
+                        // podia soltar a rolagem no meio do deslize.
+                    }, PAUSA_NO_TOQUE_MS);
+                }
             }, {passive:true});
 
             // Acompanhar o caminho do dedo (e não só o ponto final) é o que separa
@@ -3513,22 +3562,27 @@
                 const dy = Math.abs(e.touches[0].screenY - y0);
                 if(dx > maxDx) maxDx = dx;
                 if(dy > maxDy) maxDy = dy;
+                // O dedo saiu do lugar: é deslize, então não pausa
+                if(timerPausa && (dx > PAUSA_NO_TOQUE_PX || dy > PAUSA_NO_TOQUE_PX)) {
+                    clearTimeout(timerPausa); timerPausa = null;
+                }
                 if(maxDy > DESLIZE_CANCELA_Y && maxDy > maxDx) cancelado = true;
             }, {passive:true});
 
-            document.addEventListener('touchcancel', () => { ativo = false; }, {passive:true});
-
-            document.addEventListener('touchend', e => {
-                if(!ativo) return;
+            document.addEventListener('touchcancel', () => {
                 ativo = false;
-                const dx = e.changedTouches[0].screenX - x0;
-                const dy = e.changedTouches[0].screenY - y0;
-                const dur = Date.now() - t0;
+                clearTimeout(timerPausa); timerPausa = null;
+                if(pausouNesteToque) { pausouNesteToque = false; tocarAny(); updatePlayPauseIcon(); }
+            }, {passive:true});
 
-                // Toque curto sobre o vídeo: play/pause (como antes)
+            // Devolve true quando o vídeo deve CONTINUAR pausado no fim do gesto.
+            function fimDoToque(e, dx, dy, dur, pausei) {
+                // Toque curto sobre o vídeo: play/pause (como antes). Se este toque
+                // já pausou no touchstart, não mexe de novo — senão voltaria a tocar.
                 if(dur < 250 && Math.abs(dx) < 12 && Math.abs(dy) < 12) {
+                    if(pausei) return true;
                     if(e.target.closest && e.target.closest('#player-zone')) togglePlay();
-                    return;
+                    return false;
                 }
                 // Deslize de BAIXO PARA CIMA começando no vídeo (ou logo abaixo dele):
                 // repete a legenda atual, desde o começo. Vale mesmo que o controle
@@ -3539,17 +3593,37 @@
                    && !(maxDy > 0 && Math.abs(dy) < maxDy * DESLIZE_RETORNO)   // subiu e voltou
                    && naAreaDoVideo(alvoInicial)) {
                     repetirLegenda();
-                    return;
+                    // Com REPETIR_PAUSA ligado o vídeo para na legenda repetida e a
+                    // tradução em amarelo aparece embaixo dela, para ler com calma.
+                    if(REPETIR_PAUSA) { pauseAny(); mostrarTraducaoRapida(); return true; }
+                    return false;
                 }
-                if(cancelado) return;
-                if(dur > DESLIZE_MAX_MS) return;
-                if(Math.abs(dx) < DESLIZE_MIN_PX) return;
-                if(Math.abs(dx) < Math.abs(dy) * DESLIZE_RAZAO) return;
+                if(cancelado) return false;
+                if(dur > DESLIZE_MAX_MS) return false;
+                if(Math.abs(dx) < DESLIZE_MIN_PX) return false;
+                if(Math.abs(dx) < Math.abs(dy) * DESLIZE_RAZAO) return false;
                 // O dedo precisa acabar perto de onde chegou: descarta ir e voltar
-                if(maxDx > 0 && Math.abs(dx) < maxDx * DESLIZE_RETORNO) return;
+                if(maxDx > 0 && Math.abs(dx) < maxDx * DESLIZE_RETORNO) return false;
 
                 if(dx < 0) jumpSubtitle(-1);   // esquerda → legenda anterior
                 else       jumpSubtitle(1);    // direita  → próxima legenda
+                return false;
+            }
+
+            document.addEventListener('touchend', e => {
+                if(!ativo) return;
+                ativo = false;
+                const dx = e.changedTouches[0].screenX - x0;
+                const dy = e.changedTouches[0].screenY - y0;
+                const dur = Date.now() - t0;
+                clearTimeout(timerPausa); timerPausa = null;   // dedo saiu antes de pausar
+                const pausei = pausouNesteToque;
+                pausouNesteToque = false;
+
+                if(fimDoToque(e, dx, dy, dur, pausei)) return;   // fica pausado
+                // Não era um toque de pausar (foi deslize, rolagem ou toque fora):
+                // o vídeo volta de onde parou, como se nada tivesse acontecido.
+                if(pausei) { tocarAny(); updatePlayPauseIcon(); setTimeout(atualizarTravaDeRolagem, 120); }
             }, {passive:true});
         }
         setupGlobalGestures();
@@ -4329,6 +4403,7 @@
             renderFavChannels();
             setModoBusca('video');
             applyGestoRepetirLabel();
+            applyRepetirPausaLabel();
             applyTradFontSize();
             applySupadataLabel();
             aplicarVocabOculto();

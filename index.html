@@ -973,8 +973,10 @@
                 <button id="btn-gesto-repetir" class="btn btn-soft btn-wide" onclick="toggleGestoRepetir()">🔁 Repetir legenda</button>
                 <button id="btn-repetir-pausa" class="btn btn-soft btn-wide" onclick="toggleRepetirPausa()">⏸️ Pausar e traduzir ao repetir</button>
                 <div class="hint">
-                    Deslize o dedo <b>de baixo para cima</b> sobre o vídeo (ou logo abaixo dele)
-                    para ouvir a legenda atual de novo, desde o começo.<br>
+                    Deslize o dedo <b>de baixo para cima</b> sobre o vídeo <b>ou sobre a
+                    própria legenda</b> para ouvir a legenda atual de novo, desde o começo.
+                    Com o dedo na horizontal, a legenda continua servindo para marcar
+                    palavras.<br>
                     Com <b>Pausar e traduzir</b> ligado, o vídeo para na legenda repetida e a
                     tradução em português aparece em amarelo embaixo dela. Desligado, ele
                     repete a fala e continua tocando.<br>
@@ -3512,6 +3514,8 @@
             // Pausa já no encostar do dedo: guarda se foi este toque que pausou,
             // para o vídeo voltar a tocar caso o gesto vire um deslize.
             let pausouNesteToque = false, timerPausa = null;
+            // O vídeo estava tocando quando o dedo encostou? (ver o gesto de repetir)
+            let tocavaNoInicio = false;
 
             // O gesto de repetir só conta quando COMEÇA na área do vídeo ou na faixa
             // da legenda. Assim a rolagem das listas (vídeo pausado) continua livre.
@@ -3519,12 +3523,26 @@
                 alvo.closest('#player-zone') || alvo.closest('#subtitle-strip')
             ));
 
+            // Dedo começando na própria legenda. Fora da tela cheia o vídeo ocupa só
+            // o topo da tela e é AQUI que a mão fica, então o deslize para cima tem de
+            // valer também sobre a legenda — era por isso que o gesto "não funcionava"
+            // em retrato. Na horizontal, porém, o dedo sobre a legenda é seleção de
+            // palavras: ali o pular legenda continua desligado.
+            const naLegenda = (alvo) => !!(alvo && alvo.closest && alvo.closest('#subtitle-container'));
+
             const ignorar = (alvo) => !!(alvo && alvo.closest && (
-                alvo.closest('#subtitle-container') ||   // seleção de palavras
+                alvo.closest('#drag-handle') ||          // arrastar a caixa da legenda
                 alvo.closest('#translation-card') ||     // card de tradução
                 alvo.closest('#float-tools') ||          // botões flutuantes (arrasto)
                 alvo.closest('input, textarea, select')  // campos de texto
             ));
+
+            // O vídeo estava tocando quando o dedo encostou? A leitura é feita na fase
+            // de CAPTURA porque encostar numa palavra pausa na hora (começo da
+            // seleção): no tratador de baixo o vídeo já apareceria parado.
+            document.addEventListener('touchstart', () => {
+                tocavaNoInicio = isPlayingNow();
+            }, {passive:true, capture:true});
 
             document.addEventListener('touchstart', e => {
                 // Dois dedos = pinça/zoom: nunca é comando de legenda
@@ -3596,8 +3614,15 @@
                     // Com REPETIR_PAUSA ligado o vídeo para na legenda repetida e a
                     // tradução em amarelo aparece embaixo dela, para ler com calma.
                     if(REPETIR_PAUSA) { pauseAny(); mostrarTraducaoRapida(); return true; }
+                    // Começando sobre a legenda, encostar numa palavra já pausa (é o
+                    // início da seleção): com a opção desligada o vídeo não pode ficar
+                    // parado por causa do gesto.
+                    if(tocavaNoInicio && !isPlayingNow()) { tocarAny(); updatePlayPauseIcon(); }
                     return false;
                 }
+                // Deslize horizontal começando na legenda é seleção de palavras,
+                // não pular legenda.
+                if(naLegenda(alvoInicial)) return false;
                 if(cancelado) return false;
                 if(dur > DESLIZE_MAX_MS) return false;
                 if(Math.abs(dx) < DESLIZE_MIN_PX) return false;
@@ -3645,8 +3670,12 @@
         dragHandle.addEventListener('touchend', () => isDragging = false);
 
         // Seleção de palavras
+        // Onde o dedo encostou: deslizar para CIMA sobre a legenda é o gesto de
+        // repetir a fala (quem cuida dele é o tratador global), não seleção.
+        let selX0 = 0, selY0 = 0;
         subContent.addEventListener('touchstart', e => {
             if(e.target.classList.contains('translate-btn')) return;
+            selX0 = e.touches[0].clientX; selY0 = e.touches[0].clientY;
             const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
             if(el && el.classList.contains('word')) {
                 isSelecting = true; pauseAny();
@@ -3656,6 +3685,16 @@
         }, {passive:true});
         subContent.addEventListener('touchmove', e => {
             if(!isSelecting) return; e.preventDefault();
+            const sdx = e.touches[0].clientX - selX0;
+            const sdy = e.touches[0].clientY - selY0;
+            // Subiu o bastante: é o gesto de repetir. A seleção é desfeita aqui,
+            // senão o touchend abriria o card de tradução das palavras marcadas.
+            if(GESTO_REPETIR && sdy < -DESLIZE_CIMA_MIN
+               && Math.abs(sdy) > Math.abs(sdx) * DESLIZE_RAZAO) {
+                isSelecting = false;
+                document.querySelectorAll('.word.selected').forEach(x => x.classList.remove('selected'));
+                return;
+            }
             const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
             if(el && el.classList.contains('word')) updateRange(parseInt(el.dataset.index));
         }, {passive:false});

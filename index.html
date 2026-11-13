@@ -823,6 +823,19 @@
                 <div id="vocab-fav-list" class="scroll-list"></div>
             </div>
             <div class="hint" id="vocab-count" style="margin: -6px 2px 0 2px"></div>
+            <!-- Só aparece se os termos pararem na fila sem virar card (o iPhone
+                 pode separar o armazenamento de dois apps da tela de início) -->
+            <div class="card" id="cards-aviso" style="display:none; margin-top:12px">
+                <div class="hint" style="margin-top:0">
+                    <b><span id="cards-aviso-n">0</span> termo(s)</b> estão esperando para virar card
+                    e o app <b>English Pro 2</b> ainda não os recolheu. Baixe o arquivo abaixo e,
+                    no app de cards, vá em <b>Ajustes → Backup → Importar</b> e escolha
+                    <b>Juntar com os atuais</b>.
+                </div>
+                <button class="btn btn-primary btn-wide" style="margin-top:8px" onclick="exportarParaCards()">
+                    📤 Baixar termos para o app de cards
+                </button>
+            </div>
         </section>
 
         <!-- ---------- ABA LEGENDA ---------- -->
@@ -1624,11 +1637,87 @@
             try { localStorage.removeItem('ejoy_trans_cache'); } catch(e) {}
         }
 
+        // ============ ENTREGA PARA O APP DE CARDS (English Pro 2) ============
+        // Os dois apps moram no mesmo domínio (matheus151.github.io: o player em
+        // /tests/ e os cards em /Learning-english/), então enxergam o mesmo
+        // armazenamento do navegador. Cada termo salvo aqui é deixado nesta caixa
+        // de entrada; o app de cards recolhe ao abrir e cria um card novo com o
+        // termo como frase principal. Ele também é quem limpa o que já usou.
+        const CARDS_INBOX = 'englishPro2_inbox';
+        const CARDS_INBOX_MAX = 500;        // fila cheia: os mais antigos saem
+        // Mesma normalização do app de cards, para a fila não repetir termo
+        const normTermoCards = s => String(s || '').toLowerCase().normalize('NFD')
+            .replace(/[̀-ͯ]/g, '').replace(/[^\p{L}\p{N}' ]/gu, ' ')
+            .replace(/\s+/g, ' ').trim();
+        function enviarTermoParaCards(termo) {
+            const en = String(termo || '').replace(/\s+/g, ' ').trim();
+            if(!en) return false;
+            try {
+                let caixa = JSON.parse(localStorage.getItem(CARDS_INBOX) || 'null');
+                if(!caixa || !Array.isArray(caixa.itens)) caixa = { v: 1, itens: [] };
+                const chave = normTermoCards(en);
+                if(caixa.itens.some(x => normTermoCards(x && x.en) === chave)) return true;
+                caixa.itens.push({
+                    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+                    en, ts: Date.now()
+                });
+                if(caixa.itens.length > CARDS_INBOX_MAX) caixa.itens = caixa.itens.slice(-CARDS_INBOX_MAX);
+                localStorage.setItem(CARDS_INBOX, JSON.stringify(caixa));
+                return true;
+            } catch(e) { return false; }   // sem espaço: o termo fica só no Vocabulário
+        }
+        // Quantos termos ainda não viraram card, e desde quando esperam
+        function pendentesNosCards() {
+            try {
+                const c = JSON.parse(localStorage.getItem(CARDS_INBOX) || 'null');
+                if(!c || !Array.isArray(c.itens)) return { n: 0, desde: 0, lido: 0 };
+                const ts = c.itens.map(x => (x && x.ts) || 0).filter(Boolean);
+                return { n: c.itens.length, desde: ts.length ? Math.min(...ts) : 0, lido: c.lido || 0 };
+            } catch(e) { return { n: 0, desde: 0, lido: 0 }; }
+        }
+        // Plano B: se o iPhone guardar os dois apps em caixas separadas, nada é
+        // recolhido. Passado um dia com fila parada, o Vocabulário mostra um aviso
+        // com este arquivo, que o app de cards importa em Ajustes > Backup.
+        const CARDS_ESPERA_MS = 24 * 60 * 60 * 1000;
+        function atualizarAvisoCards() {
+            const el = document.getElementById('cards-aviso');
+            if(!el) return;
+            const p = pendentesNosCards();
+            const parada = p.n > 0 && p.desde && (Date.now() - p.desde > CARDS_ESPERA_MS)
+                        && (!p.lido || p.lido < p.desde);
+            el.style.display = parada ? 'block' : 'none';
+            if(parada) {
+                const q = document.getElementById('cards-aviso-n');
+                if(q) q.textContent = p.n;
+            }
+        }
+        function exportarParaCards() {
+            const p = pendentesNosCards();
+            let itens = [];
+            try { itens = (JSON.parse(localStorage.getItem(CARDS_INBOX) || 'null') || {}).itens || []; } catch(e) {}
+            if(!itens.length) { alert('Nenhum termo esperando.'); return; }
+            // Mesmo formato do backup do English Pro 2 (Ajustes > Backup > Importar)
+            const arquivo = {
+                app: 'english-pro', v: 2, exported: new Date().toISOString(),
+                cards: itens.map(it => ({
+                    id: it.id, main: { id: it.id + 'm', en: it.en, tr: '' },
+                    ex: [], created: it.ts || Date.now()
+                })),
+                terms: []
+            };
+            const b = new Blob([JSON.stringify(arquivo)], {type:'application/json'});
+            const u = URL.createObjectURL(b); const a = document.createElement('a');
+            a.href = u; a.download = 'termos-para-cards.json';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(u), 4000);
+        }
+
         // ===================== VOCABULÁRIO =====================
         function updateVocabCount() {
             const el = document.getElementById('vocab-count');
             if(el) el.textContent = vocabList.length ? `${vocabList.length} item(ns) salvos.` : 'Nenhum item salvo ainda.';
             renderVocabFavoritos();   // salvou/apagou: a lista da aba Favoritos acompanha
+            atualizarAvisoCards();
         }
         function saveCurrentVocab() {
             if(!currentTranslateSource) return;
@@ -1639,7 +1728,9 @@
             if(!vocabList.some(v => v.toLowerCase() === termo.toLowerCase())) {
                 vocabList.push(termo);
                 localStorage.setItem('ejoy_vocab', JSON.stringify(vocabList));
-                btn.innerText = "✅ Salvo";
+                // Vai junto para o app de cards: vira um card novo lá
+                const foi = enviarTermoParaCards(termo);
+                btn.innerText = foi ? "✅ Salvo + card" : "✅ Salvo";
                 setTimeout(()=>btn.innerText = "💾 Salvar", 1500);
                 updateVocabCount();
             } else { alert("Já salvo"); }

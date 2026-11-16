@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Player Estudo Pro (V29 - Player Fixo e Tradução IA)</title>
+    <title>Estudo — vídeos e cards de inglês</title>
     <!-- Ícone da tela de início do iPhone (180px = iPhone @3x; o iOS arredonda
          sozinho). Sem isto o atalho fica com o quadradinho cinza padrão. -->
     <link rel="apple-touch-icon" sizes="180x180" href="icone-180.png">
@@ -11,12 +11,13 @@
     <style>
         :root {
             --bg-color: #0f0f0f;
-            --panel-color: #1c1c1e;
-            --input-bg: #2c2c2e;
-            --border-color: #3a3a3c;
-            --text-main: #f2f2f7;
-            --text-dim: #98989f;
-            --primary: #0a84ff;
+            --panel-color: #1a1a1a;
+            --input-bg: #272727;
+            --border-color: #2f2f2f;
+            --text-main: #f1f1f1;
+            --text-dim: #a3a3ab;
+            --primary: #3ea6ff;
+            --vermelho: #ff0033;   /* só o selo do app, como o do YouTube */
             --accent: #ffd60a;
             --success: #30d158;
             --danger: #ff453a;
@@ -30,12 +31,13 @@
         }
 
         body.light-mode {
-            --bg-color: #f2f2f7;
-            --panel-color: #ffffff;
-            --input-bg: #e5e5ea;
-            --border-color: #d1d1d6;
-            --text-main: #1c1c1e;
-            --text-dim: #6e6e73;
+            --bg-color: #ffffff;
+            --panel-color: #f7f7f8;
+            --input-bg: #f0f0f1;
+            --border-color: #e2e2e4;
+            --text-main: #0f0f0f;
+            --text-dim: #606067;
+            --primary: #065fd4;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
@@ -663,13 +665,197 @@
             body.sem-video #collapse-bar,
             body.sem-video #barra-mostrar-video,
             body.sem-video #float-tools { display: none !important; }
-            /* A tarja da barra de status ficava na área do vídeo; sem ela, as abas
-               é que precisam começar abaixo do relógio e da ilha dinâmica */
-            body.sem-video #tab-bar { padding-top: calc(2px + var(--topo-seguro)); }
+        }
+
+        /* ======================================================================
+           REPAGINADA — a moldura do app (barra de cima, abas de baixo, busca,
+           listas e cartões) no estilo escuro e arredondado do YouTube.
+           A área do vídeo e a faixa da legenda NÃO entram aqui: as medidas delas
+           são as mesmas de antes, porque é nelas que mora o ajuste fino das duas
+           linhas, da justificação e dos gestos.
+           ====================================================================== */
+
+        /* ---------- Barra do app: só na tela inicial, sem vídeo aberto ---------- */
+        #app-bar { display: none; }
+        @media (orientation: portrait) {
+            body.sem-video:not(.panel-collapsed) #app-bar {
+                display: flex; align-items: center; gap: 10px; flex: 0 0 auto;
+                padding: calc(7px + var(--topo-seguro)) 14px 7px 14px;
+                background: var(--bg-color);
+            }
+            /* As abas foram para baixo: o recuo do topo agora é do app-bar */
+            body.sem-video #tab-bar { padding-top: 4px; }
+        }
+        .marca { display: flex; align-items: center; gap: 7px; flex: 1 1 auto; min-width: 0; }
+        .play-selo {
+            width: 27px; height: 19px; border-radius: 6px; background: var(--vermelho);
+            position: relative; flex: 0 0 auto;
+        }
+        .play-selo::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            transform: translate(-40%, -50%);
+            border-left: 7px solid #fff;
+            border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent;
+        }
+        .marca-nome { font-size: 1.08rem; font-weight: 800; letter-spacing: -0.02em; }
+        .app-bar-acoes { display: flex; gap: 2px; flex: 0 0 auto; }
+        .icone-btn {
+            background: none; border: none; color: var(--text-main);
+            font-size: 1.05rem; line-height: 1; padding: 9px 10px;
+            border-radius: 50%; cursor: pointer;
+        }
+        .icone-btn:active { background: var(--input-bg); }
+
+        /* ---------- Abas na barra de baixo ---------- */
+        #tab-bar {
+            order: 99;            /* último filho do body, abaixo do painel */
+            background: var(--bg-color);
+            border-top: 1px solid var(--border-color); border-bottom: none;
+            padding: 4px 2px calc(3px + env(safe-area-inset-bottom, 0px)) 2px;
+        }
+        .tab-btn {
+            border-radius: 0; background: none !important; border-bottom: none;
+            font-size: 0.6rem; font-weight: 600; padding: 3px 1px 2px 1px; gap: 2px;
+            color: var(--text-dim);
+        }
+        .tab-btn .ico {
+            display: flex; align-items: center; justify-content: center;
+            width: 48px; height: 27px; border-radius: 999px;
+            transition: background 0.15s ease;
+        }
+        /* Ícones de traço, do mesmo desenho em todo o app */
+        .tab-btn svg, .icone-btn svg, .busca-lupa svg {
+            width: 21px; height: 21px; fill: none; stroke: currentColor;
+            stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+        }
+        .tab-btn.active { color: var(--text-main); }
+        .tab-btn.active .ico { background: var(--input-bg); transform: none; }
+        .tab-btn.active svg { stroke-width: 2.1; }
+        .icone-btn svg { display: block; width: 22px; height: 22px; }
+
+        /* ---------- Busca em pílula + filtros ---------- */
+        .busca-topo { margin-bottom: 4px; }
+        .busca-pill {
+            display: flex; align-items: center; gap: 9px;
+            background: var(--input-bg); border: 1px solid var(--border-color);
+            border-radius: 999px; padding: 3px 4px 3px 15px;
+        }
+        .busca-pill input {
+            flex: 1 1 auto; min-width: 0; background: none; border: none; outline: none;
+            color: var(--text-main); font-family: inherit; font-size: 0.92rem; padding: 9px 0;
+        }
+        .busca-lupa { display: flex; opacity: 0.6; flex: 0 0 auto; color: var(--text-main); }
+        .busca-lupa svg { width: 18px; height: 18px; }
+        .busca-ir {
+            flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; border: none;
+            background: var(--primary); color: #00111f; font-size: 1rem; font-weight: 800;
+            cursor: pointer; line-height: 1;
+        }
+        .busca-ir:active { filter: brightness(0.9); }
+
+        .chips {
+            display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 2px 0;
+            -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .chips::-webkit-scrollbar { display: none; }
+        .chip {
+            flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+            background: var(--input-bg); color: var(--text-main);
+            border: 1px solid var(--border-color); border-radius: 999px;
+            padding: 7px 14px; font-size: 0.78rem; font-weight: 600;
+            font-family: inherit; cursor: pointer; white-space: nowrap;
+        }
+        .chip:active { filter: brightness(0.9); }
+        .chip.on { background: var(--text-main); color: var(--bg-color); border-color: var(--text-main); }
+        .chip-arquivo { font-weight: 600; }
+        .chip-dot {
+            background: var(--vermelho); color: #fff; border-radius: 999px;
+            font-size: 0.62rem; font-weight: 800; padding: 1px 6px; line-height: 1.5;
+        }
+
+        /* ---------- Cartões e listas mais limpos ---------- */
+        .card {
+            border: none; box-shadow: none; border-radius: 14px;
+            background: var(--panel-color); margin-bottom: 12px;
+        }
+        body.light-mode .card { border: 1px solid var(--border-color); }
+        .modern-input { border-radius: 12px; }
+        .btn { border-radius: 999px; }
+        .btn-primary { color: #00111f; box-shadow: none; }
+        .mini-btn, .btn-fav-canal, .vocab-btn, .font-btn, .color-pick { border-radius: 999px; }
+        .file-label { border-radius: 14px; }
+
+        /* Listas de vídeo sem moldura: os itens correm de ponta a ponta */
+        .lista-card { background: none; padding: 0; border: none; margin-bottom: 8px; }
+        body.light-mode .lista-card { border: none; }
+        .video-item {
+            border-bottom: none; border-radius: 12px; padding: 8px 6px; gap: 11px;
+        }
+        .video-thumb-wrapper { width: 148px; height: 83px; }
+        .video-thumb { border-radius: 10px; }
+        .video-title { font-size: 0.86rem; font-weight: 600; -webkit-line-clamp: 2; }
+        .video-channel { font-size: 0.72rem; }
+        .video-duration { border-radius: 4px; font-size: 0.66rem; }
+        .channel-item .video-thumb-wrapper { width: 58px; height: 58px; }
+
+        #collapse-bar { padding: 6px 0; font-size: 0.68rem; letter-spacing: 0.02em; }
+        #resume-status { border-bottom: none; }
+
+        /* ---------- Aba Cards: o app de cards ocupa o painel inteiro ---------- */
+        body.aba-cards #panel {
+            padding: 0; overflow: hidden;
+            touch-action: auto !important;   /* a rolagem é por dentro da moldura */
+        }
+        body.aba-cards #page-cards.active { display: flex; flex-direction: column; height: 100%; }
+        /* Na aba Cards quem dá nome à tela é a fileira de filtros e o próprio
+           app de cards: a barra "Estudo" sairia sobrando */
+        body.aba-cards #app-bar { display: none !important; }
+        #cards-chips {
+            flex: 0 0 auto; padding: 8px 12px; margin: 0;
+            border-bottom: 1px solid var(--border-color); background: var(--bg-color);
+        }
+        /* Na aba Cards o estudo é o que importa: o player sai da frente e os cards
+           ficam com a tela inteira, como na busca. Tocar em outra aba traz o vídeo
+           de volta no mesmo ponto. */
+        @media (orientation: portrait) {
+            body.aba-cards #player-zone,
+            body.aba-cards #subtitle-strip,
+            body.aba-cards #collapse-bar,
+            body.aba-cards #resume-status,
+            body.aba-cards #barra-mostrar-video,
+            body.aba-cards #float-tools { display: none !important; }
+        }
+        /* A fileira vira o topo da tela: desvia do relógio e da ilha dinâmica */
+        body.sem-video #cards-chips,
+        body.aba-cards #cards-chips { padding-top: calc(8px + var(--topo-seguro)); }
+        /* Cabem as cinco telas do app de cards sem precisar arrastar */
+        #cards-chips .chip { padding: 6px 11px; font-size: 0.73rem; gap: 5px; }
+        #cards-box { flex: 1 1 auto; position: relative; min-height: 0; }
+        #cards-frame { width: 100%; height: 100%; border: none; display: block; background: var(--bg-color); }
+        #cards-carregando {
+            position: absolute; inset: 0; display: flex; align-items: center;
+            justify-content: center; color: var(--text-dim); font-size: 0.85rem;
         }
     </style>
 </head>
 <body>
+
+    <!-- ============ BARRA DO APP (só na tela inicial, sem vídeo aberto) ============ -->
+    <!-- Com um vídeo aberto o topo é do player, como sempre foi: esta barra sai -->
+    <header id="app-bar">
+        <div class="marca">
+            <span class="play-selo" aria-hidden="true"></span>
+            <span class="marca-nome">Estudo</span>
+        </div>
+        <div class="app-bar-acoes">
+            <button class="icone-btn" onclick="irParaBusca()" title="Buscar vídeo" aria-label="Buscar">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+            </button>
+            <button class="icone-btn" onclick="showTab('ajustes')" title="Ajustes" aria-label="Ajustes">
+                <svg viewBox="0 0 24 24"><path d="M4 20v-7M4 9V4M12 20v-9M12 7V4M20 20v-5M20 11V4M1.5 13h5M9.5 7h5M17.5 15h5"/></svg>
+            </button>
+        </div>
+    </header>
 
     <!-- ============ PLAYER SEMPRE VISÍVEL NO TOPO ============ -->
     <!-- Só aparece na busca ampla (player escondido): volta ao vídeo atual -->
@@ -707,25 +893,6 @@
         <span id="collapse-text">Ocultar busca</span>
     </div>
 
-    <!-- ============ ABAS ============ -->
-    <div id="tab-bar">
-        <button class="tab-btn active" data-tab="buscar" onclick="showTab('buscar')">
-            <span class="ico">🔍</span><span>Buscar</span>
-        </button>
-        <button class="tab-btn" data-tab="favoritos" onclick="showTab('favoritos')">
-            <span class="ico">⭐</span><span>Favoritos</span>
-        </button>
-        <button class="tab-btn" data-tab="vocabulario" onclick="showTab('vocabulario')">
-            <span class="ico">📒</span><span>Vocabulário</span>
-        </button>
-        <button class="tab-btn" data-tab="legenda" onclick="showTab('legenda')">
-            <span class="ico">💬</span><span>Legenda</span>
-        </button>
-        <button class="tab-btn" data-tab="ajustes" onclick="showTab('ajustes')">
-            <span class="ico">⚙️</span><span>Ajustes</span>
-        </button>
-    </div>
-
     <!-- Status da legenda: fora do painel, para continuar visível no modo foco -->
     <div id="resume-status">
         <span id="resume-status-text"></span>
@@ -737,19 +904,24 @@
 
         <!-- ---------- ABA BUSCAR ---------- -->
         <section class="tab-page active" id="page-buscar">
-            <div class="card">
-                <div class="seg">
-                    <button id="seg-video" class="on" onclick="setModoBusca('video')">🎬 Vídeos</button>
-                    <button id="seg-canal" onclick="setModoBusca('canal')">📺 Canais</button>
+            <!-- Busca: barra em pílula e fileira de filtros, como no YouTube.
+                 Tocar no campo já abre a busca em tela cheia. -->
+            <div class="busca-topo">
+                <div class="busca-pill">
+                    <span class="busca-lupa" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+                    </span>
+                    <input type="text" id="yt-search-input" placeholder="Buscar no YouTube ou colar link..."
+                           autocomplete="off" autocorrect="off" spellcheck="false"
+                           onfocus="entrarNaBuscaAmpla()"
+                           onkeydown="if(event.key==='Enter'){this.blur();initSearch();}">
+                    <button class="busca-ir" onclick="initSearch()" title="Buscar">➔</button>
                 </div>
-                <div class="row">
-                    <input type="text" id="yt-search-input" class="modern-input" placeholder="Buscar no YouTube ou colar link..."
-                           onkeydown="if(event.key==='Enter')initSearch()">
-                    <button class="btn btn-primary btn-sq" onclick="initSearch()">🔍</button>
-                </div>
-                <div style="margin-top:8px">
-                    <label class="file-label">
-                        <span class="big">📁</span> Abrir vídeo do meu iPhone
+                <div class="chips">
+                    <button id="seg-video" class="chip on" onclick="setModoBusca('video')">Vídeos</button>
+                    <button id="seg-canal" class="chip" onclick="setModoBusca('canal')">Canais</button>
+                    <label class="chip chip-arquivo">
+                        📁 Do iPhone
                         <input type="file" id="videoInput" accept="video/mp4, video/x-m4v, video/*">
                     </label>
                 </div>
@@ -768,7 +940,7 @@
                 <button class="mini-btn" onclick="sairDoCanal()" title="Sair do canal">✕</button>
             </div>
 
-            <div class="card" id="results-card" style="padding:6px 10px">
+            <div class="card lista-card" id="results-card">
                 <div id="search-results-list" class="scroll-list">
                     <div class="empty-msg">Nenhuma busca ainda.</div>
                 </div>
@@ -782,7 +954,7 @@
                     <button class="mini-btn" id="btn-toggle-history" onclick="toggleHistory()" title="Ocultar histórico">🙈</button>
                 </div>
             </div>
-            <div class="card" id="history-card" style="padding:6px 10px">
+            <div class="card lista-card" id="history-card">
                 <div id="history-list" class="scroll-list"></div>
             </div>
         </section>
@@ -799,42 +971,25 @@
                             title="Favoritar o canal do vídeo aberto">➕ canal do vídeo</button>
                 </div>
             </div>
-            <div class="card" style="padding:6px 10px">
+            <div class="card lista-card">
                 <div id="fav-channels-list" class="scroll-list"></div>
             </div>
 
             <div class="section-title" style="margin-top:14px">Vídeos favoritos</div>
-            <div class="card" style="padding:6px 10px">
+            <div class="card lista-card">
                 <div id="favorites-list" class="scroll-list"></div>
             </div>
         </section>
 
-        <!-- ---------- ABA VOCABULÁRIO (tela inteira só para ele) ---------- -->
-        <section class="tab-page" id="page-vocabulario">
-            <div class="section-head vocab-fav-head" onclick="toggleVocabFavoritos()">
-                <span class="section-title" style="margin:0" id="vocab-fav-titulo">Vocabulário salvo</span>
-                <div class="section-head-actions">
-                    <button class="mini-btn" onclick="event.stopPropagation(); downloadVocabulary()" title="Baixar em texto">📥</button>
-                    <button class="mini-btn" onclick="event.stopPropagation(); clearVocabulary()" title="Limpar tudo">🗑️</button>
-                    <button class="mini-btn seta-vocab" id="btn-toggle-vocab-fav" title="Ocultar vocabulário">▾</button>
-                </div>
-            </div>
-            <div class="card" id="vocab-fav-card" style="padding:4px 12px">
-                <div id="vocab-fav-list" class="scroll-list"></div>
-            </div>
-            <div class="hint" id="vocab-count" style="margin: -6px 2px 0 2px"></div>
-            <!-- Só aparece se os termos pararem na fila sem virar card (o iPhone
-                 pode separar o armazenamento de dois apps da tela de início) -->
-            <div class="card" id="cards-aviso" style="display:none; margin-top:12px">
-                <div class="hint" style="margin-top:0">
-                    <b><span id="cards-aviso-n">0</span> termo(s)</b> estão esperando para virar card
-                    e o app <b>English Pro 2</b> ainda não os recolheu. Baixe o arquivo abaixo e,
-                    no app de cards, vá em <b>Ajustes → Backup → Importar</b> e escolha
-                    <b>Juntar com os atuais</b>.
-                </div>
-                <button class="btn btn-primary btn-wide" style="margin-top:8px" onclick="exportarParaCards()">
-                    📤 Baixar termos para o app de cards
-                </button>
+        <!-- ---------- ABA CARDS (o English Pro 2 por dentro) ----------
+             O app de cards continua sendo o mesmo de sempre, no mesmo endereço:
+             aqui ele é carregado numa moldura, então nada dele se perde e as duas
+             partes seguem compartilhando o armazenamento do navegador. A moldura
+             só é criada no primeiro toque na aba — abrir o player continua leve. -->
+        <section class="tab-page" id="page-cards">
+            <div id="cards-chips" class="chips"></div>
+            <div id="cards-box">
+                <div id="cards-carregando">Abrindo os cards…</div>
             </div>
         </section>
 
@@ -1010,6 +1165,35 @@
                 </div>
             </div>
 
+            <div class="section-title">Cards de inglês</div>
+            <div class="card">
+                <div class="hint" style="margin-top:0">
+                    Todo termo salvo com <b>💾</b> na tradução vira um <b>card novo</b> na aba
+                    <b>Cards</b>, com o termo como frase principal. O vocabulário que você já
+                    tinha salvo aqui foi todo enviado para lá.<br><br>
+                    A aba <b>Cards</b> abre o mesmo app de sempre
+                    (<i>matheus151.github.io/Learning-english</i>). Se os cards que aparecerem
+                    ali forem diferentes dos do atalho separado na tela de início, é porque o
+                    iPhone guarda cada atalho num espaço próprio: no atalho antigo faça
+                    <b>Ajustes → Backup → Compartilhar</b> e, aqui na aba Cards, use
+                    <b>Ajustes → Backup → Importar → Juntar com os atuais</b>. Uma vez só.
+                </div>
+                <div class="hint" id="vocab-count" style="margin-top:8px"></div>
+                <button class="btn btn-soft btn-wide" style="margin-top:8px" onclick="exportarParaCards()">
+                    📤 Baixar termos em arquivo (reserva)
+                </button>
+            </div>
+            <!-- Só aparece se os termos pararem na fila sem virar card (o iPhone
+                 pode separar o armazenamento de dois apps da tela de início) -->
+            <div class="card" id="cards-aviso" style="display:none">
+                <div class="hint" style="margin-top:0">
+                    <b><span id="cards-aviso-n">0</span> termo(s)</b> estão esperando para virar card
+                    e o app de cards ainda não os recolheu. Baixe o arquivo acima e, na aba
+                    <b>Cards</b>, vá em <b>Ajustes → Backup → Importar</b> e escolha
+                    <b>Juntar com os atuais</b>.
+                </div>
+            </div>
+
             <div class="section-title">Aparência do app</div>
             <div class="card">
                 <button class="btn btn-soft btn-wide" onclick="toggleTheme()">🌗 Alternar tema claro / escuro</button>
@@ -1020,6 +1204,25 @@
             </div>
         </section>
     </div>
+
+    <!-- ============ ABAS (barra de baixo, estilo YouTube) ============ -->
+    <nav id="tab-bar">
+        <button class="tab-btn active" data-tab="buscar" onclick="showTab('buscar')">
+            <span class="ico"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg></span><span>Início</span>
+        </button>
+        <button class="tab-btn" data-tab="favoritos" onclick="showTab('favoritos')">
+            <span class="ico"><svg viewBox="0 0 24 24"><path d="m12 3.6 2.6 5.5 5.9.8-4.3 4.2 1 6-5.2-2.9-5.2 2.9 1-6L3.5 9.9l5.9-.8z"/></svg></span><span>Favoritos</span>
+        </button>
+        <button class="tab-btn" data-tab="cards" onclick="showTab('cards')">
+            <span class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="6.5" width="16" height="13" rx="2.6"/><path d="M7.5 10.5h9M7.5 14.5h5"/><path d="M7 3.5h10"/></svg></span><span>Cards</span>
+        </button>
+        <button class="tab-btn" data-tab="legenda" onclick="showTab('legenda')">
+            <span class="ico"><svg viewBox="0 0 24 24"><path d="M20.5 15.5a2.5 2.5 0 0 1-2.5 2.5H9l-4.5 3.2V7.5A2.5 2.5 0 0 1 7 5h11a2.5 2.5 0 0 1 2.5 2.5z"/><path d="M8.5 11.5h4M15 11.5h2"/></svg></span><span>Legenda</span>
+        </button>
+        <button class="tab-btn" data-tab="ajustes" onclick="showTab('ajustes')">
+            <span class="ico"><svg viewBox="0 0 24 24"><path d="M4 20v-7M4 9V4M12 20v-9M12 7V4M20 20v-5M20 11V4M1.5 13h5M9.5 7h5M17.5 15h5"/></svg></span><span>Ajustes</span>
+        </button>
+    </nav>
 
     <!-- Botões flutuantes: arraste o bloco para posicionar, toque em cada um para agir -->
     <div id="float-tools">
@@ -1207,9 +1410,20 @@
             if(page) page.classList.add('active');
             if(btn) btn.classList.add('active');
             document.getElementById('panel').scrollTop = 0;
+            // A aba dos cards ocupa o painel inteiro e rola por dentro da moldura
+            document.body.classList.toggle('aba-cards', name === 'cards');
             if(name === 'favoritos') { renderFavorites(); renderFavChannels(); }
-            if(name === 'vocabulario') updateVocabCount();   // conta e redesenha a lista
+            if(name === 'cards') abrirCards();
             if(name === 'ajustes') updateVocabCount();
+        }
+
+        // Lupa da barra de cima: leva para a busca, já em tela cheia e com o
+        // teclado aberto, como o YouTube faz.
+        function irParaBusca() {
+            showTab('buscar');
+            entrarNaBuscaAmpla();
+            const i = document.getElementById('yt-search-input');
+            if(i) { i.focus(); try { i.select(); } catch(e) {} }
         }
 
         // ===================== MODO FOCO (setinha) =====================
@@ -1644,27 +1858,54 @@
         // de entrada; o app de cards recolhe ao abrir e cria um card novo com o
         // termo como frase principal. Ele também é quem limpa o que já usou.
         const CARDS_INBOX = 'englishPro2_inbox';
-        const CARDS_INBOX_MAX = 500;        // fila cheia: os mais antigos saem
+        const CARDS_INBOX_MAX = 2000;       // fila cheia: os mais antigos saem
         // Mesma normalização do app de cards, para a fila não repetir termo
         const normTermoCards = s => String(s || '').toLowerCase().normalize('NFD')
             .replace(/[̀-ͯ]/g, '').replace(/[^\p{L}\p{N}' ]/gu, ' ')
             .replace(/\s+/g, ' ').trim();
-        function enviarTermoParaCards(termo) {
-            const en = String(termo || '').replace(/\s+/g, ' ').trim();
-            if(!en) return false;
+        // Vários termos numa gravação só: a migração do vocabulário antigo pode ter
+        // centenas, e um localStorage.setItem por termo travaria a abertura do app.
+        function enviarTermosParaCards(termos) {
+            const lista = (Array.isArray(termos) ? termos : [termos])
+                .map(t => String(t || '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+            if(!lista.length) return false;
             try {
                 let caixa = JSON.parse(localStorage.getItem(CARDS_INBOX) || 'null');
                 if(!caixa || !Array.isArray(caixa.itens)) caixa = { v: 1, itens: [] };
-                const chave = normTermoCards(en);
-                if(caixa.itens.some(x => normTermoCards(x && x.en) === chave)) return true;
-                caixa.itens.push({
-                    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-                    en, ts: Date.now()
-                });
+                const jaTem = new Set(caixa.itens.map(x => normTermoCards(x && x.en)));
+                let n = 0;
+                for(const en of lista) {
+                    const chave = normTermoCards(en);
+                    if(!chave || jaTem.has(chave)) continue;
+                    jaTem.add(chave);
+                    caixa.itens.push({
+                        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + (n++),
+                        en, ts: Date.now()
+                    });
+                }
                 if(caixa.itens.length > CARDS_INBOX_MAX) caixa.itens = caixa.itens.slice(-CARDS_INBOX_MAX);
                 localStorage.setItem(CARDS_INBOX, JSON.stringify(caixa));
+                avisarCardsDaFila();
                 return true;
-            } catch(e) { return false; }   // sem espaço: o termo fica só no Vocabulário
+            } catch(e) { return false; }   // sem espaço: o termo fica só na lista daqui
+        }
+        const enviarTermoParaCards = termo => enviarTermosParaCards([termo]);
+        // Com a aba Cards já aberta, o app de cards recolhe na hora (o evento
+        // storage não dispara para quem gravou, por isso o aviso é explícito)
+        function avisarCardsDaFila() {
+            const f = document.getElementById('cards-frame');
+            if(f && f.contentWindow) {
+                try { f.contentWindow.postMessage({ app: 'player-estudo', tipo: 'caixa' }, location.origin); } catch(e) {}
+            }
+        }
+        // Uma vez só: todo o vocabulário já salvo no player vira card lá
+        function migrarVocabularioParaCards() {
+            if(localStorage.getItem('ejoy_vocab_virou_card') === '1') return 0;
+            let lista = [];
+            try { lista = JSON.parse(localStorage.getItem('ejoy_vocab')) || []; } catch(e) {}
+            if(lista.length) enviarTermosParaCards(lista);
+            try { localStorage.setItem('ejoy_vocab_virou_card', '1'); } catch(e) {}
+            return lista.length;
         }
         // Quantos termos ainda não viraram card, e desde quando esperam
         function pendentesNosCards() {
@@ -1711,6 +1952,73 @@
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             setTimeout(() => URL.revokeObjectURL(u), 4000);
         }
+
+        // ============ ABA CARDS (o app de cards por dentro) ============
+        // O English Pro 2 continua inteiro no endereço dele; aqui ele entra numa
+        // moldura. A moldura só nasce no primeiro toque na aba — quem abre o app
+        // para assistir vídeo não paga nada por isso. As fileiras de cima
+        // (Cards, Revisar, Termos…) conversam com ele por mensagem.
+        const CARDS_URL = '../Learning-english/?embed=1';
+        const CARDS_VISTAS = [['cards','Cards'], ['review','Revisar'], ['terms','Termos'],
+                              ['vocab','Vocab'], ['settings','Ajustes']];
+        let cardsVistaAtual = 'cards', cardsRevisar = 0;
+        function abrirCards() {
+            renderCardsChips();
+            if(document.getElementById('cards-frame')) { avisarCardsDaFila(); return; }
+            const box = document.getElementById('cards-box');
+            if(!box) return;
+            const f = document.createElement('iframe');
+            f.id = 'cards-frame';
+            f.title = 'Cards de inglês';
+            f.setAttribute('allow', 'clipboard-write');
+            f.src = CARDS_URL;
+            f.onload = () => {
+                const c = document.getElementById('cards-carregando');
+                if(c) c.remove();
+            };
+            // Sem internet na primeira abertura: avisa em vez de ficar "abrindo..."
+            setTimeout(() => {
+                const c = document.getElementById('cards-carregando');
+                if(c) c.innerHTML = 'Não consegui abrir os cards. Verifique a internet e '
+                    + '<a href="' + CARDS_URL + '" target="_blank" style="color:var(--primary)">abra em outra aba</a>.';
+            }, 8000);
+            box.appendChild(f);
+        }
+        function renderCardsChips() {
+            const el = document.getElementById('cards-chips');
+            if(!el) return;
+            el.innerHTML = '';
+            CARDS_VISTAS.forEach(([k, rot]) => {
+                const b = document.createElement('button');
+                b.className = 'chip' + (k === cardsVistaAtual ? ' on' : '');
+                b.textContent = rot;
+                if(k === 'review' && cardsRevisar > 0) {
+                    const d = document.createElement('span');
+                    d.className = 'chip-dot';
+                    d.textContent = cardsRevisar > 99 ? '99+' : cardsRevisar;
+                    b.appendChild(d);
+                }
+                b.onclick = () => verNosCards(k);
+                el.appendChild(b);
+            });
+        }
+        function verNosCards(vista) {
+            cardsVistaAtual = vista;
+            renderCardsChips();
+            const f = document.getElementById('cards-frame');
+            if(f && f.contentWindow) {
+                try { f.contentWindow.postMessage({ app: 'player-estudo', tipo: 'ver', vista }, location.origin); } catch(e) {}
+            }
+        }
+        // O app de cards avisa qual tela está aberta e quantas revisões esperam
+        window.addEventListener('message', e => {
+            if(e.origin !== location.origin) return;
+            const d = e.data;
+            if(!d || d.app !== 'english-pro') return;
+            if(d.vista) cardsVistaAtual = d.vista;
+            if(typeof d.revisar === 'number') cardsRevisar = d.revisar;
+            renderCardsChips();
+        });
 
         // ===================== VOCABULÁRIO =====================
         function updateVocabCount() {
@@ -4539,6 +4847,9 @@
             aplicarVocabOculto();
             // Pede a lista de vozes cedo: no iPhone ela chega com atraso
             if('speechSynthesis' in window) { try { speechSynthesis.getVoices(); } catch(e) {} }
+            // O vocabulário que já estava salvo aqui vira card na aba Cards.
+            // Fora do caminho da abertura: a tela aparece primeiro.
+            setTimeout(migrarVocabularioParaCards, 400);
             updateVocabCount();
             // Vídeo local: a proporção real só é conhecida depois dos metadados
             video.addEventListener('loadedmetadata', () => posicionarLegenda());

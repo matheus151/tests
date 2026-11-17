@@ -491,14 +491,19 @@
            da ultima linha e reservava ~30px dela: por causa disso uma legenda que
            enchia uma linha era contada como duas e fechava ali, e a tela mostrava
            uma linha so. Agora a largura inteira e do texto. */
-        .translate-btn {
-            position: absolute; top: -7px; right: -7px; z-index: 4;
+        .translate-btn, .revelar-btn {
+            position: absolute; z-index: 4;
             display: inline-flex; align-items: center; justify-content: center;
             background: #fff; color: #000; border-radius: 50%;
             width: 24px; height: 24px;
             font-size: 13px; cursor: pointer; opacity: 0.95;
             box-shadow: 0 1px 5px rgba(0,0,0,0.45);
         }
+        /* 🌐 no FIM do texto: o JS acerta o "top" na altura da última linha.
+           Sem medida (fluxo simples), fica no pé da caixa. */
+        .translate-btn { right: -9px; bottom: -7px; }
+        /* 👁️ no canto de cima, onde o globo ficava: revela a tradução borrada */
+        .revelar-btn { top: -7px; right: -7px; background: var(--accent); }
 
         /* ===================== CARD DE TRADUÇÃO (BOTTOM SHEET) ===================== */
         /* Como folha inferior, o vídeo continua visível enquanto você lê a tradução */
@@ -612,10 +617,19 @@
             #player-zone { padding-left: 0; padding-right: 0; }
             #yt-container { left: 0; right: 0; }
         }
-        /* ===================== TRADUÇÃO RÁPIDA (AO PAUSAR) ===================== */
+        /* ===================== TRADUÇÃO EMBAIXO DA LEGENDA ===================== */
+        /* Pronta antes da hora, mas borrada: o 👁️ (ou pausar, ou repetir) revela.
+           O borrão é só visual — o texto já está aqui, então revelar é instantâneo. */
+        #subtitle-trad.borrada {
+            filter: blur(4.5px);
+            opacity: 0.5;
+            cursor: pointer;
+            user-select: none; -webkit-user-select: none;
+        }
         #subtitle-trad {
             display: none; margin-top: 5px; padding-bottom: 2px;
             color: var(--accent); font-weight: 600; line-height: 1.35;
+            transition: filter 0.18s ease, opacity 0.18s ease;
             /* Em "em": acompanha o tamanho da legenda em inglês. O ajuste fica em
                Legenda > Aparência da legenda (changeTradFontSize). */
             font-size: var(--trad-tam, 0.95em);
@@ -1127,6 +1141,21 @@
                 <input type="text" id="api-key-input" class="modern-input" style="width:100%; margin-top:6px" placeholder="Cole sua API Key do YouTube aqui">
                 <button class="btn btn-primary btn-wide" style="margin-top:8px" onclick="saveApiKey()">Salvar chave</button>
                 <div class="hint">Sem ela você ainda pode colar links do YouTube direto na busca.</div>
+            </div>
+
+            <div class="section-title">Tradução na legenda</div>
+            <div class="card">
+                <button id="btn-trad-borrada" class="btn btn-soft btn-wide" onclick="toggleTradBorrada()">👁️ Tradução pronta e borrada</button>
+                <div class="hint">
+                    <b>Ligada:</b> a tradução de cada legenda é preparada com antecedência e
+                    fica embaixo da legenda <b>borrada</b>. Toque no <b>👁️</b> no canto da
+                    caixa (ou na própria tradução) para revelar na hora, <b>sem parar o vídeo</b>;
+                    o <b>🙈</b> borra de novo. Ao trocar de legenda ela volta a ficar borrada.<br>
+                    <b>Desligada:</b> nada aparece enquanto o vídeo toca — a tradução só surge
+                    ao pausar, como antes.<br>
+                    De qualquer jeito, <b>pausar</b> o vídeo e <b>repetir a legenda</b>
+                    (deslizar para cima) continuam mostrando a tradução.
+                </div>
             </div>
 
             <div class="section-title">Tradução rápida</div>
@@ -3674,37 +3703,178 @@
             return subtitles.findIndex(s => t >= s.start && t <= s.end);
         }
 
-        // ===================== TRADUÇÃO RÁPIDA AO PAUSAR =====================
-        // Pausou o vídeo: a tradução aparece em amarelo logo abaixo da legenda em
-        // inglês, sem caixa nenhuma. É só para dar uma olhada rápida — o 🌐 e a
-        // seleção de palavras continuam abrindo o card completo, como antes.
+        // ===================== TRADUÇÃO EMBAIXO DA LEGENDA =====================
+        // A tradução de cada bloco fica PRONTA antes da hora e aparece em amarelo
+        // logo abaixo da legenda em inglês — porém borrada, para não entregar o
+        // sentido antes de você tentar entender. O 👁️ na caixa revela na hora, sem
+        // pausar o vídeo; pausar ou repetir a legenda também revela.
+        // O 🌐 e a seleção de palavras continuam abrindo o card completo.
         let traducaoRapidaToken = 0;
         let fraseRapidaNaTela = '';
+        let tradRevelada = false;
+
+        // Liga/desliga em Ajustes > Tradução na legenda
+        let TRAD_BORRADA = localStorage.getItem('ejoy_trad_borrada') !== '0';
+        function applyTradBorradaLabel() {
+            const b = document.getElementById('btn-trad-borrada');
+            if(b) b.textContent = TRAD_BORRADA
+                ? '👁️ Tradução pronta e borrada: LIGADA'
+                : '👁️ Tradução pronta e borrada: DESLIGADA';
+        }
+        function toggleTradBorrada() {
+            TRAD_BORRADA = !TRAD_BORRADA;
+            localStorage.setItem('ejoy_trad_borrada', TRAD_BORRADA ? '1' : '0');
+            applyTradBorradaLabel();
+            // Vale já na legenda que está na tela
+            esconderTraducaoRapida();
+            if(lastRenderedText) {
+                if(isPlayingNow()) mostrarTraducaoBorrada(lastRenderedText);
+                else mostrarTraducaoRapida(lastRenderedText);
+            }
+            atualizarBotoesDaLegenda();
+        }
+
+        // ---------- Fila que deixa as próximas traduções prontas ----------
+        // O texto de cada bloco guarda a tradução já feita: revelar é instantâneo.
+        const tradProntas = new Map();
+        const TRAD_ADIANTE = 8;        // quantos blocos à frente ficam prontos
+        const TRAD_JUNTAS = 2;         // pedidos ao mesmo tempo (não atropela o tradutor)
+        const TRAD_FOLGA_MS = 220;     // respiro entre um pedido e o próximo
+        let tradFila = [], tradAtivas = 0, tradFalhasSeguidas = 0;
+
+        function grupoDoBloco(i) {
+            return (i >= 0 && cueToSentence[i] != null) ? sentenceGroups[cueToSentence[i]] : null;
+        }
+        async function traduzirBloco(texto, idx) {
+            const frase = (texto || '').trim();
+            if(!frase) return '';
+            if(tradProntas.has(frase)) return tradProntas.get(frase);
+            let r = null;
+            // 'google' = direto no Google Tradutor: é o caminho rápido e sem chave
+            try { r = await translateInContext(frase, grupoDoBloco(idx), idx, 'google'); }
+            catch(e) { r = null; }
+            const t = (r && r.text && !r.naoTraduzido) ? r.text : '';
+            if(t) { tradProntas.set(frase, t); tradFalhasSeguidas = 0; }
+            else tradFalhasSeguidas++;
+            if(tradProntas.size > 400) {    // vídeo longo: solta as mais antigas
+                const k = tradProntas.keys();
+                for(let i = 0; i < 100; i++) tradProntas.delete(k.next().value);
+            }
+            return t;
+        }
+        // Põe na fila os blocos daqui para a frente que ainda não têm tradução
+        function prepararTraducoes(idx) {
+            if(!TRAD_BORRADA || idx < 0 || !subtitles.length) return;
+            if(tradFalhasSeguidas >= 4) return;      // tradutor fora do ar: para de insistir
+            const fim = Math.min(subtitles.length - 1, idx + TRAD_ADIANTE);
+            for(let i = idx; i <= fim; i++) {
+                const txt = (subtitles[i].text || '').trim();
+                if(!txt || tradProntas.has(txt) || tradFila.some(x => x.txt === txt)) continue;
+                tradFila.push({ txt, idx: i });
+            }
+            tocarFilaDeTraducao();
+        }
+        function tocarFilaDeTraducao() {
+            while(tradAtivas < TRAD_JUNTAS && tradFila.length) {
+                const item = tradFila.shift();
+                tradAtivas++;
+                traduzirBloco(item.txt, item.idx).then(t => {
+                    // Chegou a tradução do bloco que está na tela: mostra (borrada)
+                    if(t && TRAD_BORRADA && item.txt === lastRenderedText && !tradRevelada) {
+                        mostrarTraducaoBorrada(item.txt);
+                    }
+                }).catch(() => {}).then(() => {
+                    tradAtivas--;
+                    setTimeout(tocarFilaDeTraducao, TRAD_FOLGA_MS);
+                });
+            }
+        }
+
         function esconderTraducaoRapida() {
             traducaoRapidaToken++;              // cancela uma tradução em andamento
             fraseRapidaNaTela = '';
+            tradRevelada = false;
             if(!subTrad) return;
             subTrad.textContent = '';
             subTrad.style.display = 'none';
+            subTrad.classList.remove('borrada');
+            atualizarBotoesDaLegenda();
         }
+        // Tira o borrão da tradução que está na tela
+        function revelarTraducao() {
+            tradRevelada = true;
+            if(subTrad) subTrad.classList.remove('borrada');
+            atualizarBotoesDaLegenda();
+        }
+        function alternarTraducao() {
+            if(!subTrad) return;
+            if(tradRevelada) {
+                tradRevelada = false;
+                if(subTrad.textContent) subTrad.classList.add('borrada');
+                atualizarBotoesDaLegenda();
+            } else {
+                // Revela sem tocar no vídeo: ele segue tocando
+                mostrarTraducaoRapida(lastRenderedText);
+            }
+        }
+        // O 👁️ só faz sentido com a tradução borrada na tela
+        function atualizarBotoesDaLegenda() {
+            const b = subContent ? subContent.querySelector('.revelar-btn') : null;
+            if(!b) return;
+            const temTexto = !!(subTrad && subTrad.textContent);
+            b.style.display = (TRAD_BORRADA && temTexto) ? 'inline-flex' : 'none';
+            b.textContent = tradRevelada ? '🙈' : '👁️';
+            b.title = tradRevelada ? 'Esconder a tradução' : 'Revelar a tradução';
+        }
+
+        // Mostra a tradução À MOSTRA (pausa, gesto de repetir, botão 👁️)
         async function mostrarTraducaoRapida(texto) {
             if(!subTrad) return;
             const frase = (texto || lastRenderedText || '').trim();
             if(!frase) { esconderTraducaoRapida(); return; }
+            revelarTraducao();                 // serve também quando já está na tela, borrada
             // Já está traduzindo (ou mostrando) esta mesma frase: não pede de novo.
             // Ao repetir a legenda, o gesto e o pulso de 100ms chamavam os dois.
-            if(frase === fraseRapidaNaTela) return;
+            if(frase === fraseRapidaNaTela && subTrad.textContent) return;
             fraseRapidaNaTela = frase;
             const meu = ++traducaoRapidaToken;
             subTrad.style.display = 'block';
-            subTrad.textContent = '…';
-            let r = null;
-            // 'google' = direto no Google Tradutor: é o caminho rápido
-            try { r = await translateInContext(frase, getSentenceFor(frase), currentCueIndex, 'google'); }
-            catch(e) { r = null; }
+            const pronta = tradProntas.get(frase);
+            subTrad.textContent = pronta || '…';
+            atualizarBotoesDaLegenda();
+            if(pronta) return;                  // já estava pronta: nada de esperar
+            const t = await traduzirBloco(frase, currentCueIndex);
             if(meu !== traducaoRapidaToken) return;   // trocou de legenda ou voltou a tocar
-            if(r && r.text && !r.naoTraduzido) subTrad.textContent = r.text;
+            if(t) subTrad.textContent = t;
             else { subTrad.textContent = ''; subTrad.style.display = 'none'; }
+            atualizarBotoesDaLegenda();
+        }
+
+        // Mostra a tradução BORRADA (vídeo tocando, com a opção ligada)
+        async function mostrarTraducaoBorrada(texto) {
+            if(!subTrad || !TRAD_BORRADA) return;
+            const frase = (texto || lastRenderedText || '').trim();
+            if(!frase) { esconderTraducaoRapida(); return; }
+            const meu = ++traducaoRapidaToken;
+            fraseRapidaNaTela = frase;
+            tradRevelada = false;
+            const pronta = tradProntas.get(frase);
+            if(pronta) {
+                subTrad.textContent = pronta;
+                subTrad.style.display = 'block';
+                subTrad.classList.add('borrada');
+                atualizarBotoesDaLegenda();
+                return;
+            }
+            // Ainda não chegou: melhor nada na tela do que um borrão de "…"
+            subTrad.textContent = ''; subTrad.style.display = 'none';
+            atualizarBotoesDaLegenda();
+            const t = await traduzirBloco(frase, currentCueIndex);
+            if(meu !== traducaoRapidaToken || !t) return;
+            subTrad.textContent = t;
+            subTrad.style.display = 'block';
+            if(!tradRevelada) subTrad.classList.add('borrada');
+            atualizarBotoesDaLegenda();
         }
 
         function renderLogic(time) {
@@ -3748,10 +3918,20 @@
             btn.addEventListener('touchstart', (e) => { e.preventDefault(); fire(e); });
             btn.onclick = fire;
 
+            // 👁️ no canto da caixa: revela a tradução borrada SEM parar o vídeo
+            const olho = document.createElement('span');
+            olho.className = 'revelar-btn'; olho.textContent = '👁️';
+            olho.style.display = 'none';      // só aparece quando há tradução na tela
+            const revelar = (e) => { e.stopPropagation(); e.preventDefault(); alternarTraducao(); };
+            olho.addEventListener('touchstart', revelar);
+            olho.onclick = revelar;
+
             if(!layoutLegenda) {
                 // ainda sem medida da tela: fluxo simples, como antes
                 palavras.forEach((w, i) => subContent.appendChild(criar(w, i)));
                 subContent.appendChild(btn);
+                subContent.appendChild(olho);
+                atualizarTraducaoDaLegenda(text);
                 return;
             }
             // Cada linha é decidida aqui. Uma linha só é justificada se, para
@@ -3779,10 +3959,34 @@
                 ln.idx.forEach(i => div.appendChild(criar(palavras[i], i)));
                 subContent.appendChild(div);
             });
-            subContent.appendChild(btn);   // selo no canto da caixa, fora das linhas
-            // Trocou de legenda com o vídeo pausado: a tradução rápida acompanha
-            if(isPlayingNow()) esconderTraducaoRapida();
-            else mostrarTraducaoRapida(text);
+            // Os dois selos ficam FORA do fluxo do texto: a largura das linhas é
+            // toda do inglês (foi o que resolveu a legenda de uma linha só).
+            subContent.appendChild(btn);
+            subContent.appendChild(olho);
+            // O 🌐 fica no fim do texto: na altura da ÚLTIMA linha, na borda direita.
+            // A última linha nunca é justificada, então sobra espaço e ele não cobre
+            // palavra nenhuma.
+            const ultima = subContent.querySelector('.linha:last-of-type');
+            if(ultima) {
+                // O piso de 19px é para a legenda de UMA linha: sem ele o globo
+                // subiria para cima do 👁️, que fica no canto de cima.
+                const alturaDoFim = ultima.offsetTop + (ultima.offsetHeight / 2) - 12;
+                btn.style.top = Math.max(19, alturaDoFim) + 'px';
+                btn.style.bottom = 'auto';
+            }
+            atualizarTraducaoDaLegenda(text);
+        }
+
+        // Trocou de legenda: a tradução acompanha — borrada se o vídeo está tocando
+        // (com a opção ligada) ou à mostra se está pausado, como sempre foi.
+        function atualizarTraducaoDaLegenda(text) {
+            if(isPlayingNow()) {
+                if(TRAD_BORRADA) mostrarTraducaoBorrada(text);
+                else esconderTraducaoRapida();
+            } else {
+                mostrarTraducaoRapida(text);
+            }
+            prepararTraducoes(currentCueIndex);   // deixa as próximas prontas
         }
 
         // ===================== CONTROLES & GESTOS =====================
@@ -4018,6 +4222,9 @@
                     // Com REPETIR_PAUSA ligado o vídeo para na legenda repetida e a
                     // tradução em amarelo aparece embaixo dela, para ler com calma.
                     if(REPETIR_PAUSA) { pauseAny(); mostrarTraducaoRapida(); return true; }
+                    // Sem pausar, repetir também mostra a tradução: ouve de novo
+                    // já sabendo o que a frase quer dizer.
+                    mostrarTraducaoRapida();
                     // Começando sobre a legenda, encostar numa palavra já pausa (é o
                     // início da seleção): com a opção desligada o vídeo não pode ficar
                     // parado por causa do gesto.
@@ -4072,6 +4279,17 @@
             subContainer.style.left = (initialLeft + (e.touches[0].clientX - dragStartX)) + 'px';
         }, {passive:false});
         dragHandle.addEventListener('touchend', () => isDragging = false);
+
+        // Tocar na própria tradução borrada também revela (sem parar o vídeo)
+        if(subTrad) {
+            const revelarNoToque = (e) => {
+                if(!subTrad.classList.contains('borrada')) return;
+                e.stopPropagation(); e.preventDefault();
+                mostrarTraducaoRapida(lastRenderedText);
+            };
+            subTrad.addEventListener('touchstart', revelarNoToque, { passive: false });
+            subTrad.addEventListener('click', revelarNoToque);
+        }
 
         // Seleção de palavras
         // Onde o dedo encostou: deslizar para CIMA sobre a legenda é o gesto de
@@ -4847,6 +5065,7 @@
             setModoBusca('video');
             applyGestoRepetirLabel();
             applyRepetirPausaLabel();
+            applyTradBorradaLabel();
             applyTradFontSize();
             applySupadataLabel();
             aplicarVocabOculto();

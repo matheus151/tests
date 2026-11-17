@@ -95,7 +95,11 @@
         video { width: 100%; height: 100%; object-fit: contain; display: block; }
 
         #yt-container { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 1; }
-        iframe { width: 100%; height: 100%; border: none; pointer-events: none; }
+        /* Só a moldura do YouTube é que não recebe toque (os gestos de legenda
+           precisam chegar na página). Vale apenas dentro do player: a moldura dos
+           cards é um app inteiro e precisa receber todos os toques. */
+        #yt-container iframe, #player-zone iframe { pointer-events: none; }
+        iframe { width: 100%; height: 100%; border: none; }
 
         #gesture-layer { position: absolute; inset: 0; z-index: 10; }
 
@@ -3245,7 +3249,8 @@
             }, 100);
         }
         function toggleYtControls() {
-            const f = document.querySelector('iframe');
+            // Só a moldura do YouTube: agora existe também a dos cards na outra aba
+            const f = document.querySelector('#yt-container iframe');
             if(!f) return;
             if(ytControlsLocked) {
                 gestureLayer.style.display = 'none'; f.style.pointerEvents = 'auto';

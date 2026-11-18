@@ -363,11 +363,17 @@
         body.float-btn-on #float-tools { display: flex; }
         #float-tools.dragging { opacity: 0.75; cursor: grabbing; }
         #float-tools button {
-            width: 52px; height: 52px; border-radius: 50%;
+            width: 40px; height: 40px; border-radius: 50%;
             background: var(--primary); color: #fff; border: none;
-            font-size: 1.4rem; line-height: 1; padding: 0;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+            font-size: 1.05rem; line-height: 1; padding: 0;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.4);
             display: flex; align-items: center; justify-content: center;
+        }
+        /* O olho é desenhado (SVG), não emoji: fica nítido em qualquer tamanho */
+        #float-revelar svg {
+            width: 21px; height: 21px; display: block;
+            fill: none; stroke: currentColor; stroke-width: 1.9;
+            stroke-linecap: round; stroke-linejoin: round;
         }
         #float-tools button:active { filter: brightness(0.85); }
         /* cores distintas para não confundir um com o outro na hora do toque */
@@ -558,22 +564,11 @@
             padding: 1px 3px; font-style: normal; box-decoration-break: clone;
             -webkit-box-decoration-break: clone;
         }
-        /* Equivalentes: um por linha, com o significado curto ao lado */
-        #syn-content { display: flex; flex-direction: column; gap: 2px; }
-        .syn-linha {
-            display: flex; align-items: baseline; gap: 8px;
-            padding: 5px 0; border-bottom: 1px solid var(--card-border);
-        }
-        .syn-linha:last-child { border-bottom: none; }
+        #syn-content { display: flex; flex-wrap: wrap; gap: 6px; }
         #syn-content .syn {
-            flex: 0 0 auto;
             font-size: 0.8rem; font-weight: 600; color: #1a5276;
             background: #e3f0fa; border: 1px solid #b8d8ee;
             padding: 3px 9px; border-radius: 20px;
-        }
-        .syn-pt {
-            flex: 1 1 auto; min-width: 0;
-            font-size: 0.78rem; color: var(--card-dim); line-height: 1.35;
         }
         #literal-line { display: none; font-size: 0.76rem; color: var(--card-dim); margin: -6px 0 12px 0; }
 
@@ -628,7 +623,7 @@
             #yt-container { left: 0; right: 0; }
         }
         /* ===================== TRADUÇÃO EMBAIXO DA LEGENDA ===================== */
-        /* Pronta antes da hora, mas borrada: o 👁️ (ou pausar, ou repetir) revela.
+        /* Pronta antes da hora, mas borrada: o olho (ou pausar, ou repetir) revela.
            O borrão é só visual — o texto já está aqui, então revelar é instantâneo. */
         #subtitle-trad.borrada {
             filter: blur(4.5px);
@@ -1155,12 +1150,12 @@
 
             <div class="section-title">Tradução na legenda</div>
             <div class="card">
-                <button id="btn-trad-borrada" class="btn btn-soft btn-wide" onclick="toggleTradBorrada()">👁️ Tradução pronta e borrada</button>
+                <button id="btn-trad-borrada" class="btn btn-soft btn-wide" onclick="toggleTradBorrada()">🫥 Tradução pronta e borrada</button>
                 <div class="hint">
                     <b>Ligada:</b> a tradução de cada legenda é preparada com antecedência e
                     fica embaixo da legenda <b>borrada</b>. Toque <b>na própria tradução</b>
-                    (ou no <b>👁️</b> dos botões flutuantes) para revelar na hora,
-                    <b>sem parar o vídeo</b>; o <b>🙈</b> borra de novo. Ao trocar de legenda
+                    (ou no botão do <b>olho</b>, nos botões flutuantes) para revelar na hora,
+                    <b>sem parar o vídeo</b>; o olho riscado borra de novo. Ao trocar de legenda
                     ela volta a ficar borrada.<br>
                     <b>Desligada:</b> nada aparece enquanto o vídeo toca — a tradução só surge
                     ao pausar, como antes.<br>
@@ -1176,7 +1171,7 @@
                 <button id="btn-float-toggle" class="btn btn-soft btn-wide" onclick="toggleFloatBtn()">🌐 Botões flutuantes</button>
                 <div class="hint">
                     Quando ligado, aparecem três botões flutuando sobre a tela:
-                    <b>👁️</b> revela (ou borra de novo) a tradução sem parar o vídeo,
+                    o <b>olho</b> revela (ou borra de novo) a tradução sem parar o vídeo,
                     <b>🌐</b> abre a tradução completa da legenda atual e
                     <b>▶️/⏸️</b> pausa ou continua o vídeo.
                     <b>Arraste</b> o bloco para deixá-lo onde preferir — os três andam juntos
@@ -1274,7 +1269,7 @@
 
     <!-- Botões flutuantes: arraste o bloco para posicionar, toque em cada um para agir -->
     <div id="float-tools">
-        <button id="float-revelar" title="Revelar a tradução (sem parar o vídeo)">👁️</button>
+        <button id="float-revelar" title="Revelar a tradução (sem parar o vídeo)" aria-label="Revelar a tradução"></button>
         <button id="float-translate" title="Traduzir a legenda atual">🌐</button>
         <button id="float-playpause" title="Pausar / continuar">▶️</button>
     </div>
@@ -1682,7 +1677,7 @@
             if(b) b.textContent = FLOAT_BTN
                 ? '🌐 Botões flutuantes: LIGADOS'
                 : '🌐 Botões flutuantes: DESLIGADOS';
-            if(FLOAT_BTN) { restoreFloatPos(); updatePlayPauseIcon(); }
+            if(FLOAT_BTN) { restoreFloatPos(); updatePlayPauseIcon(); atualizarBotoesDaLegenda(); }
         }
 
         // Ícone do botão de pausa/reproduzir conforme o estado real do player
@@ -3837,12 +3832,18 @@
                 mostrarTraducaoRapida(lastRenderedText);
             }
         }
-        // O 👁️ dos botões flutuantes conta se a tradução está borrada ou à mostra
+        // Olho desenhado: aberto quando a tradução está borrada (toque para ver) e
+        // riscado quando ela está à mostra (toque para borrar de novo).
+        const OLHO_ABERTO = '<svg viewBox="0 0 24 24"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>';
+        const OLHO_RISCADO = '<svg viewBox="0 0 24 24"><path d="M4 4l16 16"/><path d="M9.6 5.8A10.6 10.6 0 0 1 12 5.5c6.2 0 10 6.5 10 6.5a18 18 0 0 1-3.6 4.2"/><path d="M6 7.6A17.7 17.7 0 0 0 2 12s3.8 6.5 10 6.5c1.4 0 2.6-.3 3.8-.8"/><path d="M9.8 9.9a3 3 0 0 0 4.3 4.2"/></svg>';
         function atualizarBotoesDaLegenda() {
             const b = document.getElementById('float-revelar');
             if(!b) return;
-            const icone = tradRevelada ? '🙈' : '👁️';
-            if(b.textContent !== icone) b.textContent = icone;
+            const icone = tradRevelada ? OLHO_RISCADO : OLHO_ABERTO;
+            if(b.dataset.icone !== (tradRevelada ? 'riscado' : 'aberto')) {
+                b.innerHTML = icone;
+                b.dataset.icone = tradRevelada ? 'riscado' : 'aberto';
+            }
             b.title = tradRevelada
                 ? 'Esconder a tradução'
                 : 'Revelar a tradução (sem parar o vídeo)';
@@ -4679,17 +4680,6 @@
             return reserva;
         }
 
-        // Significado curto de cada equivalente, ao lado dele na lista.
-        // Vai pelo Google (sem chave) e fica no cache de sempre.
-        async function significadoDoSinonimo(palavra, onde) {
-            let t = '';
-            try {
-                const r = await translateEngine(palavra, false, null, 'google');
-                if(r && r.text && !r.naoTraduzido && !mesmoTexto(r.text, palavra)) t = r.text;
-            } catch(e) {}
-            if(onde) onde.textContent = t || '—';
-        }
-
         // Sinônimos em inglês pelo Google (usado quando não há chave de IA)
         async function googleSynonyms(text) {
             const clean = (text || '').trim();
@@ -5027,24 +5017,12 @@
                         dictBlock.style.display = 'block';
                     }
                 }
-                // Equivalentes em inglês: da IA quando disponível, senão do Google.
-                // Um embaixo do outro, cada um com o significado curto em português.
+                // Equivalentes em inglês: da IA quando disponível, senão do Google
                 let syns = main.synonyms;
                 if(!syns || !syns.length) syns = await googleSynonyms(src);
                 if(syns && syns.length) {
-                    const cont = document.getElementById('syn-content');
-                    cont.innerHTML = '';
-                    syns.slice(0, 6).forEach(w => {
-                        const linha = document.createElement('div');
-                        linha.className = 'syn-linha';
-                        const en = document.createElement('span');
-                        en.className = 'syn'; en.textContent = w;
-                        const pt = document.createElement('span');
-                        pt.className = 'syn-pt'; pt.textContent = '…';
-                        linha.appendChild(en); linha.appendChild(pt);
-                        cont.appendChild(linha);
-                        significadoDoSinonimo(w, pt);
-                    });
+                    document.getElementById('syn-content').innerHTML = syns
+                        .map(w => `<span class="syn">${escapeHtml(w)}</span>`).join('');
                     synBlock.style.display = 'block';
                 }
             }
